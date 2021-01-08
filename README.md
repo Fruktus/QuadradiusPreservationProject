@@ -6,8 +6,8 @@ The provided software does not represent the quality of the original and the ori
 
 ## Roadmap
 - Lobby
-  - **Client joining/leaving**
-  - -> Client communication
+  - Client joining/leaving (Done)
+  - Client communication (In Progroess)
   - Database for scores
 - Game
   - Analyze how match works

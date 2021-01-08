@@ -7,7 +7,7 @@ The provided software does not represent the quality of the original and the ori
 ## Roadmap
 - Lobby
   - Client joining/leaving (Done)
-  - Client communication (In Progroess)
+  - Client communication (In Progress)
   - Database for scores
 - Game
   - Analyze how match works

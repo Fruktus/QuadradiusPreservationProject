@@ -1,10 +1,10 @@
 import socket
+from multiprocessing import Process
 from threading import Thread
-# TODO
-# create class for handling client sockets, something for sending, receiving etc
-# create loop1 for server socket that will accept incoming connections (to lobby)
-# create separate loop2 (in another thread or proces, idc) that will handle the matches themselves
-# use locks to synchronize access to shared variables
+
+from config import Config
+from lobby import LobbyClient
+from QRServer import lg
 
 # TODO
 # what server needs to store:
@@ -13,7 +13,7 @@ from threading import Thread
 # ranking for the month(s), retrieved by client based on date
 
 
-def conn_listener(conn_host, conn_port, client_func):
+def lobby_listener(conn_host, conn_port):
     gm_s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     gm_s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     gm_s.bind((conn_host, conn_port))
@@ -21,16 +21,17 @@ def conn_listener(conn_host, conn_port, client_func):
 
     while True:
         (clientsocket, address) = gm_s.accept()
-        ct = Thread(target=client_func, args=(clientsocket,))
+        ct = Thread(target=LobbyClient, args=(clientsocket, ))
         ct.run()
 
 
 if __name__ == '__main__':
-    lobby_thread = Thread(target=conn_listener, args=('localhost', 3000, lobby_handler,))
-    lobby_thread.start()
+    lg.info('Server starting')
+    lobby_process = Process(target=lobby_listener, args=(Config.HOST, Config.LOBBY_PORT,))
+    lobby_process.start()
 
-    game_thread = Thread(target=conn_listener, args=('localhost', 3001, game_handler))
-    game_thread.start()
+    # game_process = Process(target=game_listener, args=(Config.HOST, Config.GAME_PORT, game_handler))
+    # game_process.start()
 
-    lobby_thread.join()
-    game_thread.join()
+    lobby_process.join()
+    # game_process.join()

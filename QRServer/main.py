@@ -14,6 +14,7 @@ from QRServer import lg
 
 if __name__ == '__main__':
     lg.info('Server starting')
+    # TODO handle sigint
     lobby_process = Process(target=lobby_listener, args=(Config.HOST, Config.LOBBY_PORT,))
     lobby_process.start()
 

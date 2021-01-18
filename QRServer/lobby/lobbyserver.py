@@ -14,17 +14,41 @@ class LobbyServer:
                 if not self.clients[idx]:
                     self.clients[idx] = client
                     # possibly increment total_clients counter
-                    break
+                    self.broadcast_lobby_state(idx)
+                    return idx
+            return -1
         # if no free space either kick someone or deal with it differently
 
-    def remove_client(self):
+    def remove_client(self, idx):
         pass
 
     def get_clients_string(self):
-        return b'<L>' + (''.join([x if x else LobbyClient.get_empty_repr() for x in self.clients])).encode('utf8') + b'\x00'
+        """returns byte string describing current lobby state"""
+        return b'<L>' + (''.join([x.get_repr() if x else LobbyClient.get_empty_repr() for x in self.clients])).encode('utf8') + b'\x00'
+
+    def broadcast_lobby_state(self, excluded_idx):
+        # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
+        for i in range(13):
+            if i == excluded_idx:
+                continue
+            if self.clients[i]:
+                # self.clients[i].get_queue().put(self.get_clients_string())
+                self.clients[i].send_data(self.get_clients_string())
+        pass
+
+    def challenge_user(self, challenger_idx, challenged_idx):
+        if self.clients[challenger_idx] and self.clients[challenged_idx]:
+            self.clients[challenger_idx].send_data(b'<S>~' + str(challenger_idx).encode('utf8')
+                                                   + b'~' + str(challenged_idx).encode('utf8')
+                                                   + b'~<SHALLWEPLAYAGAME?>\x00')
 
     def broadcast_chat(self, sender_id):
         pass
 
     def invite_to_match(self, sender_id, receiver_id):
         pass
+
+# compare with screenshot
+# <S>~<SERVER>~<LAST_LOGGED>~turing guest~33~
+# <S>~<SERVER>~<LAST_PLAYED>~imt beat sifl#7-0#13:38~imt beat sifl#12-9#07:19~sifl beat imt#3-0#11:46~imt beat dan ddm#15-0#14:49~sifl beat imt#4-1#10:04~dan ddm beat sifl#13-0#10:41~sifl beat imt#12-6#13:54~sifl beat imt#19-0#09:26~slug800 beat imt#14-3#11:52~imt beat slug800#19-2#12:06~sifl beat imt#13-6#13:08~sifl beat imt#9-3#13:21~sifl beat imt#5-1#09:18~sifl beat imt#19-14#09:22~sifl beat hoyvinmayvin#20-5#13:28
+# <S>~<SERVER>~<RANKING(thisMonth)>~sifl~1~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0

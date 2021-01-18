@@ -15,5 +15,5 @@ def lobby_listener(conn_host, conn_port):
 
     while True:
         (clientsocket, address) = gm_s.accept()
-        ct = Thread(target=LobbyClient, args=(clientsocket, ls, ))
-        ct.run()
+        ct = Thread(target=LobbyClient, args=(clientsocket, ls, ), daemon=True)
+        ct.start()

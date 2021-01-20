@@ -20,7 +20,14 @@ class LobbyServer:
         # if no free space either kick someone or deal with it differently
 
     def remove_client(self, idx):
-        pass
+        self.clients[idx] = None
+        self.broadcast_lobby_state(idx)
+
+    def username_exists(self, username):
+        for i in self.clients:
+            if i and i.username == username:
+                return True
+        return False
 
     def get_clients_string(self):
         """returns byte string describing current lobby state"""
@@ -42,13 +49,19 @@ class LobbyServer:
                                                    + b'~' + str(challenged_idx).encode('utf8')
                                                    + b'~<SHALLWEPLAYAGAME?>\x00')
 
-    def broadcast_chat(self, sender_id):
-        pass
+    def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
+        if self.clients[challenger_idx] and self.clients[challenged_idx]:
+            self.clients[challenger_idx].send_data(b'<S>~' + str(challenger_idx).encode('utf8')
+                                                   + b'~' + str(challenged_idx).encode('utf8')
+                                                   + b'~<AUTHENTICATION>~' + str(challenger_auth).encode('utf8')
+                                                   + b'\x00')
 
-    def invite_to_match(self, sender_id, receiver_id):
+    def broadcast_chat(self, sender_id):
         pass
 
 # compare with screenshot
 # <S>~<SERVER>~<LAST_LOGGED>~turing guest~33~
 # <S>~<SERVER>~<LAST_PLAYED>~imt beat sifl#7-0#13:38~imt beat sifl#12-9#07:19~sifl beat imt#3-0#11:46~imt beat dan ddm#15-0#14:49~sifl beat imt#4-1#10:04~dan ddm beat sifl#13-0#10:41~sifl beat imt#12-6#13:54~sifl beat imt#19-0#09:26~slug800 beat imt#14-3#11:52~imt beat slug800#19-2#12:06~sifl beat imt#13-6#13:08~sifl beat imt#9-3#13:21~sifl beat imt#5-1#09:18~sifl beat imt#19-14#09:22~sifl beat hoyvinmayvin#20-5#13:28
 # <S>~<SERVER>~<RANKING(thisMonth)>~sifl~1~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0
+# <SERVER>~<RANKING>~1977~3  # idk what this is
+# <S>~<SERVER>~<RANKING>~<PRE>

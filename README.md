@@ -5,13 +5,6 @@ All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal
 The provided software does not represent the quality of the original and the original authors should in no way be held accountable for any liabilites.
 
 ## Progress
-- Lobby
-  - Client joining/leaving (Done)
-  - Client communication (In Progress)
-  - Database for scores
-- Game
-  - Analyze how match works
-
 Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
 ## Installation and Running

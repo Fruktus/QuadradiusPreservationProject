@@ -6,10 +6,10 @@ from QRServer.lobby.lobbyclient import LobbyClient
 class LobbyServer:
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked
-        self.client_lock = Lock()  # TODO check if this will actually work
+        self._lock = Lock()  # TODO check if this will actually work
 
     def add_client(self, client: LobbyClient):
-        with self.client_lock:
+        with self._lock:
             for idx in range(13):
                 if not self.clients[idx]:
                     self.clients[idx] = client

@@ -73,7 +73,7 @@ class LobbyClient:
 
     def _case_policy(self, values):
         lg.debug('policy file requested')
-        self.cs.send(b'<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\x00')
+        self.cs.send(b'<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\x00')
 
     def _case_QRL(self, values):
         lg.debug('SWF Version: ' + str(values[1]))

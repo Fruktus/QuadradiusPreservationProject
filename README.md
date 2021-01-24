@@ -8,6 +8,7 @@ The provided software does not represent the quality of the original and the ori
 Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
 ## Installation and Running
+Project should work with Python3.7 or higher.
 Configuration is still WIP, if you need to change anything, modify ```confiquration.py``` file for now.
 
 Clone or download the repository from GitHub and run

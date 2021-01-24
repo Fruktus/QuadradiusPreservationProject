@@ -8,5 +8,8 @@ The provided software does not represent the quality of the original and the ori
 Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
 ## Installation and Running
-ToDo
+Configuration is still WIP, if you need to change anything, modify ```confiquration.py``` file for now.
 
+Clone or download the repository from GitHub and run
+```python3 -m QRServer```
+By default it uses ports ```3000``` and ```3001``` (like in original) and listens on local IP. To make it available to others, change the host in configuration to desired IP, such as ```0.0.0.0```.

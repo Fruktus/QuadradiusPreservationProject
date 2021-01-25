@@ -5,6 +5,7 @@ All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal
 The provided software does not represent the quality of the original and the original authors should in no way be held accountable for any liabilites.
 
 ## Progress
+Current version can be considered early alpha. It is playable, although buggy and prone to crashes.
 Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
 ## Installation and Running

@@ -45,6 +45,7 @@ class GameClient:
                  b'<QR_G>': self._case_QRG,
                  b'<L>': self._case_L,
                  b'<S>': self._case_S,
+                 b'<SERVER>': self._case_SERVER,
                  b'<DISCONNECTED>': self._case_DISCONNECTED}  # TODO add default handler if no key found,
 
         while self.cs:
@@ -70,6 +71,11 @@ class GameClient:
     def _case_S(self, values):
         if self.out_socket:
             self.out_socket.send(b'~'.join(values) + b'\x00')
+
+    def _case_SERVER(self, values):
+        pass
+        # if values[1] == b'<PING>':
+        #     self.cs.send(b'<SERVER>~<ALIVE>\x00')
 
     def _case_DISCONNECTED(self, values):
         lg.debug('Connection closed by client')

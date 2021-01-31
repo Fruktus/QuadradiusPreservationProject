@@ -30,5 +30,9 @@ class GameServer:
     def remove_client(self, client):
         with self._lock:
             if frozenset({client.own_username, client.opponent_username}) in self.clients:
-                self.clients[frozenset({client.own_username, client.opponent_username})].remove(client)
+                try:
+                    self.clients[frozenset({client.own_username, client.opponent_username})].remove(client)
+                    # FIXME if last client, delete key
+                except Exception:
+                    pass
                 # TODO possibly should tell the other player that opponent left

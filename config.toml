@@ -1,0 +1,3 @@
+address = 'localhost'
+port.lobby = 3000
+port.game = 3001

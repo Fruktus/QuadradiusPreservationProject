@@ -54,6 +54,6 @@ def connector():
     try:
         return _connector.value
     except AttributeError:
-        c = DBConnector(config.data_dir + '/database.sqlite3')
+        c = DBConnector(config.data_dir.get() + '/database.sqlite3')
         _connector.value = c
         return c

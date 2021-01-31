@@ -1,38 +1,39 @@
 from threading import Lock
 
+from QRServer.common.classes import MatchId, Match
+from QRServer.game.gameclient import GameClientHandler
+
 
 class GameServer:
+    matches: dict[MatchId, Match]
+    _lock: Lock
+
     def __init__(self):
         self._lock = Lock()
+        self.matches = {}
 
-        self.clients = {}
-
-    def register_client(self, client):
+    def register_client(self, client_handler: GameClientHandler):
+        match_id = client_handler.match_id()
         with self._lock:
-            if not frozenset({client.own_username, client.opponent_username}) in self.clients:
-                self.clients[frozenset({client.own_username, client.opponent_username})] = [client]
-            else:
-                present_client = self.clients[frozenset({client.own_username, client.opponent_username})][0]
-                present_client.out_socket = client.cs
-                client.out_socket = present_client.cs
-                self.clients[frozenset({client.own_username, client.opponent_username})].append(client)
+            if match_id not in self.matches:
+                self.matches[match_id] = Match(match_id)
 
-    def get_client_socket(self, opponent_username):  # should I check all other parameters as well?
-        with self._lock:
-            if self.clients.get(opponent_username):
-                return self.clients.get(opponent_username).get_socket()
-            return None
+            self.matches[match_id].add_party(client_handler)
 
-    def get_player_count(self, user1, user2):
-        if frozenset({user1, user2}) in self.clients:
-            return len(self.clients[frozenset({user1, user2})])
+    def get_player_count(self, match_id: MatchId):
+        if match_id in self.matches:
+            return len(self.matches[match_id].parties)
+        return 0
 
     def remove_client(self, client):
+        match_id = client.match_id()
         with self._lock:
-            if frozenset({client.own_username, client.opponent_username}) in self.clients:
+            if match_id in self.matches:
+                match = self.matches[match_id]
                 try:
-                    self.clients[frozenset({client.own_username, client.opponent_username})].remove(client)
-                    # FIXME if last client, delete key
+                    match.remove_party(client)
+                    if match.empty():
+                        del self.matches[match_id]
                 except Exception:
                     pass
                 # TODO possibly should tell the other player that opponent left

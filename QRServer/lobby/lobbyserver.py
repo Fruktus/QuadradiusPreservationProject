@@ -1,14 +1,17 @@
 from threading import Lock
+from typing import Optional
 
-from QRServer.lobby.lobbyclient import LobbyClient
+from QRServer.lobby.lobbyclient import LobbyClientHandler
 
 
 class LobbyServer:
+    clients: list[Optional[LobbyClientHandler]]
+
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked
         self._lock = Lock()  # TODO check if this will actually work
 
-    def add_client(self, client: LobbyClient):
+    def add_client(self, client: LobbyClientHandler):
         with self._lock:
             for idx in range(13):
                 if not self.clients[idx]:
@@ -31,7 +34,7 @@ class LobbyServer:
 
     def get_clients_string(self):
         """returns byte string describing current lobby state"""
-        return b'<L>' + (''.join([x.get_repr() if x else LobbyClient.get_empty_repr() for x in self.clients])).encode('utf8') + b'\x00'
+        return b'<L>' + (''.join([x.get_repr() if x else LobbyClientHandler.get_empty_repr() for x in self.clients])).encode('utf8') + b'\x00'
 
     def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
@@ -40,21 +43,23 @@ class LobbyServer:
                 continue
             if self.clients[i]:
                 # self.clients[i].get_queue().put(self.get_clients_string())
-                self.clients[i].send_data(self.get_clients_string())
+                self.clients[i].send(self.get_clients_string())
         pass
 
     def challenge_user(self, challenger_idx, challenged_idx):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            self.clients[challenger_idx].send_data(b'<S>~' + str(challenger_idx).encode('utf8')
-                                                   + b'~' + str(challenged_idx).encode('utf8')
-                                                   + b'~<SHALLWEPLAYAGAME?>\x00')
+            self.clients[challenger_idx].send(
+                b'<S>~' + str(challenger_idx).encode('utf8') +
+                b'~' + str(challenged_idx).encode('utf8') +
+                b'~<SHALLWEPLAYAGAME?>\x00')
 
     def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            self.clients[challenger_idx].send_data(b'<S>~' + str(challenger_idx).encode('utf8')
-                                                   + b'~' + str(challenged_idx).encode('utf8')
-                                                   + b'~<AUTHENTICATION>~' + str(challenger_auth).encode('utf8')
-                                                   + b'\x00')
+            self.clients[challenger_idx].send(
+                b'<S>~' + str(challenger_idx).encode('utf8') +
+                b'~' + str(challenged_idx).encode('utf8') +
+                b'~<AUTHENTICATION>~' + str(challenger_auth).encode('utf8') +
+                b'\x00')
 
     def broadcast_chat(self, sender_id):
         pass

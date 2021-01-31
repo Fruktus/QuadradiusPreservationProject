@@ -1,3 +1,5 @@
-import logging as lg
+import logging
 
-lg.basicConfig(level=lg.DEBUG, format='{asctime} {name:<6}:{threadName:<10} {levelname:7s} {message}', style='{')
+logging.basicConfig(
+    format='{asctime} {threadName:<10} [{name:<24}] {levelname:7s} {message}',
+    style='{')

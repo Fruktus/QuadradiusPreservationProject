@@ -1,16 +1,16 @@
-from queue import Queue
-from threading import Thread
+import logging
 from time import time
 
-from QRServer.lobby import lg
+from QRServer.common.clienthandler import ClientHandler
 from QRServer.dbconnector import DBConnector
 
+log = logging.getLogger('lobby_client_handler')
 
-class LobbyClient:
+
+class LobbyClientHandler(ClientHandler):
     def __init__(self, client_socket, lobby_server):
-        self.cs = client_socket
+        super().__init__(client_socket)
         self.lobby_server = lobby_server
-        self.in_queue = Queue()  # owner only reads, others only write
 
         self.username = ''
         self.communique = ' '
@@ -20,116 +20,81 @@ class LobbyClient:
         self.idx = None
         self.joined_at = None
 
-        self._reader_thread = Thread(target=self._socket_reader, daemon=True)
-        self._reader_thread.start()
-        self._run()
-
-    def get_queue(self):
-        return self.in_queue
+        self.register_handler(b'<policy-file-request/>', self._handle_policy)
+        self.register_handler(b'<QR_L>', self._handle_qrl)
+        self.register_handler(b'<L>', self._handle_join_lobby)
+        self.register_handler(b'<S>', self._handle_challenge)
+        self.register_handler(b'<SERVER>', self._handle_server_query)
+        self.register_handler(b'<B>', self._handle_b)
+        self.register_handler(b'<DISCONNECTED>', self._handle_disconnect)
 
     def get_repr(self):
-        return '~' + self.username + '~' + self.communique + '~' + str(self.score) + '~' +\
+        return '~' + self.username + '~' + self.communique + '~' + str(self.score) + '~' + \
                '~'.join([str(x) for x in self.awards])
 
     @staticmethod
     def get_empty_repr():
         return '~<EMPTY>~ ~0~0~0~0~0~0~0~0~0~0~0'
 
-    def _socket_reader(self):
-        data = b''
-        while self.cs:
-            data += self.cs.recv(2048)
-            if not data:
-                self.in_queue.put(b'<DISCONNECTED>')
-                break
-            elif data[-1] == 0:  # idk why b'\x00' does not work
-                data = data.split(b'\x00')[:-1]
-                for i in data:
-                    self.in_queue.put(i)
-                data = b''
+    def _handle_policy(self, values):
+        log.debug('policy file requested')
+        self.send(b'<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\x00')
 
-    def _run(self):
-        cases = {b'<policy-file-request/>': self._case_policy,
-                 b'<QR_L>': self._case_QRL,
-                 b'<L>': self._case_L,
-                 b'<S>': self._case_S,
-                 b'<SERVER>': self._case_SERVER,
-                 b'<B>': self._case_B,
-                 b'<DISCONNECTED>': self._case_DISCONNECTED}  # TODO add default handler if no key found,
-
-        while self.cs:
-
-            data = self.in_queue.get(block=True)
-            lg.debug('<Queue get> ' + str(data))
-            values = data.split(b'~')
-
-            cases[values[0]](values)
-
-    def send_data(self, data):
-        if self.cs:
-            self.cs.send(data)
-        else:
-            lg.warning('attempt to send using closed socket')
-
-    def _case_policy(self, values):
-        lg.debug('policy file requested')
-        self.cs.send(b'<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\x00')
-
-    def _case_QRL(self, values):
-        lg.debug('SWF Version: ' + str(values[1]))
-        if values[1] != b'5':
+    def _handle_qrl(self, values):
+        swf_version = int(values[1])
+        log.debug('SWF Version: {}'.format(swf_version))
+        if swf_version != 5:
             self.cs.send(b'<S><SERVER><OLD_SWF>\x00')
-            lg.warning('Client with low version connected, version: ' + str(values[1]))
-            self.exit()
+            log.info('Client with invalid version tried to connect, version: {}'.format(swf_version))
+            self.close()
 
-    def _case_L(self, values):
-        if not DBConnector().user_exists(values[1], values[2]):  # FIXME implement dbconnector
-            self.cs.send(b'<L>~<BAD_MEMBER>\x00')
-            self.exit()
-        elif self.lobby_server.username_exists(values[1].decode('utf8')):
-            lg.warning('Client duplicate in lobby: ' + values[1].decode('utf8'))
-            self.cs.send(b'<L>~<DUPLICATE>\x00')
-            self.exit()  # FIXME it seems that the connection shouldnt be completely closed
+    def _handle_join_lobby(self, values):
+        username = values[1].decode('utf8')
+        password = values[2].decode('utf8')
+        if not DBConnector().user_exists(username, password):  # FIXME implement dbconnector
+            self.send(b'<L>~<BAD_MEMBER>\x00')
+            self.close()
+        elif self.lobby_server.username_exists(username):
+            log.info('Client duplicate in lobby: ' + username)
+            self.send(b'<L>~<DUPLICATE>\x00')
+            self.close()  # FIXME it seems that the connection shouldnt be completely closed
         else:
             # user authenticated successfully, register with lobbyserver
-            lg.debug('Client joining: ' + values[1].decode('utf8'))
-            self.username = values[1].decode('utf8')
+            log.info('Client joining: ' + username)
+            self.username = username
             self.idx = self.lobby_server.add_client(self)
             self.joined_at = time()
-            self.cs.send(self.lobby_server.get_clients_string())
+            self.send(self.lobby_server.get_clients_string())
 
-    def _case_S(self, values):
+    def _handle_challenge(self, values):
+        challenger_idx = int(values[1].decode('utf8'))
+        challenged_idx = int(values[2].decode('utf8'))
         if values[3] == b'<SHALLWEPLAYAGAME?>':
-            lg.debug('challenge issued')
-            self.lobby_server.challenge_user(int(values[1].decode('utf8')), int(values[2].decode('utf8')))
+            log.debug('challenge issued')
+            self.lobby_server.challenge_user(challenger_idx, challenged_idx)
         elif values[3] == b'<AUTHENTICATION>':
-            self.lobby_server.setup_challenge(int(values[1].decode('utf8')), int(values[2].decode('utf8')), int(values[4].decode('utf8')))
+            challenger_auth = int(values[4].decode('utf8'))
+            self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
 
-    def _case_SERVER(self, values):
-        if values[1] == b'<ALIVE?>':
-            self.cs.send(b'<S>~<SERVER>~<ALIVE>\x00')
-        if values[1] == b'<RECENT>':
-            self.cs.send(b'<S>~<SERVER>~<LAST_LOGGED>~DBGX~999~\x00')
-            self.cs.send(b'<S>~<SERVER>~<LAST_PLAYED>~imt beat sifl#7-0#13:38~imt beat sifl#12-9#07:19~sifl beat imt#3-0#11:46~imt beat dan ddm#15-0#14:49~sifl beat imt#4-1#10:04~dan ddm beat sifl#13-0#10:41~sifl beat imt#12-6#13:54~sifl beat imt#19-0#09:26~slug800 beat imt#14-3#11:52~imt beat slug800#19-2#12:06~sifl beat imt#13-6#13:08~sifl beat imt#9-3#13:21~sifl beat imt#5-1#09:18~sifl beat imt#19-14#09:22~sifl beat hoyvinmayvin#20-5#13:28\x00')
-            self.cs.send(b'<S>~<SERVER>~<RANKING(thisMonth)>~sifl~1~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~\x00')
+    def _handle_server_query(self, values):
+        query = values[1].decode('utf-8')
+        if query == '<ALIVE?>':
+            self.send(b'<S>~<SERVER>~<ALIVE>\x00')
+        if query == '<RECENT>':
+            self.send(b'<S>~<SERVER>~<LAST_LOGGED>~DBGX~999~\x00')
+            self.send(
+                b'<S>~<SERVER>~<LAST_PLAYED>~imt beat sifl#7-0#13:38~imt beat sifl#12-9#07:19~sifl beat imt#3-0#11:46~imt beat dan ddm#15-0#14:49~sifl beat imt#4-1#10:04~dan ddm beat sifl#13-0#10:41~sifl beat imt#12-6#13:54~sifl beat imt#19-0#09:26~slug800 beat imt#14-3#11:52~imt beat slug800#19-2#12:06~sifl beat imt#13-6#13:08~sifl beat imt#9-3#13:21~sifl beat imt#5-1#09:18~sifl beat imt#19-14#09:22~sifl beat hoyvinmayvin#20-5#13:28\x00')
+            self.send(
+                b'<S>~<SERVER>~<RANKING(thisMonth)>~sifl~1~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~...............~0~1~\x00')
 
-    def _case_B(self, values):
+    def _handle_b(self, values):
         pass
 
-    def _case_DISCONNECTED(self, values):
-        lg.debug('Connection closed by client')
+    def _handle_disconnect(self, values):
+        log.debug('Connection closed by client')
         if self.idx is not None:
-            lg.debug('removing client idx: ' + str(self.idx))
+            log.debug('removing client idx: ' + str(self.idx))
             self.lobby_server.remove_client(self.idx)
         # stop the thread
         # TODO
-        self.exit()
-
-    def exit(self):
-        if self.cs:
-            try:
-                self.cs.shutdown(1)
-            except OSError:
-                pass
-            self.cs.close()
-            self.cs = None
+        self.close()

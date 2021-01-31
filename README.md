@@ -1,17 +1,64 @@
 # Quadradius Preservation Project [![version](https://img.shields.io/badge/version-alpha-yellow)]()
+
 The goal of this project is to keep this fantastic game alive by recreating core functionality of the server, which at this moment is limited (original available at [Quadradius](http://classic.quadradius.com)).
 The project is completely non-profit and should be considered as educational.
 All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal.
-The provided software does not represent the quality of the original and the original authors should in no way be held accountable for any liabilites.
+The provided software does not represent the quality of the original,
+and the original authors should in no way be held accountable for any liabilities.
 
 ## Progress
-Current version can be considered early alpha. It is playable, although buggy and prone to crashes.
+
+The current version can be considered early alpha.
+It is playable, although buggy and prone to crashes.
 Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
-## Installation and Running
-Project should work with Python3.7 or higher.
-Configuration is still WIP, if you need to change anything, modify ```confiquration.py``` file for now.
+## Requirements
+
+Clients require [Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
+to work.
+The server runs on Python 3.7 or higher.
+
+## Installation and running
+
+Configuration is still WIP, if you need to change anything,
+modify `config.py` file for now.
 
 Clone or download the repository from GitHub and run
-```python3 -m QRServer```
-By default it uses ports ```3000``` and ```3001``` (like in original) and listens on local IP. To make it available to others, change the host in configuration to desired IP, such as ```0.0.0.0```.
+```bash
+python -m QRServer
+```
+By default, it uses ports `3000` and `3001` (like in original) and listens on `0.0.0.0`.
+
+## Docker
+
+This repository also contains a `Dockerfile` which creates an image with
+an HTTP server (serving the client SWF files), and the QR server itself.
+
+1. Build the image
+   ```bash
+   docker build . -t quadradius-server
+   ```
+
+2. Run the image
+   ```bash
+   docker run \
+     -p 3000:3000 \
+     -p 3001:3001 \
+     -p 8000:8000 \
+     quadradius-server
+   ```
+
+You can define the following environment variables to configure the server:
+* `ADDRESS` — the address which the server will be hosted at,
+  by default it's `127.0.0.1`
+* `LOBBY_PORT` and `GAME_PORT` — the ports of the application,
+  they are used by the client to connect to the server
+
+When the image is running, you can start the game by executing
+```bash
+./flashplayer http://<address>:<http port>/quadradius_lobby.swf
+```
+by default, it will be
+```bash
+./flashplayer http://127.0.0.1:8000/quadradius_lobby.swf
+```

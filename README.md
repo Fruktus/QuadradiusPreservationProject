@@ -20,14 +20,17 @@ The server runs on Python 3.7 or higher.
 
 ## Installation and running
 
-Configuration is still WIP, if you need to change anything,
-modify `config.py` file for now.
-
 Clone or download the repository from GitHub and run
 ```bash
 python -m QRServer
 ```
-By default, it uses ports `3000` and `3001` (like in original) and listens on `0.0.0.0`.
+
+You can configure the server by passing the following CLI parameters:
+* `-b`/`--bind` — bind address (default `127.0.0.1`),
+* `-p`/`--lobby-port` — lobby port (default `3000`),
+* `-q`/`--game-port` — game port (default `3001`).
+
+You can also run `python -m QRServer -h` to display help.
 
 ## Docker
 
@@ -41,7 +44,7 @@ an HTTP server (serving the client SWF files), and the QR server itself.
 
 2. Run the image
    ```bash
-   docker run \
+   docker run -it \
      -p 3000:3000 \
      -p 3001:3001 \
      -p 8000:8000 \

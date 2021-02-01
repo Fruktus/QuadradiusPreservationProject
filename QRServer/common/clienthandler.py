@@ -3,7 +3,7 @@ import logging
 from queue import Queue
 from socket import socket
 from threading import Thread
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict, List
 
 log = logging.getLogger('client_handler')
 
@@ -11,7 +11,7 @@ log = logging.getLogger('client_handler')
 class ClientHandler(abc.ABC):
     cs: Optional[socket]
     in_queue: Queue
-    handlers: dict[bytes, list[Callable[[list[bytes]], None]]]
+    handlers: Dict[bytes, List[Callable[[List[bytes]], None]]]
     username: Optional[str]
     _reader_thread: Thread
 

@@ -1,4 +1,5 @@
 import abc
+from typing import List
 
 
 class MatchId:
@@ -28,7 +29,7 @@ class MatchParty(abc.ABC):
 
 class Match:
     id: MatchId
-    parties: list[MatchParty]
+    parties: List[MatchParty]
 
     def __init__(self, _id: MatchId) -> None:
         super().__init__()

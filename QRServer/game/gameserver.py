@@ -1,11 +1,12 @@
 from threading import Lock
+from typing import Dict
 
 from QRServer.common.classes import MatchId, Match
 from QRServer.game.gameclient import GameClientHandler
 
 
 class GameServer:
-    matches: dict[MatchId, Match]
+    matches: Dict[MatchId, Match]
     _lock: Lock
 
     def __init__(self):

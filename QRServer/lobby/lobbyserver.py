@@ -1,11 +1,11 @@
 from threading import Lock
-from typing import Optional
+from typing import Optional, List
 
 from QRServer.lobby.lobbyclient import LobbyClientHandler
 
 
 class LobbyServer:
-    clients: list[Optional[LobbyClientHandler]]
+    clients: List[Optional[LobbyClientHandler]]
 
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked

@@ -1,4 +1,4 @@
-FROM python:3.9-alpine
+FROM python:3.6-alpine
 
 ENV ADDRESS="127.0.0.1"
 ENV LOBBY_PORT="3000"

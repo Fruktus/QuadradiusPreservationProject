@@ -16,7 +16,7 @@ Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPrese
 
 Clients require [Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
 to work.
-The server runs on Python 3.7 or higher.
+The server runs on Python 3.6 or higher.
 
 ## Installation and running
 

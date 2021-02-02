@@ -31,6 +31,7 @@ You can configure the server by passing the following CLI parameters:
 * `-q`/`--game-port` — game port (default `3001`).
 
 You can also run `python -m QRServer -h` to display help.
+You can play as a member by typing in username and any password (it is not checked at the moment).
 
 ## Docker
 

@@ -58,8 +58,11 @@ class ClientHandler(abc.ABC):
             prefix = values[0]
 
             if prefix in self.handlers:
-                for handler in self.handlers[prefix]:
-                    handler(values)
+                try:
+                    for handler in self.handlers[prefix]:
+                        handler(values)
+                except StopHandlerException:
+                    return
 
     def send(self, data: bytes):
         self.cs.send(data)
@@ -72,3 +75,8 @@ class ClientHandler(abc.ABC):
                 pass
             self.cs.close()
             self.cs = None
+        raise StopHandlerException()
+
+
+class StopHandlerException(Exception):
+    pass

@@ -1,8 +1,10 @@
 import logging
 from time import time
 
+from QRServer import config
+from QRServer.common import utils
 from QRServer.common.clienthandler import ClientHandler
-from QRServer.dbconnector import DBConnector
+from QRServer.db.connector import connector
 
 log = logging.getLogger('lobby_client_handler')
 
@@ -50,21 +52,33 @@ class LobbyClientHandler(ClientHandler):
 
     def _handle_join_lobby(self, values):
         username = values[1].decode('utf8')
-        password = values[2].decode('utf8')
-        if not DBConnector().user_exists(username, password):  # FIXME implement dbconnector
-            self.send(b'<L>~<BAD_MEMBER>\x00')
-            self.close()
-        elif self.lobby_server.username_exists(username):
-            log.info('Client duplicate in lobby: ' + username)
+        password = values[2]
+        is_guest = utils.is_guest(username, password)
+
+        if config.auth_enabled and not is_guest:
+            user_id = connector().authenticate_member(username, password)
+            if user_id is None:
+                log.debug('Player {} tried to connect, but failed to authenticate'.format(username))
+                self._error_bad_member()
+                self.close()
+                return
+
+        if self.lobby_server.username_exists(username):
+            log.debug('Client duplicate in lobby: ' + username)
             self.send(b'<L>~<DUPLICATE>\x00')
             self.close()  # FIXME it seems that the connection shouldnt be completely closed
+            return
+
+        # user authenticated successfully, register with lobbyserver
+        self.username = username
+        self.idx = self.lobby_server.add_client(self)
+        self.joined_at = time()
+        self.send(self.lobby_server.get_clients_string())
+
+        if is_guest:
+            log.info('Guest joined: ' + username)
         else:
-            # user authenticated successfully, register with lobbyserver
-            log.info('Client joining: ' + username)
-            self.username = username
-            self.idx = self.lobby_server.add_client(self)
-            self.joined_at = time()
-            self.send(self.lobby_server.get_clients_string())
+            log.info('Member joined: ' + username)
 
     def _handle_challenge(self, values):
         challenger_idx = int(values[1].decode('utf8'))
@@ -132,8 +146,10 @@ class LobbyClientHandler(ClientHandler):
     def _handle_disconnect(self, values):
         log.debug('Connection closed by client')
         if self.idx is not None:
-            log.debug('removing client idx: ' + str(self.idx))
+            log.info('Player left: ' + self.username)
             self.lobby_server.remove_client(self.idx)
-        # stop the thread
-        # TODO
+
         self.close()
+
+    def _error_bad_member(self):
+        self.send(b'<L>~<BAD_MEMBER>\x00')

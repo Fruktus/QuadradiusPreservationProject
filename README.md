@@ -66,3 +66,9 @@ by default, it will be
 ```bash
 ./flashplayer http://127.0.0.1:8000/quadradius_lobby.swf
 ```
+
+### Persisting data
+
+Data is stored in directory `/data` in the container.
+In order to persist the data between containers, just bind this directory
+or create a volume.

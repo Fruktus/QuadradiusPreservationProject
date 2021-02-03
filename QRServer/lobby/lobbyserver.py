@@ -37,7 +37,8 @@ class LobbyServer:
 
     def get_clients_string(self):
         """returns byte string describing current lobby state"""
-        return b'<L>' + (''.join([x.get_repr() if x else LobbyClientHandler.get_empty_repr() for x in self.clients])).encode('utf8') + b'\x00'
+        return b'<L>' + (''.join([x.get_repr() if x else LobbyClientHandler.get_empty_repr()
+                                  for x in self.clients])).encode('utf8') + b'\x00'
 
     def get_last_logged(self):
         if self.last_logged:

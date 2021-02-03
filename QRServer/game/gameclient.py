@@ -47,6 +47,12 @@ class GameClientHandler(ClientHandler, MatchParty):
         pass
 
     def _handle_l(self, values):
+        self.username = values[1]
+        self.opponent_username = values[3]
+        self.own_auth = values[2]
+        self.opponent_auth = values[4]
+        self.password = values[5]
+
         self.game_server.register_client(self)
         self.send(
             b'<S>~<SERVER>~<PLAYERS_COUNT>~' +

@@ -1,4 +1,5 @@
 from threading import Lock
+from time import time
 from typing import Optional, List
 
 from QRServer.lobby.lobbyclient import LobbyClientHandler
@@ -9,7 +10,8 @@ class LobbyServer:
 
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked
-        self._lock = Lock()  # TODO check if this will actually work
+        self._lock = Lock()
+        self.last_logged = None
 
     def add_client(self, client: LobbyClientHandler):
         with self._lock:
@@ -23,6 +25,7 @@ class LobbyServer:
         # if no free space either kick someone or deal with it differently
 
     def remove_client(self, idx):
+        self.last_logged = self.clients[idx]
         self.clients[idx] = None
         self.broadcast_lobby_state(idx)
 
@@ -35,6 +38,16 @@ class LobbyServer:
     def get_clients_string(self):
         """returns byte string describing current lobby state"""
         return b'<L>' + (''.join([x.get_repr() if x else LobbyClientHandler.get_empty_repr() for x in self.clients])).encode('utf8') + b'\x00'
+
+    def get_last_logged(self):
+        if self.last_logged:
+            return b'<S>~<SERVER>~<LAST_LOGGED>~' + \
+                   self.last_logged.username.encode('utf8') + \
+                   b'~' + \
+                   str(int((time() - self.last_logged.joined_at)/60)).encode('utf8') + \
+                   b'~\x00'
+        else:
+            return b'<S>~<SERVER>~<LAST_LOGGED>~<>~0~\x00'
 
     def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
@@ -61,8 +74,10 @@ class LobbyServer:
                 b'~<AUTHENTICATION>~' + str(challenger_auth).encode('utf8') +
                 b'\x00')
 
-    def broadcast_chat(self, sender_id):
-        pass
+    def broadcast_chat(self, message):
+        for client in self.clients:
+            if client:
+                client.cs.send(message)
 
 # compare with screenshot
 # <S>~<SERVER>~<LAST_LOGGED>~turing guest~33~

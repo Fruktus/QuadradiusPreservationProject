@@ -14,9 +14,26 @@ def main():
     parser.add_argument('-p', '--lobby-port', type=int, help='lobby port', default=3000)
     parser.add_argument('-q', '--game-port', type=int, help='game port', default=3001)
     parser.add_argument('-v', '--verbose', action='store_true', help='log debug messages', default=False)
+    parser.add_argument('-l', '--long', action='store_true', help='enable long log format', default=False)
     args = parser.parse_args()
 
-    logging.getLogger().setLevel(logging.DEBUG if args.verbose else logging.INFO)
+    log_level = logging.DEBUG if args.verbose else logging.INFO
+    if args.long:
+        log_formatter = logging.Formatter(
+            '{asctime} {threadName:10} [{name:24}] {levelname:7} {message}',
+            style='{')
+    else:
+        log_formatter = logging.Formatter(
+            '[{asctime}.{msecs:3.0f}] {levelname} {message}',
+            style='{',
+            datefmt='%H:%M:%S')
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+    ch.setFormatter(log_formatter)
+    root_logger.addHandler(ch)
 
     log.info('Quadradius server starting')
 

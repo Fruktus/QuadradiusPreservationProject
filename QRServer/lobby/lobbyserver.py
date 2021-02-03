@@ -48,8 +48,6 @@ class LobbyServer:
                    b'~\x00'
         else:
             return b'<S>~<SERVER>~<LAST_LOGGED>~<>~0~\x00'
-        return b'<L>' + (''.join([x.get_repr() if x else LobbyClient.get_empty_repr()
-                                  for x in self.clients])).encode('utf8') + b'\x00'
 
     def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)

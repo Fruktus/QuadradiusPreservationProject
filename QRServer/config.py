@@ -93,6 +93,8 @@ def get(name: str):
             return key.default_value
         conf = conf[k]
         name_parts = name_parts[1:]
+    if conf is None:
+        return key.default_value
     return conf
 
 
@@ -100,7 +102,9 @@ def set(name: str, value: object):
     key = get_key(name)
     value_type = key.get_type()
 
-    if value_type == bool:
+    if value is None:
+        pass
+    elif value_type == bool:
         if value in ['true', 'True', 'Y', 'T', True]:
             value = True
         elif value in ['false', 'False', 'N', 'F', False]:
@@ -123,7 +127,11 @@ def set(name: str, value: object):
         conf = conf[k]
         name_parts = name_parts[1:]
     k = name_parts[0]
-    conf[k] = value
+
+    if value is None and k in conf:
+        del conf[k]
+    else:
+        conf[k] = value
 
     if key.onchange is not None:
         key.onchange()
@@ -165,22 +173,26 @@ def setup_argparse(parser: ArgumentParser):
         parser.add_argument(
             *key.cli_args,
             help=key.description,
-            default=key.default_value,
+            default=None,
             dest=key.name,
             **kwargs)
 
 
 def load_from_args(args, set_dirty=False):
+    args = vars(args)
     if '__config' in args and args['__config']:
-        load_from_toml(args['__config'])
+        conf = args['__config']
+        print('Loading config from file: {}'.format(conf))
+        load_from_toml(conf)
     for key in all_keys():
-        set(key.name, vars(args)[key.name])
+        if args[key.name]:
+            set(key.name, args[key.name])
         if not set_dirty:
             key.dirty = False
 
 
 def __load_dict(d, prefix: str):
-    for key, value in d:
+    for key, value in d.items():
         if isinstance(value, dict):
             __load_dict(value, prefix + key + '.')
         else:

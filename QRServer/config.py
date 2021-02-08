@@ -62,10 +62,16 @@ log_verbose = ConfigKey(
     default_value=False,
     requires_restart=False,
     onchange=config_handlers.refresh_logger_configuration)
-disable_auth = ConfigKey(
+auth_disable = ConfigKey(
     name='auth.disable',
     cli_args=['--disable-auth'],
     description='disable authentication, allow any password',
+    default_value=False,
+    requires_restart=False)
+auto_register = ConfigKey(
+    name='auth.auto_register',
+    cli_args=['--auto-register'],
+    description='automatically register a user upon first login attempt',
     default_value=False,
     requires_restart=False)
 
@@ -100,9 +106,9 @@ def set(name: str, value: object):
     value_type = key.get_type()
 
     if value_type == bool:
-        if value in ['true', 'True', 'Y', True]:
+        if value in ['true', 'True', 'Y', 'T', True]:
             value = True
-        elif value in ['false', 'False', 'N', False]:
+        elif value in ['false', 'False', 'N', 'F', False]:
             value = False
         else:
             raise Exception('Invalid value: {}'.format(value))

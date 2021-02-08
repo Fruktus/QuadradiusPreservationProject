@@ -1,10 +1,14 @@
+import logging
 import sqlite3
 import threading
 import uuid
+from typing import Optional
 
 from QRServer import config
 from QRServer.db import migrations
 from QRServer.db.password import password_verify, password_hash
+
+log = logging.getLogger('dbconnector')
 
 
 class DBConnector:
@@ -17,9 +21,9 @@ class DBConnector:
         migrations.execute_migrations(c)
         self.conn.commit()
 
-    def add_member(self, username, password):
+    def add_member(self, username: str, password: bytes) -> Optional[str]:
         c = self.conn.cursor()
-        _id = uuid.uuid4()
+        _id = str(uuid.uuid4())
         c.execute(
             "insert into users ("
             "  id,"
@@ -33,14 +37,17 @@ class DBConnector:
         self.conn.commit()
         return _id
 
-    def authenticate_member(self, username: str, password: bytes):
+    def authenticate_member(self, username: str, password: bytes) -> Optional[str]:
         c = self.conn.cursor()
         c.execute("select id, password from users where username = ?", (username,))
         row = c.fetchone()
         if row is None:
+            if config.auto_register.get():
+                log.info('Auto registering member {}', username)
+                return self.add_member(username, password)
             return None
-        _id = c.fetchone()[0]
-        hashed = c.fetchone()[1]
+        _id = row[0]
+        hashed = row[1]
         if password_verify(password, hashed):
             return _id
         else:

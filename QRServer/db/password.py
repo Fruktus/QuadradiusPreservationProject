@@ -6,7 +6,7 @@ _iterations = 100000
 _hash_name = 'sha512'
 
 
-def password_hash(password: bytes):
+def password_hash(password: bytes) -> str:
     salt = hashlib.sha256(os.urandom(60)).hexdigest().encode('ascii')
     h = hashlib.pbkdf2_hmac(
         _hash_name,
@@ -17,7 +17,7 @@ def password_hash(password: bytes):
     return (salt + h).decode('ascii')
 
 
-def password_verify(provided_password: bytes, stored_password: str):
+def password_verify(provided_password: bytes, stored_password: str) -> bool:
     salt = stored_password[:64]
     stored_password = stored_password[64:]
     h = hashlib.pbkdf2_hmac(

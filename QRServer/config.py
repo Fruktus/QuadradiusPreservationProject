@@ -76,11 +76,6 @@ auto_register = ConfigKey(
     requires_restart=False)
 
 
-def load_toml(file):
-    global _config
-    _config = toml.load(file)
-
-
 def get_key(name: str):
     by_name = keys_by_name()
     if name not in by_name:
@@ -150,6 +145,10 @@ def keys_by_name() -> Dict[str, ConfigKey]:
 
 
 def setup_argparse(parser: ArgumentParser):
+    parser.add_argument(
+        '-c', '--config',
+        help='load config from toml file',
+        default=None, dest='__config')
     for key in all_keys():
         value_type = key.get_type()
 
@@ -172,10 +171,25 @@ def setup_argparse(parser: ArgumentParser):
 
 
 def load_from_args(args, set_dirty=False):
+    if '__config' in args and args['__config']:
+        load_from_toml(args['__config'])
     for key in all_keys():
         set(key.name, vars(args)[key.name])
         if not set_dirty:
             key.dirty = False
+
+
+def __load_dict(d, prefix: str):
+    for key, value in d:
+        if isinstance(value, dict):
+            __load_dict(value, prefix + key + '.')
+        else:
+            set(prefix + key, value)
+
+
+def load_from_toml(file):
+    d = toml.load(file)
+    __load_dict(d, '')
 
 
 def print_help():

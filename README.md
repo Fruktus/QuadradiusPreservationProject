@@ -1,4 +1,6 @@
-# Quadradius Preservation Project [![version](https://img.shields.io/badge/version-alpha%201.2-yellow)]() [![platform](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)]()
+# Quadradius Preservation Project
+[![version](https://img.shields.io/badge/version-alpha%201.2-yellow)]()
+[![platform](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)]()
 
 The goal of this project is to keep this fantastic game alive by recreating core functionality of the server, which at this moment is limited (original available at [Quadradius](http://classic.quadradius.com)).
 The project is completely non-profit and should be considered as educational.

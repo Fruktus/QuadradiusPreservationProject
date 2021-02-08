@@ -31,18 +31,20 @@ class ClientHandler(abc.ABC):
         return self.cs
 
     def _socket_reader(self):
-        data = b''
         while self.cs:
-            data += self.cs.recv(2048)
+            try:
+                data = self.cs.recv(2048)
+            except ConnectionResetError:
+                data = None
+
             if not data:
                 log.debug('No more data to read, finishing')
                 self.in_queue.put(b'<DISCONNECTED>')
                 break
-            elif data[-1] == 0:  # idk why b'\x00' does not work
+            elif data[-1] == 0:
                 data = data.split(b'\x00')[:-1]
                 for i in data:
                     self.in_queue.put(i)
-                data = b''
 
     def register_handler(self, prefix: bytes, handler):
         if prefix in self.handlers:

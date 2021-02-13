@@ -3,6 +3,7 @@ import socket
 
 from QRServer.common.classes import MatchId, MatchParty
 from QRServer.common.clienthandler import ClientHandler
+from QRServer.common.messages import PlayerCountResponse
 
 log = logging.getLogger('game_client_handler')
 
@@ -23,7 +24,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         self.register_handler(b'<policy-file-request/>', self._handle_policy)
         self.register_handler(b'<QR_G>', self._handle_qrg)
-        self.register_handler(b'<L>', self._handle_l)
+        self.register_handler(b'<L>', self._handle_join_game)
         self.register_handler(b'<S>', self._handle_s)
         self.register_handler(b'<SERVER>', self._handle_server)
         self.register_handler(b'<DISCONNECTED>', self._handle_disconnect)
@@ -46,18 +47,16 @@ class GameClientHandler(ClientHandler, MatchParty):
     def _handle_qrg(self, values):
         pass
 
-    def _handle_l(self, values):
+    def _handle_join_game(self, values):
         self.username = values[1]
-        self.opponent_username = values[3]
         self.own_auth = values[2]
+        self.opponent_username = values[3]
         self.opponent_auth = values[4]
         self.password = values[5]
 
         self.game_server.register_client(self)
-        self.send(
-            b'<S>~<SERVER>~<PLAYERS_COUNT>~' +
-            str(self.game_server.get_player_count(self.match_id())).encode('utf8') +
-            b'\x00')
+        player_count = self.game_server.get_player_count(self.match_id())
+        self.send_msg(PlayerCountResponse(player_count))
 
     def _handle_s(self, values):
         if self.out_socket:

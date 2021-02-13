@@ -1,4 +1,6 @@
 import abc
+import datetime
+from dataclasses import dataclass
 from typing import List
 
 
@@ -58,3 +60,20 @@ class Match:
         self.parties.remove(party)
         self.parties[0].unmatch_opponent()
         party.unmatch_opponent()
+
+
+@dataclass
+class GameResultHistory:
+    player_won: str
+    player_lost: str
+    won_score: int
+    lost_score: int
+    start: datetime.datetime
+    finish: datetime.datetime
+
+
+@dataclass
+class RankingEntry:
+    player: str
+    wins: int
+    games: int

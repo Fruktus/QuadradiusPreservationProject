@@ -1,11 +1,13 @@
+from datetime import datetime
 from threading import Lock
-from time import time
 from typing import Optional, List
 
+from QRServer.common.messages import ResponseMessage, LastLoggedResponse
 from QRServer.lobby.lobbyclient import LobbyClientHandler
 
 
 class LobbyServer:
+    __server_boot_time = datetime.now()
     clients: List[Optional[LobbyClientHandler]]
 
     def __init__(self):
@@ -40,15 +42,11 @@ class LobbyServer:
         return b'<L>' + (''.join([x.get_repr() if x else LobbyClientHandler.get_empty_repr()
                                   for x in self.clients])).encode('utf8') + b'\x00'
 
-    def get_last_logged(self):
+    def get_last_logged(self) -> LastLoggedResponse:
         if self.last_logged:
-            return b'<S>~<SERVER>~<LAST_LOGGED>~' + \
-                   self.last_logged.username.encode('utf8') + \
-                   b'~' + \
-                   str(int((time() - self.last_logged.joined_at)/60)).encode('utf8') + \
-                   b'~\x00'
+            return LastLoggedResponse(self.last_logged.username, self.last_logged.joined_at, '')
         else:
-            return b'<S>~<SERVER>~<LAST_LOGGED>~<>~0~\x00'
+            return LastLoggedResponse('<>', datetime.now(), '')
 
     def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
@@ -79,6 +77,9 @@ class LobbyServer:
         for client in self.clients:
             if client:
                 client.cs.send(message)
+
+    def broadcast_chat_msg(self, message: ResponseMessage):
+        self.broadcast_chat(message.to_data())
 
 # compare with screenshot
 # <S>~<SERVER>~<LAST_LOGGED>~turing guest~33~

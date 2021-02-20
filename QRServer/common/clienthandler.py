@@ -5,6 +5,9 @@ from socket import socket
 from threading import Thread
 from typing import Callable, Optional, Dict, List
 
+from QRServer.common import messages
+from QRServer.common.messages import ResponseMessage
+
 log = logging.getLogger('client_handler')
 
 
@@ -55,7 +58,7 @@ class ClientHandler(abc.ABC):
     def run(self):
         while self.cs:
             data = self.in_queue.get(block=True)
-            values = data.split(b'~')
+            values = data.split(messages.delim.encode('ascii'))
             log.debug('handling: {}'.format(values))
             prefix = values[0]
 
@@ -68,6 +71,9 @@ class ClientHandler(abc.ABC):
 
     def send(self, data: bytes):
         self.cs.send(data)
+
+    def send_msg(self, message: ResponseMessage):
+        self.send(message.to_data())
 
     def close(self):
         if self.cs:

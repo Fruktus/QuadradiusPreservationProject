@@ -1,9 +1,12 @@
 import logging
-from time import time
+from datetime import datetime
 
 from QRServer import config
 from QRServer.common import utils
+from QRServer.common.classes import RankingEntry
 from QRServer.common.clienthandler import ClientHandler
+from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, LobbyDuplicateResponse, \
+    ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingResponse
 from QRServer.db.connector import connector
 
 log = logging.getLogger('lobby_client_handler')
@@ -46,8 +49,8 @@ class LobbyClientHandler(ClientHandler):
         swf_version = int(values[1])
         log.debug('SWF Version: {}'.format(swf_version))
         if swf_version != 5:
-            self.cs.send(b'<S><SERVER><OLD_SWF>\x00')
-            log.info('Client with invalid version tried to connect, version: {}'.format(swf_version))
+            self.send_msg(OldSwfResponse())
+            log.debug('Client with invalid version tried to connect, version: {}'.format(swf_version))
             self.close()
 
     def _handle_join_lobby(self, values):
@@ -65,14 +68,14 @@ class LobbyClientHandler(ClientHandler):
 
         if self.lobby_server.username_exists(username):
             log.debug('Client duplicate in lobby: ' + username)
-            self.send(b'<L>~<DUPLICATE>\x00')
+            self.send_msg(LobbyDuplicateResponse())
             self.close()  # FIXME it seems that the connection shouldnt be completely closed
             return
 
         # user authenticated successfully, register with lobbyserver
         self.username = username
         self.idx = self.lobby_server.add_client(self)
-        self.joined_at = time()
+        self.joined_at = datetime.now()
         self.send(self.lobby_server.get_clients_string())
 
         if is_guest:
@@ -93,51 +96,23 @@ class LobbyClientHandler(ClientHandler):
     def _handle_server_query(self, values):
         query = values[1].decode('utf-8')
         if query == '<ALIVE?>':
-            self.send(b'<S>~<SERVER>~<ALIVE>\x00')
+            self.send_msg(ServerAliveResponse())
         elif query == '<RECENT>':
-            self.send(self.lobby_server.get_last_logged())
-            self.cs.send(b'<S>~<SERVER>~<LAST_PLAYED>~imt beat sifl#7-0#13:38~imt beat sifl#'
-                         b'12-9#07:19~sifl beat imt#3-0#11:46~imt beat dan ddm#15-0#14:49~si'
-                         b'fl beat imt#4-1#10:04~dan ddm beat sifl#13-0#10:41~sifl beat imt#'
-                         b'12-6#13:54~sifl beat imt#19-0#09:26~slug800 beat imt#14-3#11:52~i'
-                         b'mt beat slug800#19-2#12:06~sifl beat imt#13-6#13:08~sifl beat imt'
-                         b'#9-3#13:21~sifl beat imt#5-1#09:18~sifl beat imt#19-14#09:22~sifl'
-                         b'beat hoyvinmayvin#20-5#13:28\x00')
-            self.cs.send(b'<S>~<SERVER>~<RANKING(thisMonth)>~sifl~1~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~...............~0~1~...............~0~1~...............~0'
-                         b'~1~...............~0~1~...............~0~1~...............~0~1~..'
-                         b'.............~0~1~...............~0~1~...............~0~1~.......'
-                         b'........~0~1~...............~0~1~...............~0~1~............'
-                         b'...~0~1~\x00')
+            self.send_msg(self.lobby_server.get_last_logged())
+            self.send_msg(LastPlayedResponse([]))
+            self.send_msg(ServerRankingResponse(True, [
+                RankingEntry(player='test', wins=12, games=30),
+                RankingEntry(player='test2', wins=2, games=2),
+            ]))
         elif query == '<COMMENT>':
             # TODO if user is a member, update the database
-            self.lobby_server.broadcast_chat(b'<B>~<COMMENT>~' + b'~'.join(values[2:]) + b'\x00')
+            self.lobby_server.broadcast_chat_msg(BroadcastCommentResponse(values[2], values[3]))
+        elif query == '<RANKING>':
+            # TODO implement ranking
+            pass
+        else:
+            # unknown query
+            pass
 
     def _handle_b(self, values):
         if values[1] == b'<CHAT>':
@@ -152,4 +127,4 @@ class LobbyClientHandler(ClientHandler):
         self.close()
 
     def _error_bad_member(self):
-        self.send(b'<L>~<BAD_MEMBER>\x00')
+        self.send_msg(LobbyBadMemberResponse())

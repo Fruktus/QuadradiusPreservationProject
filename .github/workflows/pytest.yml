@@ -28,5 +28,4 @@ jobs:
         if [ -f setup.py ]; then python setup.py install; fi
     - name: Test with pytest
       run: |
-        ls
-        pytest
+        pytest QRServer/

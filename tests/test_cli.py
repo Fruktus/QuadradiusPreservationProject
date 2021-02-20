@@ -12,7 +12,7 @@ class CliTest(unittest.TestCase):
     def test_complete_config(self):
         cmd = QRCmd()
         complete = cmd.complete_config('', 'config ', 7, 7)
-        self.assertEqual(['get', 'set'], complete)
+        self.assertEqual(['get', 'set', 'list'], complete)
 
     def test_complete_config_x(self):
         cmd = QRCmd()

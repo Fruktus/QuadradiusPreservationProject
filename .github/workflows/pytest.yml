@@ -25,7 +25,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        if [ -f setup.py ]; then python setup.py install; fi
     - name: Test with pytest
       run: |
-        export PYTONPATH=$PYTONPATH:../
         pytest

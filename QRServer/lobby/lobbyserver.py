@@ -1,13 +1,19 @@
+import logging
 from datetime import datetime
 from threading import Lock
 from typing import Optional, List
 
-from QRServer.common.messages import ResponseMessage, LastLoggedResponse
+from QRServer.common.classes import LobbyPlayer
+from QRServer.common.messages import ResponseMessage, LastLoggedResponse, LobbyStateResponse, ChallengeMessage, \
+    ChallengeAuthMessage
 from QRServer.lobby.lobbyclient import LobbyClientHandler
+
+log = logging.getLogger('lobby_server')
 
 
 class LobbyServer:
     __server_boot_time = datetime.now()
+    last_logged: Optional[LobbyClientHandler]
     clients: List[Optional[LobbyClientHandler]]
 
     def __init__(self):
@@ -37,49 +43,44 @@ class LobbyServer:
                 return True
         return False
 
-    def get_clients_string(self):
-        """returns byte string describing current lobby state"""
-        return b'<L>' + (''.join([x.get_repr() if x else LobbyClientHandler.get_empty_repr()
-                                  for x in self.clients])).encode('utf8') + b'\x00'
+    def get_players(self) -> List[LobbyPlayer]:
+        players = []
+        for c in self.clients:
+            if c is None:
+                players.append(None)
+            else:
+                players.append(c.get_player())
+        return players
 
     def get_last_logged(self) -> LastLoggedResponse:
         if self.last_logged:
-            return LastLoggedResponse(self.last_logged.username, self.last_logged.joined_at, '')
+            return LastLoggedResponse(self.last_logged.get_username(), self.last_logged.get_joined_at(), '')
         else:
             return LastLoggedResponse('<>', datetime.now(), '')
 
     def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
+        message = LobbyStateResponse(self.get_players())
         for i in range(13):
             if i == excluded_idx:
                 continue
             if self.clients[i]:
-                # self.clients[i].get_queue().put(self.get_clients_string())
-                self.clients[i].send(self.get_clients_string())
+                self.clients[i].send_msg(message)
         pass
 
     def challenge_user(self, challenger_idx, challenged_idx):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            self.clients[challenger_idx].send(
-                b'<S>~' + str(challenger_idx).encode('utf8') +
-                b'~' + str(challenged_idx).encode('utf8') +
-                b'~<SHALLWEPLAYAGAME?>\x00')
+            self.clients[challenged_idx].send_msg(ChallengeMessage(challenged_idx, challenger_idx))
 
     def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            self.clients[challenger_idx].send(
-                b'<S>~' + str(challenger_idx).encode('utf8') +
-                b'~' + str(challenged_idx).encode('utf8') +
-                b'~<AUTHENTICATION>~' + str(challenger_auth).encode('utf8') +
-                b'\x00')
+            self.clients[challenged_idx].send_msg(ChallengeAuthMessage(challenged_idx, challenger_idx, challenger_auth))
 
-    def broadcast_chat(self, message):
+    def broadcast_msg(self, message: ResponseMessage):
+        log.debug('Broadcasting {}'.format(message))
         for client in self.clients:
             if client:
-                client.cs.send(message)
-
-    def broadcast_chat_msg(self, message: ResponseMessage):
-        self.broadcast_chat(message.to_data())
+                client.send_msg(message)
 
 # compare with screenshot
 # <S>~<SERVER>~<LAST_LOGGED>~turing guest~33~

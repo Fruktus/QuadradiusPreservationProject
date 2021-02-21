@@ -4,7 +4,7 @@ import sys
 import time
 from threading import Thread
 
-from QRServer import config
+from QRServer import config, config_handlers
 from QRServer.cli import QRCmd
 from QRServer.game.game import game_listener
 from QRServer.lobby.lobby import lobby_listener
@@ -13,6 +13,7 @@ log = logging.getLogger('main')
 
 
 def main():
+    config_handlers.refresh_logger_configuration()
     parser = argparse.ArgumentParser()
     config.setup_argparse(parser)
     args = parser.parse_args()

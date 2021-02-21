@@ -1,6 +1,6 @@
 import abc
-import datetime
-from dataclasses import dataclass
+from datetime import datetime
+from dataclasses import dataclass, field
 from typing import List
 
 
@@ -58,7 +58,8 @@ class Match:
             raise Exception('Cannot find the given party')
 
         self.parties.remove(party)
-        self.parties[0].unmatch_opponent()
+        if len(self.parties) > 0:
+            self.parties[0].unmatch_opponent()
         party.unmatch_opponent()
 
 
@@ -68,8 +69,8 @@ class GameResultHistory:
     player_lost: str
     won_score: int
     lost_score: int
-    start: datetime.datetime
-    finish: datetime.datetime
+    start: datetime
+    finish: datetime
 
 
 @dataclass
@@ -77,3 +78,14 @@ class RankingEntry:
     player: str
     wins: int
     games: int
+
+
+@dataclass
+class LobbyPlayer:
+    user_id: str = None
+    username: str = ''
+    comment: str = ''
+    score: int = 0
+    awards: List[int] = field(default_factory=lambda: [0] * 10)
+    idx: int = None
+    joined_at: datetime = None

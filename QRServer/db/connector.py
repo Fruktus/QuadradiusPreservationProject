@@ -37,6 +37,28 @@ class DBConnector:
         self.conn.commit()
         return _id
 
+    def get_comment(self, user_id: str) -> Optional[str]:
+        c = self.conn.cursor()
+        c.execute(
+            "select comment from users where id = ?", (
+                user_id,
+            ))
+        row = c.fetchone()
+        if row is None:
+            return None
+        return str(row[0])
+
+    def set_comment(self, user_id: str, comment: str) -> None:
+        c = self.conn.cursor()
+        c.execute(
+            "update users set"
+            "  comment = ?"
+            "where id = ?", (
+                comment,
+                user_id
+            ))
+        self.conn.commit()
+
     def authenticate_member(self, username: str, password: bytes) -> Optional[str]:
         c = self.conn.cursor()
         c.execute("select id, password from users where username = ?", (username,))

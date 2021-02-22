@@ -20,6 +20,9 @@ def execute_migrations(c):
             "  password varchar"
             ")")
         _set_version(c, 1)
+    if version <= 1:
+        c.execute("alter table users add column comment varchar")
+        _set_version(c, 2)
 
 
 def _select_version(c):

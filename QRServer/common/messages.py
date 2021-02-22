@@ -183,8 +183,8 @@ class PlayerCountResponse(ResponseMessage):
 
 
 class BroadcastCommentResponse(ResponseMessage):
-    def __init__(self, who: str, comment: str) -> None:
-        super().__init__(['<B>', '<COMMENT>', who, comment])
+    def __init__(self, who: int, comment: str) -> None:
+        super().__init__(['<B>', '<COMMENT>', str(who), comment])
 
 
 class OldSwfResponse(ResponseMessage):

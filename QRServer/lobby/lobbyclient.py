@@ -18,6 +18,7 @@ class LobbyClientHandler(ClientHandler):
         self.lobby_server = lobby_server
 
         self.username = ''
+        self.user_id = None
         self.communique = ' '
         self.score = 0
         self.awards = [0] * 10
@@ -58,9 +59,9 @@ class LobbyClientHandler(ClientHandler):
         password = values[2]
         is_guest = utils.is_guest(username, password)
 
+        self.user_id = connector().authenticate_member(username, password)
         if not is_guest and not config.auth_disable.get():
-            user_id = connector().authenticate_member(username, password)
-            if user_id is None:
+            if self.user_id is None:
                 log.debug('Player {} tried to connect, but failed to authenticate'.format(username))
                 self._error_bad_member()
                 self.close()
@@ -73,9 +74,10 @@ class LobbyClientHandler(ClientHandler):
             return
 
         # user authenticated successfully, register with lobbyserver
-        self.username = username
         self.idx = self.lobby_server.add_client(self)
+        self.username = username
         self.joined_at = datetime.now()
+        self.communique = connector().get_comment(self.user_id) or ' '
         self.send(self.lobby_server.get_clients_string())
 
         if is_guest:
@@ -105,8 +107,15 @@ class LobbyClientHandler(ClientHandler):
                 RankingEntry(player='test2', wins=2, games=2),
             ]))
         elif query == '<COMMENT>':
-            # TODO if user is a member, update the database
-            self.lobby_server.broadcast_chat_msg(BroadcastCommentResponse(values[2], values[3]))
+            who = int(values[2])
+            comment = str(values[3])
+            if who != self.idx:
+                log.debug('Error while setting comment: wrong idx, expected {} was {}'.format(self.idx, who))
+                return
+            if self.user_id:
+                connector().set_comment(self.user_id, comment)
+            self.communique = comment
+            self.lobby_server.broadcast_chat_msg(BroadcastCommentResponse(who, comment))
         elif query == '<RANKING>':
             # TODO implement ranking
             pass

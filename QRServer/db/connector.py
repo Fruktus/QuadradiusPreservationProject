@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlite3
 import threading
 import uuid
@@ -83,6 +84,8 @@ def connector():
     try:
         return _connector.value
     except AttributeError:
-        c = DBConnector(config.data_dir.get() + '/database.sqlite3')
+        dbfile = os.path.abspath(config.data_dir.get() + '/database.sqlite3')
+        log.debug('Opening database: {}'.format(dbfile))
+        c = DBConnector(dbfile)
         _connector.value = c
         return c

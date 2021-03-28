@@ -7,7 +7,7 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     RequestMessage, ResponseMessage, GameChatMessage, GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, \
     RecursiveDoneMessage, RemovePlayerMessage, PowerNoEffectMessage, NukeMessage, JumpOnPieceMessage, \
     GetPowerSquareMessage, SettingsLoadedMessage, AssignPowerSquareMessage, AssignNextPowerCountMessage, \
-    NewGridCoordMessage, ResignMessage, GameServerAliveResponse, ServerPingRequest, SettingsArenaSizeMessage, \
+    NewGridCoordMessage, ResignMessage, ServerPingRequest, SettingsArenaSizeMessage, \
     SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse
@@ -102,7 +102,9 @@ class GameClientHandler(ClientHandler, MatchParty):
             self.opponent_handler.send_msg(message)
 
     def _handle_ping(self, message: ServerPingRequest):
-        self.send_msg(GameServerAliveResponse())
+        # we have to ignore this message, responding to it
+        # causes synchronization problems
+        pass
 
     def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')

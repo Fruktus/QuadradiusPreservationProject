@@ -15,7 +15,7 @@ log = logging.getLogger('dbconnector')
 class DBConnector:
     conn: sqlite3.Connection
 
-    def __init__(self, file):
+    def __init__(self, file='tmp.db'):
         self.conn = sqlite3.connect(file)
         c = self.conn.cursor()
         migrations.setup_metadata(c)

@@ -10,13 +10,12 @@ and the original authors should in no way be held accountable for any liabilitie
 
 ## Progress
 
-The current version can be considered early alpha.
-It is playable, although buggy and prone to crashes.
+The current version contains most of the features and should be playable. Some bugs may occasionally happen.
 Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
 ## Requirements
 
-Clients require [Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
+Client require [Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
 to work.
 The server runs on Python 3.6 or higher.
 

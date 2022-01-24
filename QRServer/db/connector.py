@@ -15,7 +15,7 @@ log = logging.getLogger('dbconnector')
 class DBConnector:
     conn: sqlite3.Connection
 
-    def __init__(self, file='tmp.db'):
+    def __init__(self, file):
         self.conn = sqlite3.connect(file)
         c = self.conn.cursor()
         migrations.setup_metadata(c)
@@ -84,7 +84,9 @@ def connector():
     try:
         return _connector.value
     except AttributeError:
-        dbfile = os.path.abspath(config.data_dir.get() + '/database.sqlite3')
+        data_dir = os.path.abspath(config.data_dir.get())
+        os.makedirs(data_dir, exist_ok=True)
+        dbfile = os.path.join(data_dir, 'database.sqlite3')
         log.debug('Opening database: {}'.format(dbfile))
         c = DBConnector(dbfile)
         _connector.value = c

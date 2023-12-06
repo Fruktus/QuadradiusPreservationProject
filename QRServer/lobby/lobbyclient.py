@@ -61,7 +61,7 @@ class LobbyClientHandler(ClientHandler):
         password = message.get_password()
         is_guest = utils.is_guest(username, password)
 
-        self.player.user_id = connector().authenticate_member(username, password)
+        self.player.user_id = connector().authenticate_member(username, password.encode('ascii'))
         if not is_guest and not config.auth_disable.get():
             if self.player.user_id is None:
                 log.debug('Player {} tried to connect, but failed to authenticate'.format(username))

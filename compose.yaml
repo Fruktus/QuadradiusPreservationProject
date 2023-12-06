@@ -1,0 +1,13 @@
+services:
+  quadradius:
+    build:
+      context: .
+    environment:
+      ADDRESS: "127.0.0.1"
+      HTTP_PORT: "8000"
+      LOBBY_PORT: "3000"
+      GAME_PORT: "3001"
+    ports:
+      - "8000:8000"
+      - "3000:3000"
+      - "3001:3001"

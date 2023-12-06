@@ -1,6 +1,6 @@
 # Quadradius Preservation Project
 [![version](https://img.shields.io/badge/version-beta%201.0-green)]()
-[![platform](https://img.shields.io/badge/python-3.6%20%7C%203.7%20%7C%203.8%20%7C%203.9-blue)]()
+[![platform](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)]()
 
 The goal of this project is to keep this fantastic game alive by recreating core functionality of the server, which at this moment is limited (original available at [Quadradius](http://classic.quadradius.com)).
 The project is completely non-profit and should be considered as educational.
@@ -15,9 +15,10 @@ Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPrese
 
 ## Requirements
 
-Client require [Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
+The client requires
+[Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
 to work.
-The server runs on Python 3.6 or higher.
+The server runs on Python 3.8 or higher.
 
 ## Installation and running
 
@@ -34,10 +35,19 @@ You can configure the server by passing the following CLI parameters:
 You can also run `python -m QRServer -h` to display help.
 You can play as a member by typing in username and any password (it is not checked at the moment).
 
-## Docker
+## Docker and Compose
 
 This repository also contains a `Dockerfile` which creates an image with
 an HTTP server (serving the client SWF files), and the QR server itself.
+
+There is a Compose configuration which makes setting up the server easy,
+just run:
+
+```bash
+docker compose up
+```
+
+However, when you want to run the Docker image without Compose:
 
 1. Build the image
    ```bash

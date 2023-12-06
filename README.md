@@ -1,6 +1,9 @@
 # Quadradius Preservation Project
-[![version](https://img.shields.io/badge/version-beta%201.0-green)]()
-[![platform](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)]()
+[![version](https://img.shields.io/badge/version-beta%201.0-green)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
+[![platform](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/downloads/)
+[![python-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/python.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/python.yml)
+[![GitHub all releases](https://img.shields.io/github/downloads/Fruktus/QuadradiusPreservationProject/total)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
+[![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/quadradius?style=social)](https://www.reddit.com/r/quadradius/)
 
 The goal of this project is to keep this fantastic game alive by recreating core functionality of the server, which at this moment is limited (original available at [Quadradius](http://classic.quadradius.com)).
 The project is completely non-profit and should be considered as educational.

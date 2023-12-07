@@ -1,0 +1,22 @@
+name: Flatpak
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-44
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: quadradius.flatpak
+          manifest-path: flatpak/com.github.Fruktus.QuadradiusPreservationProject.yml
+          cache-key: flatpak-builder-${{ github.sha }}

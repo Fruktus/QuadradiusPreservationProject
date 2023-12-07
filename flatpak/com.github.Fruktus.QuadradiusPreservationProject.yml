@@ -1,0 +1,31 @@
+app-id: com.github.Fruktus.QuadradiusPreservationProject
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+sdk: org.freedesktop.Sdk
+command: run.sh
+finish-args:
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --share=network
+modules:
+  - name: quadradius
+    buildsystem: simple
+    build-commands:
+      - tar --no-same-owner -zxvf ruffle-nightly-2023_12_06-linux-x86_64.tar.gz ruffle
+      - install -D run.sh /app/bin/run.sh
+      - install -D ruffle /app/bin/ruffle
+      - install -D quadradius_lobby.swf /app/bin/quadradius_lobby.swf
+      - install -D quadradius_game.swf /app/bin/quadradius_game.swf
+    sources:
+      - type: file
+        path: run.sh
+      - type: file
+        url: https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_lobby.swf
+        sha256: 33253685acc0cb63c36b60aba2e11b910eff722ad9d29618d34c04bfb5f8838d
+      - type: file
+        url: https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_game.swf
+        sha256: 251175fb815f5f2229e4560a9963d2136a04fd084700a56da78353310c6edac7
+      - type: file
+        url: https://github.com/ruffle-rs/ruffle/releases/download/nightly-2023-12-06/ruffle-nightly-2023_12_06-linux-x86_64.tar.gz
+        sha256: c8becc3afb822f2e5ef21dfa6a35e904efb4e1b234d09d0ea0d2c8733daad331

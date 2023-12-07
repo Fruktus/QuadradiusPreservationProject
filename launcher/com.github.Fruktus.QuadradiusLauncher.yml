@@ -1,0 +1,36 @@
+app-id: com.github.Fruktus.QuadradiusLauncher
+runtime: org.freedesktop.Platform
+runtime-version: '23.08'
+base: org.electronjs.Electron2.BaseApp
+base-version: '23.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node18
+build-options:
+  append-path: /usr/lib/sdk/node18/bin
+  build-args:
+    - --share=network
+command: run.sh
+finish-args:
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --share=network
+modules:
+  - name: quadradius
+    buildsystem: simple
+    build-options:
+      env:
+        XDG_CACHE_HOME: /run/build/app/flatpak-node/cache
+        npm_config_cache: /run/build/app/flatpak-node/npm-cache
+    build-commands:
+      - install -D run.sh /app/bin/run.sh
+      - cd launcher && npm install && npm run package
+      - cp -a launcher/out/quadradius-launcher-* /app/main
+    sources:
+      - type: dir
+        path: ../
+      - type: script
+        dest-filename: run.sh
+        commands:
+          - zypak-wrapper.sh /app/main/quadradius-launcher --config=/app/main/config.json "$@"

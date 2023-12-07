@@ -14,6 +14,7 @@ def game_listener(conn_host, conn_port):
     gm_s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     gm_s.bind((conn_host, conn_port))
     gm_s.listen(5)
+    log.info('Game started on ' + conn_host + ':' + str(conn_port))
 
     gs = GameServer()
 

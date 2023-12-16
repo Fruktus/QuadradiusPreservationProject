@@ -1,0 +1,44 @@
+name: Launcher
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    container: fedora:38
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: >
+          dnf install -y
+          git
+          wine mono-devel mono-winfx
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - working-directory: launcher
+        run: npm install
+      - working-directory: launcher
+        run: npm run make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: launcher/out/make
+
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-44
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: QuadradiusLauncher.flatpak
+          manifest-path: launcher/com.github.Fruktus.QuadradiusLauncher.yml
+          cache-key: flatpak-builder-${{ github.sha }}

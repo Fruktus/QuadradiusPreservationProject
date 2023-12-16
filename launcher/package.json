@@ -1,0 +1,69 @@
+{
+  "name": "quadradius-launcher",
+  "version": "0.1.0",
+  "description": "A simple launcher for Quadradius, by Quadradius Preservation Project",
+  "main": "main.js",
+  "homepage": "./",
+  "type": "module",
+  "scripts": {
+    "start": "npm run react-build && npm run electron-start",
+    "package": "npm run react-build && npm run electron-package",
+    "make": "npm run react-build && npm run electron-make",
+    "electron-start": "electron-forge start",
+    "electron-package": "electron-forge package",
+    "electron-make": "electron-forge make",
+    "react-start": "react-scripts start",
+    "react-build": "react-scripts build",
+    "flatpak-build": "rm -rf .flatpak-builder && flatpak-builder flatpak-build com.github.Fruktus.QuadradiusLauncher.yml --force-clean --user --install",
+    "flatpak-run": "flatpak run com.github.Fruktus.QuadradiusLauncher",
+    "flatpak-start": "npm run flatpak-build && npm run flatpak-run",
+    "clean": "rm -rf node_modules/ flatpak-build/ .flatpak-builder/ build/ extras/ out/",
+    "postinstall": "node postinstall.js"
+  },
+  "author": "Kamil Jarosz",
+  "license": "ISC",
+  "devDependencies": {
+    "@electron-forge/cli": "^7.2.0",
+    "@electron-forge/maker-deb": "^7.2.0",
+    "@electron-forge/maker-flatpak": "^7.2.0",
+    "@electron-forge/maker-rpm": "^7.2.0",
+    "@electron-forge/maker-squirrel": "^7.2.0",
+    "@electron-forge/maker-zip": "^7.2.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.2.0",
+    "download": "^8.0.0",
+    "electron": "^28.0.0",
+    "react-scripts": "^5.0.1",
+    "tar": "^6.2.0",
+    "unzip": "^0.1.11"
+  },
+  "dependencies": {
+    "base-x": "^4.0.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "node-gzip": "^1.1.2",
+    "node-rest-client": "^3.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.1",
+    "xel": "^0.24.3",
+    "yargs": "^17.7.2"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "overrides": {
+    "graceful-fs": "^4.2.11",
+    "react-scripts": {
+      "@svgr/webpack": "8.1.0",
+      "typescript": "5.0.2"
+    }
+  }
+}

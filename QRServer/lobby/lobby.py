@@ -14,6 +14,7 @@ def lobby_listener(conn_host, conn_port):
     lm_s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     lm_s.bind((conn_host, conn_port))
     lm_s.listen(5)
+    log.info('Lobby started on ' + conn_host + ':' + str(conn_port))
 
     ls = LobbyServer()
     try:

@@ -5,26 +5,39 @@
 [![GitHub all releases](https://img.shields.io/github/downloads/Fruktus/QuadradiusPreservationProject/total)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
 [![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/quadradius?style=social)](https://www.reddit.com/r/quadradius/)
 
-The goal of this project is to keep this fantastic game alive by recreating core functionality of the server, which at this moment is limited (original available at [Quadradius](http://classic.quadradius.com)).
-The project is completely non-profit and should be considered as educational.
-All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal.
+The goal of this project is to keep this game alive.
+The software contained in this repository is a reimplementation of the original server, which was written in Java.
+Some functionalities may be missing, if so, please report them using the [Issues](https://github.com/Fruktus/QuadradiusPreservationProject/issues) page.
+
+The website [Quadradius](http://classic.quadradius.com)) is no longer available and the only way to obtain the client files is through archives or in our [Quadradius Classic Backup](https://github.com/Fruktus/QuadradiusClassic) repo.
+The project is non-profit.
+All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal with whom we are not affiliated.
 The provided software does not represent the quality of the original,
 and the original authors should in no way be held accountable for any liabilities.
 
-## Progress
-
-The current version contains most of the features and should be playable. Some bugs may occasionally happen.
-Detailed progress is available [here](https://github.com/Fruktus/QuadradiusPreservationProject/projects/1).
 
 ## Requirements
 
-The client requires
-[Flash Player](https://www.adobe.com/support/flashplayer/debug_downloads.html)
-to work.
-The server runs on Python 3.8 or higher.
+The client requires Flash Projector to work, which is currently only available from third party websites.
+The [Ruffle](https://ruffle.rs/) Desktop app mostly works correctly and is preffered way of running the software.
+The server is compatible with Python 3.8 or higher.
+
 
 ## Installation and running
+The installation can be done in three ways:
+1. Via Launcher (which is provided in the [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases) page, this is the most user-friendly way
+2. Manually from source (by installing Python and dependencies, downloading Ruffle and configuring everything)
+3. Via Docker
 
+### Launcher installation
+Download the platform-specific zip of launcher from [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases) and run the ```quadradius-launcher.exe``` within.
+The window that opens has manual on how to use it.
+When setting up a server, a port forwarding may be required, but due to the complexity of the topic it will not be covered here.
+
+Alternatively, you can set the launcher up manually by following the steps from [Manual](https://github.com/Fruktus/QuadradiusPreservationProject/tree/master/launcher)
+
+
+### Manual installation
 Clone or download the repository from GitHub and run
 ```bash
 python -m QRServer
@@ -38,13 +51,11 @@ You can configure the server by passing the following CLI parameters:
 You can also run `python -m QRServer -h` to display help.
 You can play as a member by typing in username and any password (it is not checked at the moment).
 
-## Docker and Compose
 
-This repository also contains a `Dockerfile` which creates an image with
-an HTTP server (serving the client SWF files), and the QR server itself.
+### Docker and Compose
 
-There is a Compose configuration which makes setting up the server easy,
-just run:
+This repository also contains a `Dockerfile` which creates an image with an HTTP server (serving the client SWF files), and the QR server itself.
+There is a Compose configuration which makes setting up the server easy, just run:
 
 ```bash
 docker compose up
@@ -81,7 +92,7 @@ by default, it will be
 ./flashplayer http://127.0.0.1:8000/quadradius_lobby.swf
 ```
 
-### Persisting data
+#### Persisting data
 
 Data is stored in directory `/data` in the container.
 In order to persist the data between containers, just bind this directory

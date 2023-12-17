@@ -16,18 +16,15 @@ The provided software does not represent the quality of the original,
 and the original authors should in no way be held accountable for any liabilities.
 
 
-## Requirements
-
-The client requires Flash Projector to work, which is currently only available from third party websites.
-The [Ruffle](https://ruffle.rs/) Desktop app mostly works correctly and is preffered way of running the software.
-The server is compatible with Python 3.8 or higher.
-
-
 ## Installation and running
 The installation can be done in three ways:
 1. Via Launcher (which is provided in the [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases) page, this is the most user-friendly way
 2. Manually from source (by installing Python and dependencies, downloading Ruffle and configuring everything)
 3. Via Docker
+
+If Launcher is not used, the client is required.
+Originally, the Flash was used, but it is discontinued and not recommended.
+The Flash emulator, [Ruffle](https://ruffle.rs/), mostly works (with minor inconsistencies) and is the preffered way of running the software.
 
 ### Launcher installation
 Download the platform-specific zip of launcher from [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases) and run the ```quadradius-launcher.exe``` within.

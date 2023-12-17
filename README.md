@@ -1,7 +1,8 @@
 # Quadradius Preservation Project
-[![version](https://img.shields.io/badge/version-beta%201.0-green)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
+[![release](https://img.shields.io/badge/release-latest-blue)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
 [![platform](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/downloads/)
-[![python-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/python.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/python.yml)
+[![server-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml)
+[![launcher-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml)
 [![GitHub all releases](https://img.shields.io/github/downloads/Fruktus/QuadradiusPreservationProject/total)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
 [![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/quadradius?style=social)](https://www.reddit.com/r/quadradius/)
 
@@ -15,23 +16,22 @@ All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal
 The provided software does not represent the quality of the original,
 and the original authors should in no way be held accountable for any liabilities.
 
-
-## Installation and running
-The installation can be done in three ways:
-1. Via Launcher (which is provided in the [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases) page, this is the most user-friendly way
-2. Manually from source (by installing Python and dependencies, downloading Ruffle and configuring everything)
-3. Via Docker
-
-If Launcher is not used, the client is required.
-Originally, the Flash was used, but it is discontinued and not recommended.
-The Flash emulator, [Ruffle](https://ruffle.rs/), mostly works (with minor inconsistencies) and is the preffered way of running the software.
-
-### Launcher installation
-Download the platform-specific zip of launcher from [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases) and run the ```quadradius-launcher.exe``` within.
-The window that opens has manual on how to use it.
-When setting up a server, a port forwarding may be required, but due to the complexity of the topic it will not be covered here.
+## Quadradius Launcher
+The launcher is the easiest way to run the application.
+Download the appropriate version for your system from [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases).
+Then run the application within and follow the instructions.
+To make the server available outside your LAN, port forwarding will most likely be needed, but this will not be covered here.
 
 Alternatively, you can set the launcher up manually by following the steps from [Manual](https://github.com/Fruktus/QuadradiusPreservationProject/tree/master/launcher)
+
+
+## Installation from source
+If the launcher is not desired, it is possible to install the software manually:
+1. From source (by installing Python and dependencies, downloading Ruffle and configuring everything)
+2. Via Docker
+
+To run the game, the client is needed.
+The Flash emulator, [Ruffle](https://ruffle.rs/), mostly works (with minor inconsistencies) and is the preffered way of running the software.
 
 
 ### Manual installation

@@ -1,4 +1,4 @@
-const execSuffix = process.platform === "win32" ? '.exe' : ''
+const execSuffix = process.platform === 'win32' ? '.exe' : ''
 
 module.exports = {
   packagerConfig: {

@@ -33,4 +33,4 @@ modules:
       - type: script
         dest-filename: run.sh
         commands:
-          - zypak-wrapper.sh /app/main/quadradius-launcher --config=/app/main/config.json "$@"
+          - zypak-wrapper.sh /app/main/quadradius-launcher "$@"

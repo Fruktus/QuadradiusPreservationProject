@@ -17,6 +17,11 @@ The provided software does not represent the quality of the original,
 and the original authors should in no way be held accountable for any liabilities.
 
 ## Quadradius Launcher
+
+<p align="center">
+   <img src=".github/readme/launcher.png" alt="Quadradius Launcher window" style="width:70%;"/>
+</p>
+
 The launcher is the easiest way to run the application.
 Download the appropriate version for your system from [Releases](https://github.com/Fruktus/QuadradiusPreservationProject/releases).
 Then run the application within and follow the instructions.

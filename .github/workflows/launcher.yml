@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  npm:
-    runs-on: ubuntu-latest
+  npm-linux:
+    runs-on: ubuntu-22.04
     container: fedora:38
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +27,40 @@ jobs:
         run: npm run make
       - uses: actions/upload-artifact@v4
         with:
-          name: build
-          path: launcher/out/make
+          name: quadradius-launcher-linux-x64-zip
+          path: launcher/out/make/zip/linux/x64/*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  npm-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - working-directory: launcher
+        run: npm install
+      - working-directory: launcher
+        run: npm run make
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadradius-launcher-win32-x64-zip
+          path: launcher/out/make/zip/win32/x64/*.zip
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadradius-launcher-win32-x64-setup
+          path: launcher/out/make/squirrel.windows/x64/*.exe
+          if-no-files-found: error
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadradius-launcher-win32-x64-nupkg
+          path: launcher/out/make/squirrel.windows/x64/*.nupkg
+          if-no-files-found: error
+          compression-level: 0
 
   flatpak:
     runs-on: ubuntu-latest
@@ -39,6 +71,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: QuadradiusLauncher.flatpak
+          bundle: quadradius-launcher-flatpak.flatpak
           manifest-path: launcher/com.github.Fruktus.QuadradiusLauncher.yml
           cache-key: flatpak-builder-${{ github.sha }}

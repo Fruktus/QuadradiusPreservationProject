@@ -73,13 +73,16 @@ However, when you want to run the Docker image without Compose:
 2. Run the image
    ```bash
    docker run -it \
-     -p 3000:3000 \
-     -p 3001:3001 \
-     -p 8000:8000 \
+     -p <lobby port>:3000 \
+     -p <game port>:3001 \
+     -p <http port>:8000 \
+     -e ADDRESS="<address>" \
+     -e LOBBY_PORT="<lobby port>" \
+     -e GAME_PORT="<game port>" \
      quadradius-server
    ```
 
-You can define the following environment variables to configure the server:
+The following environment variables configure the server:
 * `ADDRESS` — the address which the server will be hosted at,
   by default it's `127.0.0.1`
 * `LOBBY_PORT` and `GAME_PORT` — the ports of the application,

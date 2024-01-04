@@ -1,6 +1,6 @@
 {
   "name": "quadradius-launcher",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "A simple launcher for Quadradius, by Quadradius Preservation Project",
   "main": "main.js",
   "homepage": "./",

@@ -65,22 +65,16 @@ docker compose up
 
 However, when you want to run the Docker image without Compose:
 
-1. Build the image
-   ```bash
-   docker build . -t quadradius-server
-   ```
-
-2. Run the image
-   ```bash
-   docker run -it \
-     -p <lobby port>:3000 \
-     -p <game port>:3001 \
-     -p <http port>:8000 \
-     -e ADDRESS="<address>" \
-     -e LOBBY_PORT="<lobby port>" \
-     -e GAME_PORT="<game port>" \
-     quadradius-server
-   ```
+```bash
+docker run -it \
+   -p <lobby port>:3000 \
+   -p <game port>:3001 \
+   -p <http port>:8000 \
+   -e ADDRESS="<address>" \
+   -e LOBBY_PORT="<lobby port>" \
+   -e GAME_PORT="<game port>" \
+   ghcr.io/fruktus/quadradius-preservation-project:<version or latest>
+```
 
 The following environment variables configure the server:
 * `ADDRESS` — the address which the server will be hosted at,
@@ -90,10 +84,14 @@ The following environment variables configure the server:
 
 When the image is running, you can start the game by executing
 ```bash
+./ruffle http://<address>:<http port>/quadradius_lobby.swf
+# or
 ./flashplayer http://<address>:<http port>/quadradius_lobby.swf
 ```
 by default, it will be
 ```bash
+./ruffle http://127.0.0.1:8000/quadradius_lobby.swf
+# or
 ./flashplayer http://127.0.0.1:8000/quadradius_lobby.swf
 ```
 

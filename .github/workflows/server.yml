@@ -2,9 +2,13 @@ name: Server
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - master
+    tags:
+      - "v*.*.*"
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
   workflow_dispatch:
 
 jobs:
@@ -40,3 +44,31 @@ jobs:
       - name: Test with pytest
         run: |
           python -m unittest
+
+  docker:
+    runs-on: ubuntu-latest
+    needs:
+      - unittest
+      - lint
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/fruktus/quadradius-preservation-project
+          tags: |
+            type=semver,pattern={{version}}
+            latest
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

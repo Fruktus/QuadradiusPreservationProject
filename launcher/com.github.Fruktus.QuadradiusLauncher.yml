@@ -25,6 +25,8 @@ modules:
         npm_config_cache: /run/build/app/flatpak-node/npm-cache
     build-commands:
       - install -D run.sh /app/bin/run.sh
+      - install -D quadradius-launcher.desktop /app/share/applications/com.github.Fruktus.QuadradiusLauncher.desktop
+      - install -D quadradius-launcher.png /app/share/icons/hicolor/192x192/apps/com.github.Fruktus.QuadradiusLauncher.png
       - cd launcher && npm install && npm run package
       - cp -a launcher/out/quadradius-launcher-* /app/main
     sources:
@@ -34,3 +36,7 @@ modules:
         dest-filename: run.sh
         commands:
           - zypak-wrapper.sh /app/main/quadradius-launcher "$@"
+      - type: file
+        path: quadradius-launcher.desktop
+      - type: file
+        path: quadradius-launcher.png

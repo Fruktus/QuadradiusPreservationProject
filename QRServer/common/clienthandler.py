@@ -67,6 +67,7 @@ class ClientHandler(abc.ABC):
             prefix = values[0]
 
             message = RequestMessage.from_data(data)
+
             try:
                 if message is not None:
                     log.debug('Handling: {}'.format(message))
@@ -91,7 +92,10 @@ class ClientHandler(abc.ABC):
 
     def send_msg(self, message: ResponseMessage):
         log.debug('Sending {} to {}'.format(message, self.username))
-        self.cs.send(message.to_data())
+        try:
+            self.cs.send(message.to_data())
+        except BrokenPipeError:
+            raise StopHandlerException()
 
     def close(self):
         if self.cs:

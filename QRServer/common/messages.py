@@ -50,7 +50,7 @@ class RequestMessage(Message):
 
     @staticmethod
     def from_data(data: bytes):
-        return _parse_data(data.decode('ascii'))
+        return _parse_data(data.decode('ascii', 'replace'))
 
 
 class DisconnectRequest(RequestMessage):

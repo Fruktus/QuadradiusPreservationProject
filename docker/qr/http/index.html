@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Quadradius</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+        let hostname = window.location.hostname;
+        let protocol = window.location.protocol == 'http:' ? 'ws:' : 'wss:';
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            autoplay: "on",
+            contextMenu: "off",
+            socketProxy: [
+                {
+                    host: "127.0.0.1",
+                    port: 3000,
+                    proxyUrl: `${protocol}//${hostname}:8100`,
+                },
+                {
+                    host: "127.0.0.1",
+                    port: 3001,
+                    proxyUrl: `${protocol}//${hostname}:8101`,
+                },
+            ]
+        };
+    </script>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: stretch;
+            align-content: stretch;
+        }
+
+        .game {
+            flex: 1;
+        }
+
+        .embed {
+            width: 100%;
+            height: 100%;
+        }
+
+        .footer {
+            padding: 0.3em;
+            color: #444444;
+            text-align: center;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        a:link,
+        a:visited {
+            color: #777777;
+        }
+
+        a:hover {
+            color: #aaaaaa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <object class="game">
+            <embed src="./quadradius_lobby.swf" class="embed" />
+        </object>
+
+        <div class="footer">
+            Made possible by the
+            <a href="https://github.com/Fruktus/QuadradiusPreservationProject">Quadradius Preservation Project</a>.
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+</body>
+
+</html>

@@ -109,11 +109,11 @@ async function installPython() {
     }, ['python'])
 
     const pythonExecutable = path.join(dir, platform == 'win32' ? 'python.exe' : 'bin/python3')
-    await exec(`"${pythonExecutable}" -m pip install -r ../requirements.txt`)
+    await exec(`"${pythonExecutable}" -m pip install -r ../server/requirements.txt`)
 }
 
 async function installServer() {
     const dir = path.join(outputDirectory, 'server')
     await fs.mkdir(dir, { recursive: true })
-    await fs.cp('../QRServer', path.join(dir, 'QRServer'), { recursive: true })
+    await fs.cp('../server/QRServer', path.join(dir, 'QRServer'), { recursive: true })
 }

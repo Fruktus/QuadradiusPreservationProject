@@ -18,12 +18,10 @@ RUN mkdir -p /data && \
     (cd /qr/websockify/websockify-${WEBSOCKIFY_VERSION}/ && python3 setup.py install)
 
 
-COPY requirements.txt /
-RUN python -m pip install -r requirements.txt && \
-    rm requirements.txt
-
 COPY docker /
-COPY QRServer /qr/server/QRServer
+COPY server/QRServer /qr/server/QRServer
+COPY server/requirements.txt /qr/server/
+RUN python -m pip install -r /qr/server/requirements.txt
 
 EXPOSE 8000
 EXPOSE 3000

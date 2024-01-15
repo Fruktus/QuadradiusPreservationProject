@@ -1,3 +1,9 @@
+FROM python:3.9 as server-builder
+
+COPY server /server
+WORKDIR /server
+RUN pip install '.[dev]' && python setup.py bdist_wheel
+
 FROM python:3.9
 
 ARG WEBSOCKIFY_VERSION="0.11.0"
@@ -19,9 +25,8 @@ RUN mkdir -p /data && \
 
 
 COPY docker /
-COPY server/QRServer /qr/server/QRServer
-COPY server/requirements.txt /qr/server/
-RUN python -m pip install -r /qr/server/requirements.txt
+COPY --from=server-builder /server/dist/QRServer-*.whl /qr/server/
+RUN pip install /qr/server/*.whl
 
 EXPOSE 8000
 EXPOSE 3000

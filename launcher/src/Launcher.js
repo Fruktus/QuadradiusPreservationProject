@@ -71,7 +71,6 @@ class Launcher {
             '--bind', host,
             '--data', dir,
         ], {
-            cwd: this.config.getServerDir(),
             signal: this.abortController.signal,
         });
         this.childProcesses.push(serverProcess)

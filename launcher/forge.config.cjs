@@ -7,7 +7,6 @@ module.exports = {
       './extras/swf',
       `./extras/ruffle`,
       `./extras/python`,
-      `./extras/server`,
     ],
   },
   rebuildConfig: {},

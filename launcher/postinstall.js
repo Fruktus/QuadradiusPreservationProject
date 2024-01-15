@@ -4,9 +4,11 @@ import tar from 'tar'
 import path from 'path'
 import unzip from 'unzip'
 import download from 'download'
-import { exec } from 'child_process'
+import util from 'util'
+import child_process from 'child_process'
+const exec = util.promisify(child_process.exec);
 
-const outputDirectory = 'extras'
+const outputDirectory = path.resolve('extras')
 
 const platform = process.platform
 const arch = process.arch
@@ -69,11 +71,13 @@ await fs.mkdir(tmpDir, { recursive: true })
 await Promise.all([
     installSwf(),
     installRuffle(),
-    installPython(),
     installServer(),
 ]);
 
+console.log('Finished')
+
 async function installSwf() {
+    console.log('Installing SWFs...')
     const dir = path.join(outputDirectory, 'swf')
     await fs.mkdir(dir, { recursive: true })
     await fs.writeFile(path.join(dir, 'quadradius_game.swf'), await download(gameSwfUrl))
@@ -81,6 +85,7 @@ async function installSwf() {
 }
 
 async function installRuffle() {
+    console.log('Installing Ruffle...')
     const dir = path.join(outputDirectory, 'ruffle')
     const archiveFile = path.join(tmpDir, ruffleDistribution)
     await fs.mkdir(dir, { recursive: true })
@@ -96,7 +101,8 @@ async function installRuffle() {
     }
 }
 
-async function installPython() {
+async function installServer() {
+    console.log('Installing server...')
     const dir = path.join(outputDirectory, 'python')
     const tarGzFile = path.join(tmpDir, pythonDistribution)
     await fs.mkdir(dir, { recursive: true })
@@ -109,11 +115,6 @@ async function installPython() {
     }, ['python'])
 
     const pythonExecutable = path.join(dir, platform == 'win32' ? 'python.exe' : 'bin/python3')
-    await exec(`"${pythonExecutable}" -m pip install -r ../server/requirements.txt`)
-}
-
-async function installServer() {
-    const dir = path.join(outputDirectory, 'server')
-    await fs.mkdir(dir, { recursive: true })
-    await fs.cp('../server/QRServer', path.join(dir, 'QRServer'), { recursive: true })
+    const serverDir = path.resolve('../server')
+    await exec(`"${pythonExecutable}" -m pip install "${serverDir}"`)
 }

@@ -25,14 +25,6 @@ class Config {
         }
     }
 
-    getServerDir() {
-        if (this.isPackaged) {
-            return path.join(this.resourcesPath, 'server')
-        } else {
-            return path.join(__dirname, '../extras/server')
-        }
-    }
-
     getSwfDir() {
         if (this.isPackaged) {
             return path.join(this.resourcesPath, 'swf')

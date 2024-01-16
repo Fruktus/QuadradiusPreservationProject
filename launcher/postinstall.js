@@ -59,8 +59,8 @@ const pythonDistributionUrl = `https://github.com/indygreg/python-build-standalo
 const gameSwfUrl = 'https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_game.swf'
 const lobbySwfUrl = 'https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_lobby.swf'
 
-const ruffleDistribution = `ruffle-nightly-2023_12_14-${rufflePlatform}-x86_64.${ruffleFormat}`
-const ruffleUrl = `https://github.com/ruffle-rs/ruffle/releases/download/nightly-2023-12-14/${ruffleDistribution}`
+const ruffleDistribution = `ruffle-nightly-2024_01_16-${rufflePlatform}-x86_64.${ruffleFormat}`
+const ruffleUrl = `https://github.com/ruffle-rs/ruffle/releases/download/nightly-2024-01-16/${ruffleDistribution}`
 
 await fs.rm(outputDirectory, { force: true, recursive: true })
 const tmpDir = path.join(outputDirectory, 'tmp')

@@ -5,27 +5,8 @@
     <title>Quadradius</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script>
-        let hostname = window.location.hostname;
-        let protocol = window.location.protocol == 'http:' ? 'ws:' : 'wss:';
-        window.RufflePlayer = window.RufflePlayer || {};
-        window.RufflePlayer.config = {
-            autoplay: "on",
-            contextMenu: "off",
-            socketProxy: [
-                {
-                    host: "127.0.0.1",
-                    port: 3000,
-                    proxyUrl: `${protocol}//${hostname}:8100`,
-                },
-                {
-                    host: "127.0.0.1",
-                    port: 3001,
-                    proxyUrl: `${protocol}//${hostname}:8101`,
-                },
-            ]
-        };
-    </script>
+    <script src="config-quadradius.js"></script>
+    <script src="config-ruffle.js"></script>
     <style>
         html,
         body {

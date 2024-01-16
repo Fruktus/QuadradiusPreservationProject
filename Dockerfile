@@ -5,9 +5,12 @@ WORKDIR /server
 RUN pip install '.[dev]' && python setup.py bdist_wheel
 
 FROM python:3.9
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN mkdir -p /data && \
     mkdir -p /qr/http && \
+    # install nginx
+    apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/* && \
     # install SWFs
     wget https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_game.swf -O /qr/http/quadradius_game.swf && \
     wget https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_lobby.swf -O /qr/http/quadradius_lobby.swf && \

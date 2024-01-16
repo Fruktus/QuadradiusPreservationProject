@@ -19,7 +19,6 @@ RUN mkdir -p /data && \
     # install websockify
     pip install websockify
 
-
 COPY docker /
 COPY --from=server-builder /server/dist/QRServer-*.whl /qr/server/
 RUN pip install /qr/server/*.whl
@@ -27,7 +26,5 @@ RUN pip install /qr/server/*.whl
 EXPOSE 8000
 EXPOSE 3000
 EXPOSE 3001
-EXPOSE 8100
-EXPOSE 8101
 
 ENTRYPOINT ["/entrypoint.sh"]

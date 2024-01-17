@@ -7,26 +7,20 @@ assignees: ''
 
 ---
 
-**Platform**
+## **Platform**
 - [ ] Website player
 - [ ] Launcher
 - [ ] Server
+<!-- If bug is found within Launcher or Server, please provide their version or commit hash. -->
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## **Describe the bug**
+<!-- A clear and concise description of what the bug is.  -->
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+## **Expected behavior**
+<!-- A clear and concise description of what you expected to happen. -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## **Steps To Reproduce**
+<!-- Step by step guide how to reproduce the bug  -->
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Additional context**
-Add any other context about the problem here.
+## **Screenshots**
+<!-- If applicable, add screenshots to help explain your problem. -->

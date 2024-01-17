@@ -14,6 +14,8 @@ assignees: ''
 <!-- If bug is found within Launcher or Server, please provide their version or commit hash. -->
 
 ## **Describe the bug**
+<!-- Before submitting the issue, please check if there is no similar one already open. -->
+<!-- Please use descriptive titles for issue -->
 <!-- A clear and concise description of what the bug is.  -->
 
 ## **Expected behavior**

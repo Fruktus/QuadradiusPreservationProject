@@ -54,10 +54,36 @@
         a:hover {
             color: #aaaaaa;
         }
+
+        nav,h3 {
+            color: red;
+            margin: 0;
+        }
+
+        nav,h5 {
+            color: white;
+            margin: 0;
+        }
+
+        nav,a:link {
+            color: blue;
+        }
+
+        nav,a:visited {
+            color: purple;
+        }
+
+        nav,a:hover {
+            color: cyan;
+        }
     </style>
 </head>
 
 <body>
+    <nav>
+        <h3>THIS IS A DEVELOPMENT VERSION</h3>
+        <h5>Accounts and scores will not be saved.<br>If you encounter any errors or have any suggestions, please report them <a href="https://github.com/Fruktus/QuadradiusPreservationProject/issues/new/choose">Here</a>.</h5>
+    </nav>
     <div class="container">
         <object class="game">
             <embed src="./quadradius_lobby.swf" class="embed" />

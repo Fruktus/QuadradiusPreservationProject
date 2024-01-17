@@ -17,6 +17,7 @@ assignees: ''
 <!-- Before submitting the issue, please check if there is no similar one already open. -->
 <!-- Please use descriptive titles for issue -->
 <!-- A clear and concise description of what the bug is.  -->
+<!-- Add estimated time and timezone when the bug occured, as well as username to help find the relevant logs -->
 
 ## **Expected behavior**
 <!-- A clear and concise description of what you expected to happen. -->

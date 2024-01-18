@@ -79,4 +79,4 @@ class QRCmd(Cmd):
         return [x for x in args if x.startswith(prefix)]
 
     def _invalid_syntax(self, command):
-        print("Error: invalid syntax, type 'help {}'".format(command))
+        print(f"Error: invalid syntax, type 'help {command}'")

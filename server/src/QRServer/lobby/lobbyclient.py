@@ -53,7 +53,7 @@ class LobbyClientHandler(ClientHandler):
         swf_version = message.get_swf_version()
         if swf_version != 5:
             self.send_msg(OldSwfResponse())
-            log.debug('Client with invalid version tried to connect, version: {}'.format(swf_version))
+            log.debug(f'Client with invalid version tried to connect, version: {swf_version}')
             self.close()
 
     def _handle_join_lobby(self, message: JoinLobbyRequest):
@@ -64,7 +64,7 @@ class LobbyClientHandler(ClientHandler):
         self.player.user_id = connector().authenticate_member(username, password.encode('ascii'))
         if not is_guest and not config.auth_disable.get():
             if self.player.user_id is None:
-                log.debug('Player {} tried to connect, but failed to authenticate'.format(username))
+                log.debug(f'Player {username} tried to connect, but failed to authenticate')
                 self._error_bad_member()
                 self.close()
                 return
@@ -116,7 +116,7 @@ class LobbyClientHandler(ClientHandler):
         who = message.get_idx()
         comment = message.get_comment()
         if who != self.player.idx:
-            log.debug('Error while setting comment: wrong idx, expected {} was {}'.format(self.player.idx, who))
+            log.debug(f'Error while setting comment: wrong idx, expected {self.player.idx} was {who}')
             return
         if self.player.user_id:
             connector().set_comment(self.player.user_id, comment)
@@ -131,7 +131,7 @@ class LobbyClientHandler(ClientHandler):
     def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.player.idx is not None:
-            log.info('Player left lobby: {}'.format(self.player.username))
+            log.info(f'Player left lobby: {self.player.username}')
             self.lobby_server.remove_client(self.player.idx)
 
         self.close()

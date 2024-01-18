@@ -79,7 +79,7 @@ auto_register = ConfigKey(
 def get_key(name: str):
     by_name = keys_by_name()
     if name not in by_name:
-        raise Exception('Config not found: {}'.format(name))
+        raise Exception(f'Config not found: {name}')
     return by_name[name]
 
 
@@ -110,13 +110,13 @@ def set(name: str, value: object):
         elif value in ['false', 'False', 'N', 'F', False]:
             value = False
         else:
-            raise Exception('Invalid value: {}'.format(value))
+            raise Exception(f'Invalid value: {value}')
     elif value_type == int:
         value = int(value)
     elif value_type == str:
         value = str(value)
     else:
-        raise Exception('Unsupported config type: {}'.format(value_type))
+        raise Exception(f'Unsupported config type: {value_type}')
 
     name_parts = name.split('.')
     conf = _config
@@ -168,7 +168,7 @@ def setup_argparse(parser: ArgumentParser):
         elif value_type == str:
             kwargs['type'] = str
         else:
-            raise Exception('Unsupported config type: {}'.format(value_type))
+            raise Exception(f'Unsupported config type: {value_type}')
 
         parser.add_argument(
             *key.cli_args,
@@ -182,7 +182,7 @@ def load_from_args(args, set_dirty=False):
     args = vars(args)
     if '__config' in args and args['__config']:
         conf = args['__config']
-        print('Loading config from file: {}'.format(conf))
+        print(f'Loading config from file: {conf}')
         load_from_toml(conf)
     for key in all_keys():
         if args[key.name]:
@@ -206,4 +206,4 @@ def load_from_toml(file):
 
 def print_help():
     for key in all_keys():
-        print('{:20} - {}'.format(key.name, key.description))
+        print(f'{key.name:20} - {key.description}')

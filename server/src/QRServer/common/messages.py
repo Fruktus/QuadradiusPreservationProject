@@ -15,7 +15,7 @@ class Message:
 
         for arg in self.args:
             if not isinstance(arg, str):
-                raise ValueError('Wrong argument type: {}'.format(type(arg)))
+                raise ValueError(f'Wrong argument type: {type(arg)}')
 
     def to_data(self) -> bytes:
         return delim.join(self.args).encode('ascii') + b'\x00'
@@ -24,7 +24,7 @@ class Message:
         return self.__repr__()
 
     def __repr__(self) -> str:
-        return '{}({})'.format(self.__class__.__name__, self.args.__repr__())
+        return f'{self.__class__.__name__}({self.args.__repr__()})'
 
 
 ################################################################################
@@ -46,7 +46,7 @@ class RequestMessage(Message):
             raise AttributeError()
 
         if not _valid(args, prefix, argc):
-            raise ValueError("Invalid args for {}: {}".format(__class__, args))
+            raise ValueError(f"Invalid args for {__class__}: {args}")
 
     @staticmethod
     def from_data(data: bytes):
@@ -315,9 +315,9 @@ class LastPlayedResponse(ResponseMessage):
         duration_sec = (entry.finish - entry.start).total_seconds()
         minutes, seconds = divmod(duration_sec, 60)
         data = [
-            '{} beat {}'.format(entry.player_won, entry.player_lost),
-            '{}-{}'.format(entry.won_score, entry.lost_score),
-            '{:.0f}:{:02.0f}'.format(minutes, seconds),
+            f'{entry.player_won} beat {entry.player_lost}',
+            f'{entry.won_score}-{entry.lost_score}',
+            f'{minutes:.0f}:{seconds:02.0f}',
         ]
         return '#'.join(data)
 
@@ -379,7 +379,7 @@ class UsePowerMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
         if not powers.is_valid(power_name):
-            raise ValueError('Invalid power: {}'.format(power_name))
+            raise ValueError('Invalid power: {power_name}')
 
     def get_power_name(self):
         return self.args[2]
@@ -734,7 +734,7 @@ class SettingsArenaSizeMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
         if size not in self.valid_sizes:
-            raise ValueError('Invalid size: {}'.format(size))
+            raise ValueError(f'Invalid size: {size}')
 
     @staticmethod
     def from_args(args: List[str]):
@@ -755,7 +755,7 @@ class SettingsSquadronSizeMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
         if size not in self.valid_sizes:
-            raise ValueError('Invalid size: {}'.format(size))
+            raise ValueError(f'Invalid size: {size}')
 
     @staticmethod
     def from_args(args: List[str]):
@@ -776,7 +776,7 @@ class SettingsTimerMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
         if time not in self.valid_times:
-            raise ValueError('Invalid time: {}'.format(time))
+            raise ValueError(f'Invalid time: {time}')
 
     @staticmethod
     def from_args(args: List[str]):

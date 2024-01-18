@@ -81,6 +81,8 @@ class ClientHandler(abc.ABC):
                     log.warning('Deprecated handling: {}'.format(values))
                     for handler in self.handlers[prefix]:
                         handler(values)
+                else:
+                    log.debug('Unhandled message received: {}'.format(str(data)))
             except StopHandlerException:
                 return
 

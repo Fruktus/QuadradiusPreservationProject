@@ -70,30 +70,31 @@ class ClientHandler(abc.ABC):
 
             try:
                 if message is not None:
-                    log.debug('Handling: {}'.format(message))
+                    log.debug(f'Handling: {message}')
                     mtype = type(message)
                     if mtype in self.message_handlers:
                         for handler in self.message_handlers[mtype]:
                             handler(message)
                     else:
-                        log.error('No handler for message type {}'.format(mtype))
+                        log.error(f'No handler for message type {mtype}')
                 elif prefix in self.handlers:
-                    log.warning('Deprecated handling: {}'.format(values))
+                    log.warning(f'Deprecated handling: {values}')
                     for handler in self.handlers[prefix]:
                         handler(values)
                 else:
-                    log.debug('Unhandled message received: {}'.format(str(data)))
+                    if self.username:
+                        log.debug(f'Unhandled message received: {data}')
             except StopHandlerException:
                 return
 
     def send(self, data: bytes):
         """Deprecated, do not use"""
-        log.warning('Using deprecated method to send {}'.format(data))
-        log.debug('Sending {} to {}'.format(data, self.username))
+        log.warning(f'Using deprecated method to send {data}')
+        log.debug(f'Sending {data} to {self.username}')
         self.cs.send(data)
 
     def send_msg(self, message: ResponseMessage):
-        log.debug('Sending {} to {}'.format(message, self.username))
+        log.debug(f'Sending {message} to {self.username}')
         try:
             self.cs.send(message.to_data())
         except BrokenPipeError:

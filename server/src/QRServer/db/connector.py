@@ -87,7 +87,7 @@ def connector():
         data_dir = os.path.abspath(config.data_dir.get())
         os.makedirs(data_dir, exist_ok=True)
         dbfile = os.path.join(data_dir, 'database.sqlite3')
-        log.debug('Opening database: {}'.format(dbfile))
+        log.debug(f'Opening database: {dbfile}')
         c = DBConnector(dbfile)
         _connector.value = c
         return c

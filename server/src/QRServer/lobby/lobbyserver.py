@@ -77,7 +77,7 @@ class LobbyServer:
             self.clients[challenged_idx].send_msg(ChallengeAuthMessage(challenged_idx, challenger_idx, challenger_auth))
 
     def broadcast_msg(self, message: ResponseMessage):
-        log.debug('Broadcasting {}'.format(message))
+        log.debug(f'Broadcasting {message}')
         for client in self.clients:
             if client:
                 client.send_msg(message)

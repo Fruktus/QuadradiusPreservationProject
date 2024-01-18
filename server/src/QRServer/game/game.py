@@ -21,7 +21,7 @@ def game_listener(conn_host, conn_port):
     try:
         while True:
             (client_socket, address) = gm_s.accept()
-            log.debug('Client connected from {}'.format(address))
+            log.debug(f'Client connected from {address}')
             client = GameClientHandler(client_socket, gs)
             ct = Thread(target=client.run, daemon=True)
             ct.start()

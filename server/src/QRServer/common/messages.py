@@ -227,6 +227,55 @@ class SetCommentRequest(RequestMessage):
         return self._comment
 
 
+class AddStatsRequest(RequestMessage):
+    prefix = ['<SERVER>', '<STATS>']
+    argc = [7]
+    grid_sizes = ['small', 'medium', 'large (default)', 'maximum']
+    squadron_sizes = ['small', 'medium', 'large (default)', 'maximum']
+
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+        self._owner_piece_count = int(self.args[2])
+        self._opponent_piece_count = int(self.args[3])
+        self._cycle_counter = int(self.args[4])
+        self._grid_size = self.args[5]
+        self._squadron_size = self.args[6]
+
+    @staticmethod
+    def from_args(args: List[str]):
+        return __class__(args)
+
+    def get_owner_piece_count(self) -> int:
+        return self._owner_piece_count
+    
+    def get_opponent_piece_count(self) -> int:
+        return self._opponent_piece_count
+
+    def get_cycle_counter(self) -> int:
+        return self._cycle_counter
+    
+    def get_grid_size(self) -> str:
+        return self._grid_size
+    
+    def get_squadron_size(self) -> str:
+        return self._squadron_size
+
+
+class VoidScoreRequest(RequestMessage):
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+
+    prefix = ['<SERVER>', '<VOID>']
+    argc = [2]
+
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+
+    @staticmethod
+    def from_args(args: List[str]):
+        return __class__(args)
+
+
 ################################################################################
 # RESPONSES
 ################################################################################
@@ -364,6 +413,11 @@ class LobbyStateResponse(ResponseMessage):
 class OpponentDeadResponse(ResponseMessage):
     def __init__(self) -> None:
         super().__init__(['<S>', '<SERVER>', '<OPPDEAD>'])
+
+
+class VoidScoreResponse(ResponseMessage):
+    def __init__(self) -> None:
+        super().__init__(['<S>', '<SERVER>', '<VOID>'])
 
 
 ################################################################################
@@ -902,6 +956,8 @@ __message_classes = [
     SettingsColorMessage,
     SettingsReadyOnMessage,
     SettingsReadyOnAgainMessage,
+    VoidScoreRequest,
+    AddStatsRequest
 ]
 
 

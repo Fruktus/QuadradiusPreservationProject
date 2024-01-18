@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from QRServer.common.classes import MatchId, MatchParty
+from QRServer.common.classes import MatchId, MatchParty, MatchStats
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
     RequestMessage, ResponseMessage, GameChatMessage, GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, \
@@ -10,7 +10,8 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     NewGridCoordMessage, ResignMessage, ServerPingRequest, SettingsArenaSizeMessage, \
     SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
-    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse
+    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
+from QRServer.db.connector import connector
 
 log = logging.getLogger('game_client_handler')
 
@@ -28,12 +29,16 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.own_auth = None
         self.opponent_auth = None
         self.password = None
+        self.is_guest = True
+        self.void_score = False
 
         self.register_message_handler(PolicyFileRequest, self._handle_policy)
         self.register_message_handler(HelloGameRequest, self._handle_hello_game)
         self.register_message_handler(JoinGameRequest, self._handle_join_game)
         self.register_message_handler(ServerPingRequest, self._handle_ping)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
+        self.register_message_handler(AddStatsRequest, self._handle_add_stats)
+        self.register_message_handler(VoidScoreRequest, self._handle_void_score)
         self.register_handler(b'<S>', self._handle_s)
 
         # forwarding messages
@@ -86,6 +91,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_username = message.get_opponent_username()
         self.opponent_auth = message.get_opponent_auth()
         self.password = message.get_password()
+        self.is_guest = connector().is_guest(self.username)
 
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
@@ -105,6 +111,23 @@ class GameClientHandler(ClientHandler, MatchParty):
         # we have to ignore this message, responding to it
         # causes synchronization problems
         pass
+
+    def _handle_void_score(self, message: VoidScoreRequest):
+        self.void_score = True
+        if self.opponent_handler:
+            self.opponent_handler.send_msg(VoidScoreResponse())
+
+    def _handle_add_stats(self, message: AddStatsRequest):
+        stats = MatchStats(
+            owner=self.username,
+            own_piece_count=message.get_owner_piece_count(),
+            opponent_piece_count=message.get_opponent_piece_count(),
+            cycle_counter=message.get_cycle_counter(),
+            grid_size=message.get_grid_size(),
+            squadron_size=message.get_squadron_size()
+        )
+
+        self.game_server.add_match_stats(self, stats)
 
     def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')

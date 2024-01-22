@@ -27,10 +27,10 @@ def execute_migrations(c):
         c.execute(
             "create table matches ("
             "  id varchar primary key,"
-            "  player1_id varchar,"
-            "  player2_id varchar,"
-            "  player1_pieces_left integer,"
-            "  player2_pieces_left integer,"
+            "  winner_id varchar,"
+            "  loser_id varchar,"
+            "  winner_pieces_left integer,"
+            "  loser_pieces_left integer,"
             "  move_counter integer,"
             "  grid_size varchar,"
             "  squadron_size varchar,"
@@ -38,8 +38,8 @@ def execute_migrations(c):
             "  finished_at integer,"
             "  is_ranked integer,"
             "  is_void integer,"
-            "  foreign key(player1_id) references users (id),"
-            "  foreign key(player2_id) references users (id)"
+            "  foreign key(winner_id) references users (id),"
+            "  foreign key(loser_id) references users (id)"
             ")")
         _set_version(c, 3)
 

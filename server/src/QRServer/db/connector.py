@@ -3,10 +3,11 @@ import os
 import sqlite3
 import threading
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from QRServer import config
-from QRServer.common.classes import MatchResult
+from QRServer.common.classes import GameResultHistory, MatchResult
 from QRServer.db import migrations
 from QRServer.db.password import password_verify, password_hash
 
@@ -90,7 +91,7 @@ class DBConnector:
             return _id
         else:
             return None
-    
+
     def get_user_id_by_username(self, username: str):
         c = self.conn.cursor()
         c.execute("select id from users where username = ?", (username,))
@@ -105,14 +106,14 @@ class DBConnector:
         row = c.fetchone()
         if not row:
             return True
-        return row[1] == None
-    
-    def add_match_result(self, match_result: MatchResult):
-        player1_id = self.get_user_id_by_username(match_result.player1_username)
-        player2_id = self.get_user_id_by_username(match_result.player2_username)
+        return row[1] is None
 
-        if not player1_id or not player2_id:
-            log.warning(f'Missing ID for one of players: {[match_result.player1_username, match_result.player2_username]}')
+    def add_match_result(self, match_result: MatchResult):
+        winner_id = self.get_user_id_by_username(match_result.winner_username)
+        loser_id = self.get_user_id_by_username(match_result.loser_username)
+
+        if not winner_id or not loser_id:
+            log.warning(f'Missing ID for one of players: {[match_result.winner_username, match_result.loser_username]}')
             return
 
         c = self.conn.cursor()
@@ -120,10 +121,10 @@ class DBConnector:
         c.execute(
             "insert into matches ("
             "  id,"
-            "  player1_id,"
-            "  player2_id,"
-            "  player1_pieces_left,"
-            "  player2_pieces_left,"
+            "  winner_id,"
+            "  loser_id,"
+            "  winner_pieces_left,"
+            "  loser_pieces_left,"
             "  move_counter,"
             "  grid_size,"
             "  squadron_size,"
@@ -132,14 +133,14 @@ class DBConnector:
             "  is_ranked,"
             "  is_void"
             ") values ("
-                "?, ?, ?, ?, ?, ?,"
-                "?, ?, ?, ?, ?, ?"
+            "?, ?, ?, ?, ?, ?,"
+            "?, ?, ?, ?, ?, ?"
             ")", (
                 _id,
-                player1_id,
-                player2_id,
-                match_result.player1_pieces_left,
-                match_result.player2_pieces_left,
+                winner_id,
+                loser_id,
+                match_result.winner_pieces_left,
+                match_result.loser_pieces_left,
                 match_result.move_counter,
                 match_result.grid_size,
                 match_result.squadron_size,
@@ -150,6 +151,38 @@ class DBConnector:
             ))
         self.conn.commit()
         return _id
+
+    def get_recent_matches(self, count=15):
+        c = self.conn.cursor()
+
+        # Gets all recent matches, minus void ones
+        c.execute("select"
+                  " u1.username,"
+                  " u2.username,"
+                  " m.winner_pieces_left,"
+                  " m.loser_pieces_left,"
+                  " m.started_at,"
+                  " m.finished_at"
+                  " from matches m"
+                  " left join users u1 on m.winner_id = u1.id"
+                  " left join users u2 on m.loser_id = u2.id"
+                  " where m.is_void = 0"
+                  " order by m.finished_at"
+                  " limit ?", (count,))
+
+        recent_matches = []
+        rows = c.fetchall()
+
+        for row in rows:
+            recent_matches.append(GameResultHistory(
+                player_won=row[0],
+                player_lost=row[1],
+                won_score=row[2],
+                lost_score=row[3],
+                start=datetime.fromtimestamp(row[4]),
+                finish=datetime.fromtimestamp(row[5])
+            ))
+        return recent_matches
 
 
 _connector = threading.local()

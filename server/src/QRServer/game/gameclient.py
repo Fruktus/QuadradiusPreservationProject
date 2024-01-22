@@ -118,16 +118,8 @@ class GameClientHandler(ClientHandler, MatchParty):
             self.opponent_handler.send_msg(VoidScoreResponse())
 
     def _handle_add_stats(self, message: AddStatsRequest):
-        stats = MatchStats(
-            owner=self.username,
-            own_piece_count=message.get_owner_piece_count(),
-            opponent_piece_count=message.get_opponent_piece_count(),
-            cycle_counter=message.get_cycle_counter(),
-            grid_size=message.get_grid_size(),
-            squadron_size=message.get_squadron_size()
-        )
-
-        self.game_server.add_match_stats(self, stats)
+        stats = MatchStats.from_add_stat_request(message)
+        self.game_server.add_match_stats(self, self.username, stats)
 
     def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')

@@ -30,34 +30,6 @@ class MatchParty(abc.ABC):
 
 
 @dataclass
-class GameResultHistory:
-    player_won: str
-    player_lost: str
-    won_score: int
-    lost_score: int
-    start: datetime
-    finish: datetime
-
-
-@dataclass
-class RankingEntry:
-    player: str
-    wins: int
-    games: int
-
-
-@dataclass
-class LobbyPlayer:
-    user_id: str = None
-    username: str = ''
-    comment: str = ''
-    score: int = 0
-    awards: List[int] = field(default_factory=lambda: [0] * 10)
-    idx: int = None
-    joined_at: datetime = None
-
-
-@dataclass
 class MatchStats:
     owner: str
     own_piece_count: int
@@ -66,13 +38,24 @@ class MatchStats:
     grid_size: str = ''
     squadron_size: str = ''
 
+    @staticmethod
+    def from_add_stat_request(username, request) -> "MatchStats":
+        return MatchStats(
+            owner=username,
+            own_piece_count=request.get_owner_piece_count(),
+            opponent_piece_count=request.get_opponent_piece_count(),
+            cycle_counter=request.get_cycle_counter(),
+            grid_size=request.get_grid_size(),
+            squadron_size=request.get_squadron_size()
+        )
+
 
 @dataclass
 class MatchResult:
-    player1_username: str
-    player2_username: str
-    player1_pieces_left: int
-    player2_pieces_left: int
+    winner_username: str
+    loser_username: str
+    winner_pieces_left: int
+    loser_pieces_left: int
     move_counter: int
     grid_size: str
     squadron_size: str
@@ -90,20 +73,24 @@ class MatchReporter:
             return None
         stat1 = match_results[0]
         stat2 = match_results[1]
+        winner = stat1 if stat1.own_piece_count > stat2.own_piece_count else stat2
+        loser = stat1 if stat1.own_piece_count < stat2.own_piece_count else stat2
+
         report = {
-            'player1_username': stat1.owner,
-            'player2_username': stat2.owner,
-            'player1_pieces_left': stat1.own_piece_count,
-            'player2_pieces_left': stat2.own_piece_count,
+            'winner_username': winner.owner,
+            'loser_username': loser.owner,
+            'winner_pieces_left': winner.own_piece_count,
+            'loser_pieces_left': loser.own_piece_count,
             'move_counter': max(stat1.cycle_counter, stat2.cycle_counter),
             'grid_size': stat1.grid_size,
             'squadron_size': stat1.grid_size,
             'started_at': start_time.timestamp(),
             'finished_at': end_time.timestamp(),
             'is_ranked': is_ranked,
-            'is_void': is_void 
+            'is_void': is_void
         }
         return MatchResult(**report)
+
 
 class Match:
     id: MatchId
@@ -143,7 +130,7 @@ class Match:
 
     def add_match_stats(self, result: MatchStats):
         self.results.append(result)
-    
+
     def generate_result(self) -> MatchResult:
         return MatchReporter.build_report(
             match_results=self.results,
@@ -163,3 +150,31 @@ class Match:
             if party.is_guest:
                 return False
         return True
+
+
+@dataclass
+class GameResultHistory:
+    player_won: str
+    player_lost: str
+    won_score: int
+    lost_score: int
+    start: datetime
+    finish: datetime
+
+
+@dataclass
+class RankingEntry:
+    player: str
+    wins: int
+    games: int
+
+
+@dataclass
+class LobbyPlayer:
+    user_id: str = None
+    username: str = ''
+    comment: str = ''
+    score: int = 0
+    awards: List[int] = field(default_factory=lambda: [0] * 10)
+    idx: int = None
+    joined_at: datetime = None

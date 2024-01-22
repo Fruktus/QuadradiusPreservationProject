@@ -27,16 +27,16 @@ class GameServer:
 
     def get_player_count(self):
         return len(self.matches) * 2
-    
+
     def add_match_stats(self, client_handler: GameClientHandler, stats: MatchStats):
         match_id = client_handler.match_id()
         with self._lock:
             if match_id not in self.matches:
                 return
-            
+
             match = self.matches[match_id]
             match.add_match_stats(stats)
-            
+
             if len(self.matches[match_id].results) == 2:
                 report = match.generate_result()
                 if report:
@@ -44,7 +44,6 @@ class GameServer:
                     log.debug(f'Added match report {report}')
                 else:
                     log.debug('Failed to generate report')
-
 
     def remove_client(self, client: GameClientHandler):
         match_id = client.match_id()

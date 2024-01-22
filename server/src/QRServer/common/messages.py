@@ -247,24 +247,21 @@ class AddStatsRequest(RequestMessage):
 
     def get_owner_piece_count(self) -> int:
         return self._owner_piece_count
-    
+
     def get_opponent_piece_count(self) -> int:
         return self._opponent_piece_count
 
     def get_cycle_counter(self) -> int:
         return self._cycle_counter
-    
+
     def get_grid_size(self) -> str:
         return self._grid_size
-    
+
     def get_squadron_size(self) -> str:
         return self._squadron_size
 
 
 class VoidScoreRequest(RequestMessage):
-    def __init__(self, args: List[str]) -> None:
-        super().__init__(args)
-
     prefix = ['<SERVER>', '<VOID>']
     argc = [2]
 

@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from QRServer.common import powers
-from QRServer.common.classes import GameResultHistory, RankingEntry, LobbyPlayer
+from QRServer.common.classes import GameResultHistory, MatchStats, RankingEntry, LobbyPlayer
 
 delim = '~'
 
@@ -259,6 +259,15 @@ class AddStatsRequest(RequestMessage):
 
     def get_squadron_size(self) -> str:
         return self._squadron_size
+
+    def to_stats(self) -> MatchStats:
+        return MatchStats(
+            own_piece_count=self._owner_piece_count,
+            opponent_piece_count=self._opponent_piece_count,
+            cycle_counter=self._cycle_counter,
+            grid_size=self._grid_size,
+            squadron_size=self._squadron_size
+        )
 
 
 class VoidScoreRequest(RequestMessage):
@@ -954,7 +963,7 @@ __message_classes = [
     SettingsReadyOnMessage,
     SettingsReadyOnAgainMessage,
     VoidScoreRequest,
-    AddStatsRequest
+    AddStatsRequest,
 ]
 
 

@@ -42,6 +42,12 @@ def execute_migrations(c):
             "  foreign key(loser_id) references users (id)"
             ")")
         _set_version(c, 3)
+    if version <= 3:
+        c.execute(
+            "alter table users"
+            " add column created_at integer"
+        )
+        _set_version(c, 4)
 
 
 def _select_version(c):

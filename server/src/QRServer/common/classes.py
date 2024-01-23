@@ -2,13 +2,14 @@ import abc
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List
+from QRServer.db.models import DbMatch
 
 
 class MatchId:
     id: frozenset
 
-    def __init__(self, username_a, username_b) -> None:
-        self.id = frozenset({username_a, username_b})
+    def __init__(self, user_id_a, user_id_b) -> None:
+        self.id = frozenset({user_id_a, user_id_b})
 
     def __eq__(self, o) -> bool:
         if not isinstance(o, MatchId):
@@ -31,77 +32,23 @@ class MatchParty(abc.ABC):
 
 @dataclass
 class MatchStats:
-    owner: str
     own_piece_count: int
     opponent_piece_count: int
     cycle_counter: int
     grid_size: str = ''
     squadron_size: str = ''
 
-    @staticmethod
-    def from_add_stat_request(username, request) -> "MatchStats":
-        return MatchStats(
-            owner=username,
-            own_piece_count=request.get_owner_piece_count(),
-            opponent_piece_count=request.get_opponent_piece_count(),
-            cycle_counter=request.get_cycle_counter(),
-            grid_size=request.get_grid_size(),
-            squadron_size=request.get_squadron_size()
-        )
-
-
-@dataclass
-class MatchResult:
-    winner_username: str
-    loser_username: str
-    winner_pieces_left: int
-    loser_pieces_left: int
-    move_counter: int
-    grid_size: str
-    squadron_size: str
-    started_at: datetime
-    finished_at: datetime
-    is_ranked: bool
-    is_void: bool
-
-
-class MatchReporter:
-    @staticmethod
-    def build_report(match_results: List[MatchStats], is_ranked: bool, is_void: bool,
-                     start_time: datetime, end_time: datetime):
-        if len(match_results) != 2:
-            return None
-        stat1 = match_results[0]
-        stat2 = match_results[1]
-        winner = stat1 if stat1.own_piece_count > stat2.own_piece_count else stat2
-        loser = stat1 if stat1.own_piece_count < stat2.own_piece_count else stat2
-
-        report = {
-            'winner_username': winner.owner,
-            'loser_username': loser.owner,
-            'winner_pieces_left': winner.own_piece_count,
-            'loser_pieces_left': loser.own_piece_count,
-            'move_counter': max(stat1.cycle_counter, stat2.cycle_counter),
-            'grid_size': stat1.grid_size,
-            'squadron_size': stat1.grid_size,
-            'started_at': start_time.timestamp(),
-            'finished_at': end_time.timestamp(),
-            'is_ranked': is_ranked,
-            'is_void': is_void
-        }
-        return MatchResult(**report)
-
 
 class Match:
     id: MatchId
     parties: List[MatchParty]
-    results: List[MatchStats]
+    results: {}
 
     def __init__(self, _id: MatchId) -> None:
         super().__init__()
         self.id = _id
         self.parties = []
-        self.results = []
+        self.results = {}
         self.start_time = datetime.now()
 
     def empty(self):
@@ -128,16 +75,36 @@ class Match:
             self.parties[0].unmatch_opponent()
         party.unmatch_opponent()
 
-    def add_match_stats(self, result: MatchStats):
-        self.results.append(result)
+    def add_match_stats(self, user_id: str, result: MatchStats):
+        self.results[user_id] = result
 
-    def generate_result(self) -> MatchResult:
-        return MatchReporter.build_report(
-            match_results=self.results,
+    def generate_result(self) -> DbMatch:
+        if len(self.results) != 2:
+            return None
+
+        print(self.results)
+        p1_id = list(self.results.keys())[0]
+        p2_id = list(self.results.keys())[1]
+        stat1 = self.results[p1_id]
+        stat2 = self.results[p2_id]
+        winner_id, winner, loser_id, loser = (p1_id, stat1, p2_id, stat2) if \
+            stat1.own_piece_count > stat2.own_piece_count else (p2_id, stat2, p1_id, stat2)
+
+        # Winner reports his pieces normally and opponent's as 0 when giving up
+        # Loser seems to report both correctly (his own +-1, may not have got last move)
+        return DbMatch(
+            winner_id=winner_id,
+            loser_id=loser_id,
+            winner_pieces_left=winner.own_piece_count,
+            loser_pieces_left=winner.opponent_piece_count,
+            move_counter=max(winner.cycle_counter, loser.cycle_counter),
+            grid_size=winner.grid_size,
+            squadron_size=winner.grid_size,
+            started_at=self.start_time.timestamp(),
+            finished_at=datetime.now().timestamp(),
             is_ranked=self.is_ranked(),
-            is_void=self.is_void(),
-            start_time=self.start_time,
-            end_time=datetime.now())
+            is_void=self.is_void()
+        )
 
     def is_void(self):
         for party in self.parties:

@@ -35,7 +35,7 @@ class GameServer:
                 return
 
             match = self.matches[match_id]
-            match.add_match_stats(stats)
+            match.add_match_stats(client_handler.user_id, stats)
 
             if len(self.matches[match_id].results) == 2:
                 report = match.generate_result()

@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from QRServer.common.classes import MatchId, MatchParty, MatchStats
+from QRServer.common.classes import MatchId, MatchParty
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
     RequestMessage, ResponseMessage, GameChatMessage, GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, \
@@ -24,6 +24,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_handler = None
         self.game_server = game_server
 
+        self.user_id = None
         self.username = None
         self.opponent_username = None
         self.own_auth = None
@@ -91,7 +92,10 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_username = message.get_opponent_username()
         self.opponent_auth = message.get_opponent_auth()
         self.password = message.get_password()
-        self.is_guest = connector().is_guest(self.username)
+
+        db_user = connector().get_user_by_username(self.username)
+        self.user_id = db_user.user_id
+        self.is_guest = db_user.is_guest
 
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
@@ -118,8 +122,7 @@ class GameClientHandler(ClientHandler, MatchParty):
             self.opponent_handler.send_msg(VoidScoreResponse())
 
     def _handle_add_stats(self, message: AddStatsRequest):
-        stats = MatchStats.from_add_stat_request(message)
-        self.game_server.add_match_stats(self, self.username, stats)
+        self.game_server.add_match_stats(self, message.to_stats())
 
     def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')

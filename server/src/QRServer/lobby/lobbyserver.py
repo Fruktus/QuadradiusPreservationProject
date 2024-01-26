@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from threading import Lock
 from typing import Optional, List
 
 from QRServer.common.classes import LobbyPlayer
@@ -18,24 +17,22 @@ class LobbyServer:
 
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked
-        self._lock = Lock()
         self.last_logged = None
 
-    def add_client(self, client: LobbyClientHandler):
-        with self._lock:
-            for idx in range(13):
-                if not self.clients[idx]:
-                    self.clients[idx] = client
-                    # possibly increment total_clients counter
-                    self.broadcast_lobby_state(idx)
-                    return idx
-            return -1
+    async def add_client(self, client: LobbyClientHandler):
+        for idx in range(13):
+            if not self.clients[idx]:
+                self.clients[idx] = client
+                # possibly increment total_clients counter
+                await self.broadcast_lobby_state(idx)
+                return idx
+        return -1
         # if no free space either kick someone or deal with it differently
 
-    def remove_client(self, idx):
+    async def remove_client(self, idx):
         self.last_logged = self.clients[idx]
         self.clients[idx] = None
-        self.broadcast_lobby_state(idx)
+        await self.broadcast_lobby_state(idx)
 
     def username_exists(self, username):
         for i in self.clients:
@@ -58,29 +55,30 @@ class LobbyServer:
         else:
             return LastLoggedResponse('<>', datetime.now(), '')
 
-    def broadcast_lobby_state(self, excluded_idx):
+    async def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
         message = LobbyStateResponse(self.get_players())
         for i in range(13):
             if i == excluded_idx:
                 continue
             if self.clients[i]:
-                self.clients[i].send_msg(message)
+                await self.clients[i].send_msg(message)
         pass
 
-    def challenge_user(self, challenger_idx, challenged_idx):
+    async def challenge_user(self, challenger_idx, challenged_idx):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            self.clients[challenged_idx].send_msg(ChallengeMessage(challenged_idx, challenger_idx))
+            await self.clients[challenged_idx].send_msg(ChallengeMessage(challenged_idx, challenger_idx))
 
-    def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
+    async def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            self.clients[challenged_idx].send_msg(ChallengeAuthMessage(challenged_idx, challenger_idx, challenger_auth))
+            msg = ChallengeAuthMessage(challenged_idx, challenger_idx, challenger_auth)
+            await self.clients[challenged_idx].send_msg(msg)
 
-    def broadcast_msg(self, message: ResponseMessage):
+    async def broadcast_msg(self, message: ResponseMessage):
         log.debug(f'Broadcasting {message}')
         for client in self.clients:
             if client:
-                client.send_msg(message)
+                await client.send_msg(message)
 
 # compare with screenshot
 # <S>~<SERVER>~<LAST_LOGGED>~turing guest~33~

@@ -11,9 +11,18 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     ResponseMessage, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
     PolicyFileRequest, CrossDomainPolicyAllowAllResponse
 from QRServer.db.connector import connector
+from QRServer.listener import listen_for_connections
 from QRServer.discord.webhook import send_webhook_joined_lobby, send_webhook_left_lobby
 
 log = logging.getLogger('lobby_client_handler')
+
+
+async def lobby_listener(conn_host, conn_port, lobby_server):
+    async def handler(client_socket):
+        client = LobbyClientHandler(client_socket, lobby_server)
+        await client.run()
+
+    await listen_for_connections(conn_host, conn_port, handler, 'Lobby')
 
 
 class LobbyClientHandler(ClientHandler):
@@ -46,101 +55,101 @@ class LobbyClientHandler(ClientHandler):
     def get_player(self) -> LobbyPlayer:
         return self.player
 
-    def _handle_policy(self, message: PolicyFileRequest):
+    async def _handle_policy(self, message: PolicyFileRequest):
         log.debug('policy file requested')
-        self.send_msg(CrossDomainPolicyAllowAllResponse())
+        await self.send_msg(CrossDomainPolicyAllowAllResponse())
 
-    def _handle_hello_lobby(self, message: HelloLobbyRequest):
+    async def _handle_hello_lobby(self, message: HelloLobbyRequest):
         swf_version = message.get_swf_version()
         if swf_version != 5:
-            self.send_msg(OldSwfResponse())
+            await self.send_msg(OldSwfResponse())
             log.debug(f'Client with invalid version tried to connect, version: {swf_version}')
             self.close()
 
-    def _handle_join_lobby(self, message: JoinLobbyRequest):
+    async def _handle_join_lobby(self, message: JoinLobbyRequest):
         username = message.get_username()
         password = message.get_password()
         is_guest = utils.is_guest(username, password)
 
-        self.player.user_id = connector().authenticate_member(username, password.encode('ascii'))
+        self.player.user_id = await (await connector()).authenticate_member(username, password.encode('ascii'))
         if not is_guest and not config.auth_disable.get():
             if self.player.user_id is None:
                 log.debug(f'Player {username} tried to connect, but failed to authenticate')
-                self._error_bad_member()
+                await self._error_bad_member()
                 self.close()
                 return
 
         if self.lobby_server.username_exists(username):
             log.debug('Client duplicate in lobby: ' + username)
-            self.send_msg(LobbyDuplicateResponse())
+            await self.send_msg(LobbyDuplicateResponse())
             self.close()  # FIXME it seems that the connection shouldnt be completely closed
             return
 
         # user authenticated successfully, register with lobbyserver
         self.player.username = username
         self.player.joined_at = datetime.now()
-        self.player.communique = connector().get_comment(self.player.user_id) or ' '
-        self.player.idx = self.lobby_server.add_client(self)
-        self.send_msg(LobbyStateResponse(self.lobby_server.get_players()))
+        self.player.communique = await (await connector()).get_comment(self.player.user_id) or ' '
+        self.player.idx = await self.lobby_server.add_client(self)
+        await self.send_msg(LobbyStateResponse(self.lobby_server.get_players()))
 
         if is_guest:
             log.info('Guest joined lobby: ' + username)
         else:
             log.info('Member joined lobby: ' + username)
 
-        send_webhook_joined_lobby(username, sum(player is not None for player in self.lobby_server.get_players()))
+        await send_webhook_joined_lobby(username, sum(player is not None for player in self.lobby_server.get_players()))
 
-    def _handle_challenge(self, message: ChallengeMessage):
+    async def _handle_challenge(self, message: ChallengeMessage):
         challenger_idx = message.get_challenger_idx()
         challenged_idx = message.get_challenged_idx()
         log.debug('Challenge issued')
-        self.lobby_server.challenge_user(challenger_idx, challenged_idx)
+        await self.lobby_server.challenge_user(challenger_idx, challenged_idx)
 
-    def _handle_challenge_auth(self, message: ChallengeAuthMessage):
+    async def _handle_challenge_auth(self, message: ChallengeAuthMessage):
         challenger_idx = message.get_challenger_idx()
         challenged_idx = message.get_challenged_idx()
         challenger_auth = message.get_auth()
-        self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
+        await self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
 
-    def _handle_server_recent(self, message: ServerRecentRequest):
-        recent_matches = connector().get_recent_matches()
-        self.send_msg(self.lobby_server.get_last_logged())
-        self.send_msg(LastPlayedResponse(recent_games=recent_matches))
+    async def _handle_server_recent(self, message: ServerRecentRequest):
+        recent_matches = await (await connector()).get_recent_matches()
+        await self.send_msg(self.lobby_server.get_last_logged())
+        await self.send_msg(LastPlayedResponse(recent_games=recent_matches))
 
-    def _handle_server_ranking(self, message: ServerRankingRequest):
-        self.send_msg(ServerRankingResponse(True, [
+    async def _handle_server_ranking(self, message: ServerRankingRequest):
+        await self.send_msg(ServerRankingResponse(True, [
             RankingEntry(player='test', wins=12, games=30),
             RankingEntry(player='test2', wins=2, games=2),
         ]))
 
-    def _handle_server_alive(self, message: ServerAliveRequest):
-        self.send_msg(ServerAliveResponse())
+    async def _handle_server_alive(self, message: ServerAliveRequest):
+        await self.send_msg(ServerAliveResponse())
 
-    def _handle_set_comment(self, message: SetCommentRequest):
+    async def _handle_set_comment(self, message: SetCommentRequest):
         who = message.get_idx()
         comment = message.get_comment()
         if who != self.player.idx:
             log.debug(f'Error while setting comment: wrong idx, expected {self.player.idx} was {who}')
             return
         if self.player.user_id:
-            connector().set_comment(self.player.user_id, comment)
+            await (await connector()).set_comment(self.player.user_id, comment)
         self.player.comment = comment
-        self.lobby_server.broadcast_msg(BroadcastCommentResponse(who, comment))
+        await self.lobby_server.broadcast_msg(BroadcastCommentResponse(who, comment))
 
-    def _handle_broadcast(self, message):
+    async def _handle_broadcast(self, message):
         if not isinstance(message, ResponseMessage):
             raise Exception('Trying to send a non-response message')
-        self.lobby_server.broadcast_msg(message)
+        await self.lobby_server.broadcast_msg(message)
 
-    def _handle_disconnect(self, message: DisconnectRequest):
+    async def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.player.idx is not None:
             log.info(f'Player left lobby: {self.player.username}')
-            self.lobby_server.remove_client(self.player.idx)
+            await self.lobby_server.remove_client(self.player.idx)
             total_players = sum(player is not None for player in self.lobby_server.get_players())
-            send_webhook_left_lobby(self.player.username, total_players)
+            await send_webhook_left_lobby(self.player.username, total_players)
 
         self.close()
 
-    def _error_bad_member(self):
-        self.send_msg(LobbyBadMemberResponse())
+    async def _error_bad_member(self):
+        await self.send_msg(LobbyBadMemberResponse())

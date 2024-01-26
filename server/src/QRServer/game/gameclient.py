@@ -13,8 +13,17 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
 from QRServer.db.connector import connector
+from QRServer.listener import listen_for_connections
 
 log = logging.getLogger('game_client_handler')
+
+
+async def game_listener(conn_host, conn_port, game_server):
+    async def handler(client_socket):
+        client = GameClientHandler(client_socket, game_server)
+        await client.run()
+
+    await listen_for_connections(conn_host, conn_port, handler, 'Game')
 
 
 class GameClientHandler(ClientHandler, MatchParty):
@@ -87,14 +96,14 @@ class GameClientHandler(ClientHandler, MatchParty):
     def unmatch_opponent(self):
         self.opponent_handler = None
 
-    def _handle_policy(self, message: PolicyFileRequest):
+    async def _handle_policy(self, message: PolicyFileRequest):
         log.debug('policy file requested')
-        self.send_msg(CrossDomainPolicyAllowAllResponse())
+        await self.send_msg(CrossDomainPolicyAllowAllResponse())
 
-    def _handle_hello_game(self, message: HelloGameRequest):
+    async def _handle_hello_game(self, message: HelloGameRequest):
         pass
 
-    def _handle_join_game(self, message: JoinGameRequest):
+    async def _handle_join_game(self, message: JoinGameRequest):
         self.username = message.get_username()
         self.own_auth = message.get_auth()
         self.opponent_username = message.get_opponent_username()
@@ -102,44 +111,44 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.password = message.get_password()
 
         if not config.auth_disable.get():
-            db_user = connector().get_user_by_username(self.username)
+            db_user = await (await connector()).get_user_by_username(self.username)
             self.user_id = db_user.user_id
             self.is_guest = db_user.is_guest
 
-            db_opponent = connector().get_user_by_username(self.opponent_username)
+            db_opponent = await (await connector()).get_user_by_username(self.opponent_username)
             self.opponent_id = db_opponent.user_id
 
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
-        self.send_msg(PlayerCountResponse(player_count))
+        await self.send_msg(PlayerCountResponse(player_count))
 
-    def _handle_s(self, values):
+    async def _handle_s(self, values):
         if self.opponent_handler:
-            self.opponent_handler.send(b'~'.join(values) + b'\x00')
+            await self.opponent_handler.send(b'~'.join(values) + b'\x00')
 
-    def _handle_forward(self, message: RequestMessage):
+    async def _handle_forward(self, message: RequestMessage):
         if not isinstance(message, ResponseMessage):
             raise Exception('Trying to send a non-response message')
         if self.opponent_handler:
-            self.opponent_handler.send_msg(message)
+            await self.opponent_handler.send_msg(message)
 
-    def _handle_ping(self, message: ServerPingRequest):
+    async def _handle_ping(self, message: ServerPingRequest):
         # we have to ignore this message, responding to it
         # causes synchronization problems
         pass
 
-    def _handle_void_score(self, message: VoidScoreRequest):
+    async def _handle_void_score(self, message: VoidScoreRequest):
         self.void_score = True
         if self.opponent_handler:
-            self.opponent_handler.send_msg(VoidScoreResponse())
+            await self.opponent_handler.send_msg(VoidScoreResponse())
 
-    def _handle_add_stats(self, message: AddStatsRequest):
-        self.game_server.add_match_stats(self, message.to_stats())
+    async def _handle_add_stats(self, message: AddStatsRequest):
+        await self.game_server.add_match_stats(self, message.to_stats())
 
-    def _handle_disconnect(self, message: DisconnectRequest):
+    async def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.opponent_handler is not None:
-            self.opponent_handler.send_msg(OpponentDeadResponse())
+            await self.opponent_handler.send_msg(OpponentDeadResponse())
 
-        self.game_server.remove_client(self)
+        await self.game_server.remove_client(self)
         self.close()

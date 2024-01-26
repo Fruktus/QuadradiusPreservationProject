@@ -3,7 +3,7 @@ from datetime import datetime
 from unittest.mock import patch
 from QRServer.common.classes import GameResultHistory
 from QRServer.db.connector import DBConnector
-from QRServer.db.models import DbMatch
+from QRServer.db.models import DbMatchReport
 from QRServer.db.password import password_hash
 
 
@@ -69,7 +69,7 @@ class DbTest(unittest.TestCase):
             loser_id = self.conn.add_member('test_user_2', b'password')
 
             mock_uuid.return_value = '1234'
-            test_match = DbMatch(
+            test_match = DbMatchReport(
                 winner_id=winner_id,
                 loser_id=loser_id,
                 winner_pieces_left=10,
@@ -122,7 +122,7 @@ class DbTest(unittest.TestCase):
                 loser_id = self.conn.add_member(f'test_user_{i*100}', b'password')
 
                 mock_uuid.return_value = f'1234{i}'
-                test_match = DbMatch(
+                test_match = DbMatchReport(
                     winner_id=winner_id,
                     loser_id=loser_id,
                     winner_pieces_left=i,

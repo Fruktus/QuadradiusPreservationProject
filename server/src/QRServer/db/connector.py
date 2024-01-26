@@ -10,7 +10,7 @@ from QRServer import config
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.password import password_verify, password_hash
-from QRServer.db.models import DbUser, DbMatch
+from QRServer.db.models import DbUser, DbMatchReport
 
 log = logging.getLogger('dbconnector')
 
@@ -54,12 +54,12 @@ class DBConnector:
             ") values (?, ?, ?)", (
                 _id,
                 username,
-                datetime.now().timestamp()
+                datetime.now().timestamp(),
             ))
         self.conn.commit()
         return _id
 
-    def get_user(self, user_id: str) -> DbUser:
+    def get_user(self, user_id: str) -> Optional[DbUser]:
         c = self.conn.cursor()
         c.execute(
             "select id, username, password, created_at from users where id = ?", (
@@ -68,9 +68,14 @@ class DBConnector:
         row = c.fetchone()
         if row is None:
             return None
-        return DbUser.from_row(row)
+        return DbUser(
+            user_id=row[0],
+            username=row[1],
+            password=row[2],
+            created_at=row[3]
+        )
 
-    def get_user_by_username(self, username) -> DbUser:
+    def get_user_by_username(self, username) -> Optional[DbUser]:
         c = self.conn.cursor()
         c.execute(
             "select id, username, password, created_at from users where username = ?", (
@@ -79,7 +84,12 @@ class DBConnector:
         row = c.fetchone()
         if row is None:
             return None
-        return DbUser.from_row(row)
+        return DbUser(
+            user_id=row[0],
+            username=row[1],
+            password=row[2],
+            created_at=row[3]
+        )
 
     def get_comment(self, user_id: str) -> Optional[str]:
         c = self.conn.cursor()
@@ -119,7 +129,7 @@ class DBConnector:
         else:
             return None
 
-    def add_match_result(self, match_result: DbMatch):
+    def add_match_result(self, match_result: DbMatchReport):
         c = self.conn.cursor()
         _id = str(uuid.uuid4())
         c.execute(
@@ -156,7 +166,7 @@ class DBConnector:
         self.conn.commit()
         return _id
 
-    def get_match(self, match_id: str) -> DbMatch:
+    def get_match(self, match_id: str) -> Optional[DbMatchReport]:
         c = self.conn.cursor()
         c.execute(
             "select id, winner_id, loser_id, winner_pieces_left,"
@@ -169,7 +179,20 @@ class DBConnector:
         row = c.fetchone()
         if row is None:
             return None
-        return DbMatch.from_row(row)
+        return DbMatchReport(
+            match_id=row[0],
+            winner_id=row[1],
+            loser_id=row[2],
+            winner_pieces_left=row[3],
+            loser_pieces_left=row[4],
+            move_counter=row[5],
+            grid_size=row[6],
+            squadron_size=row[7],
+            started_at=datetime.fromtimestamp(row[8]),
+            finished_at=datetime.fromtimestamp(row[9]),
+            is_ranked=row[10],
+            is_void=row[11],
+        )
 
     def get_recent_matches(self, count=15):
         c = self.conn.cursor()

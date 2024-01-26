@@ -18,7 +18,7 @@ class Message:
                 raise ValueError(f'Wrong argument type: {type(arg)}')
 
     def to_data(self) -> bytes:
-        return delim.join(self.args).encode('ascii') + b'\x00'
+        return delim.join(self.args).encode('ascii', 'replace') + b'\x00'
 
     def __str__(self) -> str:
         return self.__repr__()

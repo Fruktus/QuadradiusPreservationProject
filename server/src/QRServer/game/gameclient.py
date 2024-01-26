@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+from QRServer import config
 from QRServer.common.classes import MatchId, MatchParty
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
@@ -25,6 +26,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.game_server = game_server
 
         self.user_id = None
+        self.opponent_id = None
         self.username = None
         self.opponent_username = None
         self.own_auth = None
@@ -69,7 +71,9 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SettingsColorMessage, self._handle_forward)
 
     def match_id(self) -> MatchId:
-        return MatchId(self.username, self.opponent_username)
+        if not config.auto_register.get() or config.auth_disable.get():
+            return MatchId(self.username, self.opponent_username)
+        return MatchId(self.user_id, self.opponent_id)
 
     def match_opponent(self, opponent: 'MatchParty'):
         if not isinstance(opponent, GameClientHandler):
@@ -93,9 +97,13 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_auth = message.get_opponent_auth()
         self.password = message.get_password()
 
-        db_user = connector().get_user_by_username(self.username)
-        self.user_id = db_user.user_id
-        self.is_guest = db_user.is_guest
+        if not config.auth_disable.get():
+            db_user = connector().get_user_by_username(self.username)
+            self.user_id = db_user.user_id
+            self.is_guest = db_user.is_guest
+
+            db_opponent = connector().get_user_by_username(self.opponent_username)
+            self.opponent_id = db_opponent.user_id
 
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()

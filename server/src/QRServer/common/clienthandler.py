@@ -85,6 +85,10 @@ class ClientHandler(abc.ABC):
                     if self.username:
                         log.debug(f'Unhandled message received: {data}')
             except StopHandlerException:
+                log.debug('Stopping handler')
+                return
+            except Exception:
+                log.exception(f'Error when processing message: {message}')
                 return
 
     def send(self, data: bytes):

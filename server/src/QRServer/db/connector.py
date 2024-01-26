@@ -148,8 +148,8 @@ class DBConnector:
                 match_result.move_counter,
                 match_result.grid_size,
                 match_result.squadron_size,
-                match_result.started_at,
-                match_result.finished_at,
+                match_result.started_at.timestamp(),
+                match_result.finished_at.timestamp(),
                 match_result.is_ranked,
                 match_result.is_void
             ))
@@ -160,7 +160,7 @@ class DBConnector:
         c = self.conn.cursor()
         c.execute(
             "select id, winner_id, loser_id, winner_pieces_left,"
-            " loser_pieces_left, move_counter, grid_size"
+            " loser_pieces_left, move_counter, grid_size,"
             " squadron_size, started_at, finished_at, is_ranked,"
             " is_void"
             " from matches where id = ?", (
@@ -201,6 +201,9 @@ class DBConnector:
                 finish=datetime.fromtimestamp(row[5]),
             ))
         return recent_matches
+
+    def close(self):
+        self.conn.close()
 
 
 _connector = threading.local()

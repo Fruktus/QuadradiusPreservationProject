@@ -100,8 +100,8 @@ class Match:
             move_counter=max(winner.cycle_counter, loser.cycle_counter),
             grid_size=winner.grid_size,
             squadron_size=winner.grid_size,
-            started_at=self.start_time.timestamp(),
-            finished_at=datetime.now().timestamp(),
+            started_at=self.start_time,
+            finished_at=datetime.now(),
             is_ranked=self.is_ranked(),
             is_void=self.is_void()
         )

@@ -27,8 +27,8 @@ class DbUser:
                 password=row[2],
                 created_at=row[3]
             )
-        except Exception:
-            log.warning(f'Failed to parse DbUser from row: {row}')
+        except Exception as e:
+            log.warning(f'Failed to parse DbUser from row: {row}. Exception: {e}')
             return None
 
 
@@ -64,6 +64,6 @@ class DbMatch:
                 is_ranked=row[10],
                 is_void=row[11]
             )
-        except Exception:
-            log.warning(f'Failed to parse DbMatch from row: {row}')
+        except Exception as e:
+            log.warning(f'Failed to parse DbMatch from row: {row}. Exception: {e}')
             return None

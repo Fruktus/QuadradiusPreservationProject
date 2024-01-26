@@ -38,12 +38,15 @@ class GameServer:
             match.add_match_stats(client_handler.user_id, stats)
 
             if len(self.matches[match_id].results) == 2:
-                report = match.generate_result()
-                if report:
-                    connector().add_match_result(report)
-                    log.debug(f'Added match report {report}')
-                else:
-                    log.debug('Failed to generate report')
+                try:
+                    report = match.generate_result()
+                    if report:
+                        connector().add_match_result(report)
+                        log.debug(f'Added match report {report}')
+                    else:
+                        log.error('Failed to generate report')
+                except Exception as e:
+                    log.error(f'Failed to generate report from results {match.results}: {e}')
 
     def remove_client(self, client: GameClientHandler):
         match_id = client.match_id()

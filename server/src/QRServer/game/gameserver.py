@@ -1,8 +1,12 @@
+import logging
 from threading import Lock
 from typing import Dict
 
-from QRServer.common.classes import MatchId, Match
+from QRServer.common.classes import MatchId, Match, MatchStats
 from QRServer.game.gameclient import GameClientHandler
+from QRServer.db.connector import connector
+
+log = logging.getLogger('game_server')
 
 
 class GameServer:
@@ -23,6 +27,30 @@ class GameServer:
 
     def get_player_count(self):
         return len(self.matches) * 2
+
+    def add_match_stats(self, client_handler: GameClientHandler, stats: MatchStats):
+        match_id = client_handler.match_id()
+        with self._lock:
+            if match_id not in self.matches:
+                return
+
+            match = self.matches[match_id]
+            if client_handler.user_id in match.match_stats:
+                log.warning(f'User {client_handler.user_id} already sent results for match {match_id}')
+                return
+
+            match.add_match_stats(client_handler.user_id, stats)
+
+            if len(self.matches[match_id].match_stats) == 2:
+                try:
+                    report = match.generate_match_report()
+                    if report:
+                        connector().add_match_result(report)
+                        log.debug(f'Added match report {report}')
+                    else:
+                        log.error('Failed to generate report')
+                except Exception:
+                    log.exception(f'Failed to generate report from results {match.match_stats}')
 
     def remove_client(self, client: GameClientHandler):
         match_id = client.match_id()

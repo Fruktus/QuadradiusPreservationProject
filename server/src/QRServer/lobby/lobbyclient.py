@@ -100,8 +100,9 @@ class LobbyClientHandler(ClientHandler):
         self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
 
     def _handle_server_recent(self, message: ServerRecentRequest):
+        recent_matches = connector().get_recent_matches()
         self.send_msg(self.lobby_server.get_last_logged())
-        self.send_msg(LastPlayedResponse([]))
+        self.send_msg(LastPlayedResponse(recent_games=recent_matches))
 
     def _handle_server_ranking(self, message: ServerRankingRequest):
         self.send_msg(ServerRankingResponse(True, [

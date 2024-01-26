@@ -23,6 +23,31 @@ def execute_migrations(c):
     if version <= 1:
         c.execute("alter table users add column comment varchar")
         _set_version(c, 2)
+    if version <= 2:
+        c.execute(
+            "create table matches ("
+            "  id varchar primary key,"
+            "  winner_id varchar,"
+            "  loser_id varchar,"
+            "  winner_pieces_left integer,"
+            "  loser_pieces_left integer,"
+            "  move_counter integer,"
+            "  grid_size varchar,"
+            "  squadron_size varchar,"
+            "  started_at integer,"
+            "  finished_at integer,"
+            "  is_ranked integer,"
+            "  is_void integer,"
+            "  foreign key(winner_id) references users (id),"
+            "  foreign key(loser_id) references users (id)"
+            ")")
+        _set_version(c, 3)
+    if version <= 3:
+        c.execute(
+            "alter table users"
+            " add column created_at integer"
+        )
+        _set_version(c, 4)
 
 
 def _select_version(c):

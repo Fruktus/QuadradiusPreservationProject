@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+from QRServer import config
 from QRServer.common.classes import MatchId, MatchParty
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
@@ -10,7 +11,8 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     NewGridCoordMessage, ResignMessage, ServerPingRequest, SettingsArenaSizeMessage, \
     SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
-    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse
+    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
+from QRServer.db.connector import connector
 
 log = logging.getLogger('game_client_handler')
 
@@ -23,17 +25,23 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_handler = None
         self.game_server = game_server
 
+        self.user_id = None
+        self.opponent_id = None
         self.username = None
         self.opponent_username = None
         self.own_auth = None
         self.opponent_auth = None
         self.password = None
+        self.is_guest = True
+        self.void_score = False
 
         self.register_message_handler(PolicyFileRequest, self._handle_policy)
         self.register_message_handler(HelloGameRequest, self._handle_hello_game)
         self.register_message_handler(JoinGameRequest, self._handle_join_game)
         self.register_message_handler(ServerPingRequest, self._handle_ping)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
+        self.register_message_handler(AddStatsRequest, self._handle_add_stats)
+        self.register_message_handler(VoidScoreRequest, self._handle_void_score)
         self.register_handler(b'<S>', self._handle_s)
 
         # forwarding messages
@@ -63,7 +71,9 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SettingsColorMessage, self._handle_forward)
 
     def match_id(self) -> MatchId:
-        return MatchId(self.username, self.opponent_username)
+        if not config.auto_register.get() or config.auth_disable.get():
+            return MatchId(self.username, self.opponent_username)
+        return MatchId(self.user_id, self.opponent_id)
 
     def match_opponent(self, opponent: 'MatchParty'):
         if not isinstance(opponent, GameClientHandler):
@@ -87,6 +97,14 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_auth = message.get_opponent_auth()
         self.password = message.get_password()
 
+        if not config.auth_disable.get():
+            db_user = connector().get_user_by_username(self.username)
+            self.user_id = db_user.user_id
+            self.is_guest = db_user.is_guest
+
+            db_opponent = connector().get_user_by_username(self.opponent_username)
+            self.opponent_id = db_opponent.user_id
+
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
         self.send_msg(PlayerCountResponse(player_count))
@@ -105,6 +123,14 @@ class GameClientHandler(ClientHandler, MatchParty):
         # we have to ignore this message, responding to it
         # causes synchronization problems
         pass
+
+    def _handle_void_score(self, message: VoidScoreRequest):
+        self.void_score = True
+        if self.opponent_handler:
+            self.opponent_handler.send_msg(VoidScoreResponse())
+
+    def _handle_add_stats(self, message: AddStatsRequest):
+        self.game_server.add_match_stats(self, message.to_stats())
 
     def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')

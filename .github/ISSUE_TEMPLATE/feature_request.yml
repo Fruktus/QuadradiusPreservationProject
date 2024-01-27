@@ -14,10 +14,10 @@ body:
     attributes:
       label: Was this feature present in original?
       options:
-        - label: This feature was present in original
-          required: false
-        - label: This feature was present in original
-          required: false
+      - label: This feature was present in original
+        required: false
+      - label: This feature is new
+        required: false
   - type: dropdown
     attributes:
       label: Target platform

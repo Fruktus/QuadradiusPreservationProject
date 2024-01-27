@@ -35,11 +35,11 @@ class GameServer:
                 return
 
             match = self.matches[match_id]
-            if client_handler.user_id in match.match_stats:
-                log.warning(f'User {client_handler.user_id} already sent results for match {match_id}')
+            if client_handler.client_id in match.match_stats:
+                log.warning(f'User {client_handler.client_id} already sent results for match {match_id}')
                 return
 
-            match.add_match_stats(client_handler.user_id, stats)
+            match.add_match_stats(client_handler.client_id, stats)
 
             if len(self.matches[match_id].match_stats) == 2:
                 try:

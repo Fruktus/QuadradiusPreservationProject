@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        - If you have questions about the project or need help, you can ask in our [Discord chat][https://discord.gg/TrgqXnY2Vf].
+        - If you have questions about the project or need help, you can ask in our [Discord chat](https://discord.gg/TrgqXnY2Vf).
         - Please do your best to search for duplicate requests before filing a new requests.
         - Fill out the information below to the best of your ability. Thank you!
   - type: dropdown

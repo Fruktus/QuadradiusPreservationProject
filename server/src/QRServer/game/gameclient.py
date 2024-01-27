@@ -70,6 +70,10 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SettingsTopBottomMessage, self._handle_forward)
         self.register_message_handler(SettingsColorMessage, self._handle_forward)
 
+    @property
+    def client_id(self) -> str:
+        return self.username if config.auth_disable.get() else self.user_id
+
     def match_id(self) -> MatchId:
         if not config.auto_register.get() or config.auth_disable.get():
             return MatchId(self.username, self.opponent_username)

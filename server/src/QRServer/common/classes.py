@@ -75,8 +75,8 @@ class Match:
             self.parties[0].unmatch_opponent()
         party.unmatch_opponent()
 
-    def add_match_stats(self, user_id: str, match_stats: MatchStats):
-        self.match_stats[user_id] = match_stats
+    def add_match_stats(self, client_id: str, match_stats: MatchStats):
+        self.match_stats[client_id] = match_stats
 
     def generate_match_report(self) -> DbMatchReport:
         if len(self.match_stats) != 2:

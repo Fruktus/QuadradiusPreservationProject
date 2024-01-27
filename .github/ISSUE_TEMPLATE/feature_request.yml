@@ -6,16 +6,16 @@ body:
   - type: markdown
     attributes:
       value: |
-        - If you have questions about the project or need help, you can ask in our [Discord chat][https://discord.gg/TrgqXnY2Vf].
+        - If you have questions about the project or need help, you can ask in our [Discord chat](https://discord.gg/TrgqXnY2Vf).
         - Keep in mind that we will **not** modify the original flash files in any way.
         - Please do your best to search for duplicate requests before filing a new requests.
         - Fill out the information below to the best of your ability. Thank you!
   - type: checkboxes
-  attributes:
-    label: Was this feature present in original?
-    options:
-    - label: This feature was present in original
-      required: false
+    attributes:
+      label: Was this feature present in original?
+      options:
+      - label: This feature was present in original
+        required: false
   - type: dropdown
     attributes:
       label: Target platform

@@ -75,6 +75,13 @@ auto_register = ConfigKey(
     default_value=False,
     requires_restart=False)
 
+discord_webhook_lobby_url = ConfigKey(
+    name='discord.webhook.lobby.url',
+    cli_args=None,
+    description='send notifications related to lobby using this Discord webhook',
+    default_value='',
+    requires_restart=False)
+
 
 def get_key(name: str):
     by_name = keys_by_name()
@@ -170,12 +177,13 @@ def setup_argparse(parser: ArgumentParser):
         else:
             raise Exception(f'Unsupported config type: {value_type}')
 
-        parser.add_argument(
-            *key.cli_args,
-            help=key.description,
-            default=None,
-            dest=key.name,
-            **kwargs)
+        if key.cli_args is not None:
+            parser.add_argument(
+                *key.cli_args,
+                help=key.description,
+                default=None,
+                dest=key.name,
+                **kwargs)
 
 
 def load_from_args(args, set_dirty=False):
@@ -185,7 +193,7 @@ def load_from_args(args, set_dirty=False):
         print(f'Loading config from file: {conf}')
         load_from_toml(conf)
     for key in all_keys():
-        if args[key.name]:
+        if key.name in args and args[key.name]:
             set(key.name, args[key.name])
         if not set_dirty:
             key.dirty = False

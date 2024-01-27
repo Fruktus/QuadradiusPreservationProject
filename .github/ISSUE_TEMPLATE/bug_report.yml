@@ -1,0 +1,42 @@
+name: "Bug report"
+description: File a bug report.
+title: "[BUG] <title>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        - If you have questions about the project or need help, you can ask in our [Discord chat][https://discord.gg/TrgqXnY2Vf].
+        - Please do your best to search for duplicate issues before filing a new issue.
+        - Fill out the information below to the best of your ability. Thank you!
+  - type: dropdown
+    attributes:
+      label: Affected platform
+      description: Is the problem with the launcher, online version or with the server?
+      options:
+        - Launcher
+        - Online Version
+        - Server
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: |
+        Provide a clear and concise description of what the bug is.
+        - If there are steps to reproduce, list them here.
+        - If this is a visual issue, please attach a screenshot of the problem.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional information
+      description: If you have any additional information for us, such as username, time of incident or other, please add them here.
+    validations:
+      required: false

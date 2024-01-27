@@ -1,0 +1,42 @@
+name: "Feature Request"
+description: Request a feature to be added.
+title: "[FEATURE] <title>"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        - If you have questions about the project or need help, you can ask in our [Discord chat][https://discord.gg/TrgqXnY2Vf].
+        - Keep in mind that we will **not** modify the original flash files in any way.
+        - Please do your best to search for duplicate requests before filing a new requests.
+        - Fill out the information below to the best of your ability. Thank you!
+  - type: checkboxes
+  attributes:
+    label: Was this feature present in original?
+    options:
+    - label: This feature was present in original
+      required: false
+  - type: dropdown
+    attributes:
+      label: Target platform
+      description: Which platform should this feature be added to?
+      options:
+        - Launcher
+        - Online Version
+        - Server
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Describe the request
+      description: |
+        Provide a clear and concise description of what the feature is.
+        - Provide examples if possible
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional information
+      description: If you have any additional information for us, please add them here.
+    validations:
+      required: false

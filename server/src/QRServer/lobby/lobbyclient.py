@@ -11,6 +11,7 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     ResponseMessage, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
     PolicyFileRequest, CrossDomainPolicyAllowAllResponse
 from QRServer.db.connector import connector
+from QRServer.discord.webhook import send_webhook_joined_lobby, send_webhook_left_lobby
 
 log = logging.getLogger('lobby_client_handler')
 
@@ -87,6 +88,8 @@ class LobbyClientHandler(ClientHandler):
         else:
             log.info('Member joined lobby: ' + username)
 
+        send_webhook_joined_lobby(username, sum(player is not None for player in self.lobby_server.get_players()))
+
     def _handle_challenge(self, message: ChallengeMessage):
         challenger_idx = message.get_challenger_idx()
         challenged_idx = message.get_challenged_idx()
@@ -134,6 +137,8 @@ class LobbyClientHandler(ClientHandler):
         if self.player.idx is not None:
             log.info(f'Player left lobby: {self.player.username}')
             self.lobby_server.remove_client(self.player.idx)
+            total_players = sum(player is not None for player in self.lobby_server.get_players())
+            send_webhook_left_lobby(self.player.username, total_players)
 
         self.close()
 

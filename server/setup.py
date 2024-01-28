@@ -11,6 +11,9 @@ setup(
     install_requires=[
         'dataclasses',
         'toml',
+        'asyncio',
+        'aiosqlite',
+        'aiohttp',
     ],
     extras_require={
         'dev': [

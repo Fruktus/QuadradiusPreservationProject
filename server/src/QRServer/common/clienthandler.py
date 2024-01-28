@@ -1,9 +1,11 @@
 import abc
+import asyncio
 import logging
+from asyncio import CancelledError
 from queue import Queue
 from socket import socket
 from threading import Thread
-from typing import Callable, Optional, Dict, List, TypeVar, Type
+from typing import Callable, Optional, Dict, List, TypeVar, Type, AsyncIterable, Coroutine
 
 from QRServer.common import messages
 from QRServer.common.messages import ResponseMessage, RequestMessage
@@ -16,8 +18,8 @@ RMT = TypeVar('RMT', bound=RequestMessage)
 class ClientHandler(abc.ABC):
     cs: Optional[socket]
     in_queue: Queue
-    handlers: Dict[bytes, List[Callable[[List[bytes]], None]]]
-    message_handlers: Dict[Type[RequestMessage], List[Callable[[RequestMessage], None]]]
+    handlers: Dict[bytes, List[Callable[[List[bytes]], Coroutine]]]
+    message_handlers: Dict[Type[RequestMessage], List[Callable[[RequestMessage], Coroutine]]]
     username: Optional[str]
     _reader_thread: Thread
 
@@ -28,24 +30,22 @@ class ClientHandler(abc.ABC):
         self.in_queue = Queue()
         self.username = None
 
-        self._reader_thread = Thread(target=self._socket_reader, daemon=True)
-        self._reader_thread.start()
-
-    def _socket_reader(self):
+    async def _socket_read(self) -> AsyncIterable[bytes]:
+        loop = asyncio.get_event_loop()
         while self.cs:
             try:
-                data = self.cs.recv(2048)
-            except ConnectionResetError:
+                data = await loop.sock_recv(self.cs, 2048)
+            except (ConnectionResetError, CancelledError):
                 data = None
 
             if not data:
                 log.debug('No more data to read, finishing')
-                self.in_queue.put(b'<DISCONNECTED>')
-                break
+                yield b'<DISCONNECTED>'
+                return
             elif data[-1] == 0:
                 data = data.split(b'\x00')[:-1]
                 for i in data:
-                    self.in_queue.put(i)
+                    yield i
 
     def register_handler(self, prefix: bytes, handler):
         """Deprecated, do not use"""
@@ -54,15 +54,14 @@ class ClientHandler(abc.ABC):
         else:
             self.handlers[prefix] = [handler]
 
-    def register_message_handler(self, mtype: Type[RMT], handler: Callable[[RMT], None]):
+    def register_message_handler(self, mtype: Type[RMT], handler: Callable[[RMT], Coroutine]):
         if mtype in self.message_handlers:
             self.message_handlers[mtype].append(handler)
         else:
             self.message_handlers[mtype] = [handler]
 
-    def run(self):
-        while self.cs:
-            data = self.in_queue.get(block=True)
+    async def run(self):
+        async for data in self._socket_read():
             values = data.split(messages.delim.encode('ascii'))
             prefix = values[0]
 
@@ -74,13 +73,13 @@ class ClientHandler(abc.ABC):
                     mtype = type(message)
                     if mtype in self.message_handlers:
                         for handler in self.message_handlers[mtype]:
-                            handler(message)
+                            await handler(message)
                     else:
                         log.error(f'No handler for message type {mtype}')
                 elif prefix in self.handlers:
                     log.warning(f'Deprecated handling: {values}')
                     for handler in self.handlers[prefix]:
-                        handler(values)
+                        await handler(values)
                 else:
                     if self.username:
                         log.debug(f'Unhandled message received: {data}')
@@ -91,16 +90,18 @@ class ClientHandler(abc.ABC):
                 log.exception(f'Error when processing message: {message}')
                 return
 
-    def send(self, data: bytes):
+    async def send(self, data: bytes):
         """Deprecated, do not use"""
+        loop = asyncio.get_event_loop()
         log.warning(f'Using deprecated method to send {data}')
         log.debug(f'Sending {data} to {self.username}')
-        self.cs.send(data)
+        await loop.sock_sendall(self.cs, data)
 
-    def send_msg(self, message: ResponseMessage):
+    async def send_msg(self, message: ResponseMessage):
+        loop = asyncio.get_event_loop()
         log.debug(f'Sending {message} to {self.username}')
         try:
-            self.cs.send(message.to_data())
+            await loop.sock_sendall(self.cs, message.to_data())
         except BrokenPipeError:
             raise StopHandlerException()
 

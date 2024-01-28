@@ -1,34 +1,37 @@
 import logging
 import os
-import sqlite3
-import threading
 import uuid
 from datetime import datetime
 from typing import Optional
 
+import aiosqlite
+
 from QRServer import config
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
-from QRServer.db.password import password_verify, password_hash
 from QRServer.db.models import DbUser, DbMatchReport
+from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('dbconnector')
 
 
-class DBConnector:
-    conn: sqlite3.Connection
+class DbConnector:
+    conn: aiosqlite.Connection
 
     def __init__(self, file):
-        self.conn = sqlite3.connect(file)
-        c = self.conn.cursor()
-        migrations.setup_metadata(c)
-        migrations.execute_migrations(c)
-        self.conn.commit()
+        self.file = file
 
-    def add_member(self, username: str, password: bytes) -> Optional[str]:
-        c = self.conn.cursor()
+    async def connect(self):
+        self.conn = await aiosqlite.connect(self.file)
+        c = await self.conn.cursor()
+        await migrations.setup_metadata(c)
+        await migrations.execute_migrations(c)
+        await self.conn.commit()
+
+    async def add_member(self, username: str, password: bytes) -> Optional[str]:
+        c = await self.conn.cursor()
         _id = str(uuid.uuid4())
-        c.execute(
+        await c.execute(
             "insert into users ("
             "  id,"
             "  username,"
@@ -40,13 +43,13 @@ class DBConnector:
                 password_hash(password),
                 datetime.now().timestamp()
             ))
-        self.conn.commit()
+        await self.conn.commit()
         return _id
 
-    def add_guest(self, username: str) -> Optional[str]:
-        c = self.conn.cursor()
+    async def add_guest(self, username: str) -> Optional[str]:
+        c = await self.conn.cursor()
         _id = str(uuid.uuid4())
-        c.execute(
+        await c.execute(
             "insert into users ("
             "  id,"
             "  username,"
@@ -56,16 +59,16 @@ class DBConnector:
                 username,
                 datetime.now().timestamp(),
             ))
-        self.conn.commit()
+        await self.conn.commit()
         return _id
 
-    def get_user(self, user_id: str) -> Optional[DbUser]:
-        c = self.conn.cursor()
-        c.execute(
+    async def get_user(self, user_id: str) -> Optional[DbUser]:
+        c = await self.conn.cursor()
+        await c.execute(
             "select id, username, password, created_at from users where id = ?", (
                 user_id,
             ))
-        row = c.fetchone()
+        row = await c.fetchone()
         if row is None:
             return None
         return DbUser(
@@ -75,13 +78,13 @@ class DBConnector:
             created_at=row[3]
         )
 
-    def get_user_by_username(self, username) -> Optional[DbUser]:
-        c = self.conn.cursor()
-        c.execute(
+    async def get_user_by_username(self, username) -> Optional[DbUser]:
+        c = await self.conn.cursor()
+        await c.execute(
             "select id, username, password, created_at from users where username = ?", (
                 username,
             ))
-        row = c.fetchone()
+        row = await c.fetchone()
         if row is None:
             return None
         return DbUser(
@@ -91,36 +94,36 @@ class DBConnector:
             created_at=row[3]
         )
 
-    def get_comment(self, user_id: str) -> Optional[str]:
-        c = self.conn.cursor()
-        c.execute(
+    async def get_comment(self, user_id: str) -> Optional[str]:
+        c = await self.conn.cursor()
+        await c.execute(
             "select comment from users where id = ?", (
                 user_id,
             ))
-        row = c.fetchone()
+        row = await c.fetchone()
         if row is None:
             return None
         return str(row[0])
 
-    def set_comment(self, user_id: str, comment: str) -> None:
-        c = self.conn.cursor()
-        c.execute(
+    async def set_comment(self, user_id: str, comment: str) -> None:
+        c = await self.conn.cursor()
+        await c.execute(
             "update users set"
             "  comment = ?"
             "where id = ?", (
                 comment,
                 user_id,
             ))
-        self.conn.commit()
+        await self.conn.commit()
 
-    def authenticate_member(self, username: str, password: bytes) -> Optional[str]:
-        c = self.conn.cursor()
-        c.execute("select id, password from users where username = ?", (username,))
-        row = c.fetchone()
+    async def authenticate_member(self, username: str, password: bytes) -> Optional[str]:
+        c = await self.conn.cursor()
+        await c.execute("select id, password from users where username = ?", (username,))
+        row = await c.fetchone()
         if row is None:
             if config.auto_register.get():
                 log.info(f'Auto registering member {username}')
-                return self.add_member(username, password)
+                return await self.add_member(username, password)
             return None
         _id = row[0]
         hashed = row[1]
@@ -129,10 +132,10 @@ class DBConnector:
         else:
             return None
 
-    def add_match_result(self, match_result: DbMatchReport):
-        c = self.conn.cursor()
+    async def add_match_result(self, match_result: DbMatchReport):
+        c = await self.conn.cursor()
         _id = str(uuid.uuid4())
-        c.execute(
+        await c.execute(
             "insert into matches ("
             "  id,"
             "  winner_id,"
@@ -163,12 +166,12 @@ class DBConnector:
                 match_result.is_ranked,
                 match_result.is_void
             ))
-        self.conn.commit()
+        await self.conn.commit()
         return _id
 
-    def get_match(self, match_id: str) -> Optional[DbMatchReport]:
-        c = self.conn.cursor()
-        c.execute(
+    async def get_match(self, match_id: str) -> Optional[DbMatchReport]:
+        c = await self.conn.cursor()
+        await c.execute(
             "select id, winner_id, loser_id, winner_pieces_left,"
             " loser_pieces_left, move_counter, grid_size,"
             " squadron_size, started_at, finished_at, is_ranked,"
@@ -176,7 +179,7 @@ class DBConnector:
             " from matches where id = ?", (
                 match_id,
             ))
-        row = c.fetchone()
+        row = await c.fetchone()
         if row is None:
             return None
         return DbMatchReport(
@@ -194,26 +197,26 @@ class DBConnector:
             is_void=row[11],
         )
 
-    def get_recent_matches(self, count=15):
-        c = self.conn.cursor()
+    async def get_recent_matches(self, count=15):
+        c = await self.conn.cursor()
 
         # Gets all recent matches, minus void ones
-        c.execute("select"
-                  " u1.username,"
-                  " u2.username,"
-                  " m.winner_pieces_left,"
-                  " m.loser_pieces_left,"
-                  " m.started_at,"
-                  " m.finished_at"
-                  " from matches m"
-                  " left join users u1 on m.winner_id = u1.id"
-                  " left join users u2 on m.loser_id = u2.id"
-                  " where m.is_void = 0"
-                  " order by m.finished_at desc"
-                  " limit ?", (count,))
+        await c.execute("select"
+                        " u1.username,"
+                        " u2.username,"
+                        " m.winner_pieces_left,"
+                        " m.loser_pieces_left,"
+                        " m.started_at,"
+                        " m.finished_at"
+                        " from matches m"
+                        " left join users u1 on m.winner_id = u1.id"
+                        " left join users u2 on m.loser_id = u2.id"
+                        " where m.is_void = 0"
+                        " order by m.finished_at desc"
+                        " limit ?", (count,))
 
         recent_matches = []
-        rows = c.fetchall()
+        rows = await c.fetchall()
         for row in rows:
             recent_matches.append(GameResultHistory(
                 player_won=row[0],
@@ -225,21 +228,23 @@ class DBConnector:
             ))
         return recent_matches
 
-    def close(self):
-        self.conn.close()
+    async def close(self):
+        await self.conn.close()
 
 
-_connector = threading.local()
+_connector = None
 
 
-def connector():
-    try:
-        return _connector.value
-    except AttributeError:
-        data_dir = os.path.abspath(config.data_dir.get())
-        os.makedirs(data_dir, exist_ok=True)
-        dbfile = os.path.join(data_dir, 'database.sqlite3')
-        log.debug(f'Opening database: {dbfile}')
-        c = DBConnector(dbfile)
-        _connector.value = c
-        return c
+async def connector() -> DbConnector:
+    global _connector
+    if _connector:
+        return _connector
+
+    data_dir = os.path.abspath(config.data_dir.get())
+    os.makedirs(data_dir, exist_ok=True)
+    dbfile = os.path.join(data_dir, 'database.sqlite3')
+    log.debug(f'Opening database: {dbfile}')
+    c = DbConnector(dbfile)
+    await c.connect()
+    _connector = c
+    return c

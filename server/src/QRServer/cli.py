@@ -8,9 +8,10 @@ prompt = '> '
 
 # noinspection PyMethodMayBeStatic
 class QRCmd(Cmd):
-    def __init__(self) -> None:
+    def __init__(self, server_thread) -> None:
         super().__init__()
         self.prompt = prompt
+        self.server_thread = server_thread
 
     def cmdloop_with_interrupt(self):
         while True:
@@ -24,6 +25,9 @@ class QRCmd(Cmd):
         pass
 
     def do_config(self, args: str):
+        self.server_thread.run_within_event_loop(self._do_config(args))
+
+    async def _do_config(self, args: str):
         try:
             args = args.split(None, 2)
             if len(args) == 1 and args[0] == 'list':
@@ -48,6 +52,9 @@ class QRCmd(Cmd):
                 print(e)
 
     def complete_config(self, text: str, line: str, begidx, endidx):
+        return self.server_thread.run_within_event_loop(self._complete_config(text, line, begidx, endidx))
+
+    async def _complete_config(self, text: str, line: str, begidx, endidx):
         args_before = line[:begidx].strip().split()[1:]
 
         if len(args_before) == 0:

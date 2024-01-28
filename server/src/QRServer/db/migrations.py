@@ -1,30 +1,30 @@
-def setup_metadata(c):
-    c.execute(
+async def setup_metadata(c):
+    await c.execute(
         "create table if not exists metadata ("
         "  name varchar primary key, "
         "  value varchar"
         ")")
 
 
-def execute_migrations(c):
-    version = _select_version(c)
+async def execute_migrations(c):
+    version = await _select_version(c)
     if version is None:
-        c.execute("insert into metadata (name, value) values ('version', '0')")
+        await c.execute("insert into metadata (name, value) values ('version', '0')")
         version = 0
 
     if version <= 0:
-        c.execute(
+        await c.execute(
             "create table users ("
             "  id varchar primary key,"
             "  username varchar unique,"
             "  password varchar"
             ")")
-        _set_version(c, 1)
+        await _set_version(c, 1)
     if version <= 1:
-        c.execute("alter table users add column comment varchar")
-        _set_version(c, 2)
+        await c.execute("alter table users add column comment varchar")
+        await _set_version(c, 2)
     if version <= 2:
-        c.execute(
+        await c.execute(
             "create table matches ("
             "  id varchar primary key,"
             "  winner_id varchar,"
@@ -41,20 +41,20 @@ def execute_migrations(c):
             "  foreign key(winner_id) references users (id),"
             "  foreign key(loser_id) references users (id)"
             ")")
-        _set_version(c, 3)
+        await _set_version(c, 3)
     if version <= 3:
-        c.execute(
+        await c.execute(
             "alter table users"
             " add column created_at integer"
         )
-        _set_version(c, 4)
+        await _set_version(c, 4)
 
 
-def _select_version(c):
-    c.execute("select value from metadata where name='version'")
-    row = c.fetchone()
+async def _select_version(c):
+    await c.execute("select value from metadata where name='version'")
+    row = await c.fetchone()
     return int(row[0]) if row is not None else None
 
 
-def _set_version(c, version):
-    c.execute("update metadata set value = ? where name='version'", (version,))
+async def _set_version(c, version):
+    await c.execute("update metadata set value = ? where name='version'", (version,))

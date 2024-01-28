@@ -134,7 +134,6 @@ class DbConnector:
 
     async def add_match_result(self, match_result: DbMatchReport):
         c = await self.conn.cursor()
-        _id = str(uuid.uuid4())
         await c.execute(
             "insert into matches ("
             "  id,"
@@ -153,7 +152,7 @@ class DbConnector:
             "?, ?, ?, ?, ?, ?,"
             "?, ?, ?, ?, ?, ?"
             ")", (
-                _id,
+                match_result.match_id,
                 match_result.winner_id,
                 match_result.loser_id,
                 match_result.winner_pieces_left,
@@ -167,7 +166,6 @@ class DbConnector:
                 match_result.is_void
             ))
         await self.conn.commit()
-        return _id
 
     async def get_match(self, match_id: str) -> Optional[DbMatchReport]:
         c = await self.conn.cursor()
@@ -197,6 +195,36 @@ class DbConnector:
             is_void=row[11],
         )
 
+    async def get_match2(self, match_id: str):
+        c = await self.conn.cursor()
+
+        await c.execute(
+            "select"
+            " u1.username,"
+            " u2.username,"
+            " m.winner_pieces_left,"
+            " m.loser_pieces_left,"
+            " m.started_at,"
+            " m.finished_at,"
+            " m.move_counter"
+            " from matches m"
+            " left join users u1 on m.winner_id = u1.id"
+            " left join users u2 on m.loser_id = u2.id"
+            " where m.id = ?", (match_id,))
+
+        row = await c.fetchone()
+        if row is None:
+            return None
+        return GameResultHistory(
+            player_won=row[0],
+            player_lost=row[1],
+            won_score=row[2],
+            lost_score=row[3],
+            start=datetime.fromtimestamp(row[4]),
+            finish=datetime.fromtimestamp(row[5]),
+            moves=row[6],
+        )
+
     async def get_recent_matches(self, count=15):
         c = await self.conn.cursor()
 
@@ -207,7 +235,8 @@ class DbConnector:
                         " m.winner_pieces_left,"
                         " m.loser_pieces_left,"
                         " m.started_at,"
-                        " m.finished_at"
+                        " m.finished_at,"
+                        " m.move_counter"
                         " from matches m"
                         " left join users u1 on m.winner_id = u1.id"
                         " left join users u2 on m.loser_id = u2.id"
@@ -225,6 +254,7 @@ class DbConnector:
                 lost_score=row[3],
                 start=datetime.fromtimestamp(row[4]),
                 finish=datetime.fromtimestamp(row[5]),
+                moves=row[6],
             ))
         return recent_matches
 

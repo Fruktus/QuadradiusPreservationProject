@@ -13,6 +13,7 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
 from QRServer.db.connector import connector
+from QRServer.discord.webhook import invoke_webhook_game_started
 from QRServer.listener import listen_for_connections
 
 log = logging.getLogger('game_client_handler')
@@ -121,6 +122,9 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
         await self.send_msg(PlayerCountResponse(player_count))
+
+        if self.username < self.opponent_username:
+            await invoke_webhook_game_started(self.username, self.opponent_username)
 
     async def _handle_s(self, values):
         if self.opponent_handler:

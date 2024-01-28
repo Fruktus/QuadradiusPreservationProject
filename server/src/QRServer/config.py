@@ -75,10 +75,40 @@ auto_register = ConfigKey(
     default_value=False,
     requires_restart=False)
 
-discord_webhook_lobby_url = ConfigKey(
-    name='discord.webhook.lobby.url',
-    cli_args=None,
-    description='send notifications related to lobby using this Discord webhook',
+discord_webhook_lobby_joined_url = ConfigKey(
+    name='discord.webhook.lobby_joined.url',
+    cli_args=[],
+    description='',
+    default_value='',
+    requires_restart=False)
+discord_webhook_lobby_left_url = ConfigKey(
+    name='discord.webhook.lobby_left.url',
+    cli_args=[],
+    description='',
+    default_value='',
+    requires_restart=False)
+discord_webhook_lobby_set_comment_url = ConfigKey(
+    name='discord.webhook.lobby_set_comment.url',
+    cli_args=[],
+    description='',
+    default_value='',
+    requires_restart=False)
+discord_webhook_lobby_message_url = ConfigKey(
+    name='discord.webhook.lobby_message.url',
+    cli_args=[],
+    description='',
+    default_value='',
+    requires_restart=False)
+discord_webhook_game_started_url = ConfigKey(
+    name='discord.webhook.game_started.url',
+    cli_args=[],
+    description='',
+    default_value='',
+    requires_restart=False)
+discord_webhook_game_ended_url = ConfigKey(
+    name='discord.webhook.game_ended.url',
+    cli_args=[],
+    description='',
     default_value='',
     requires_restart=False)
 
@@ -177,7 +207,7 @@ def setup_argparse(parser: ArgumentParser):
         else:
             raise Exception(f'Unsupported config type: {value_type}')
 
-        if key.cli_args is not None:
+        if len(key.cli_args) > 0:
             parser.add_argument(
                 *key.cli_args,
                 help=key.description,

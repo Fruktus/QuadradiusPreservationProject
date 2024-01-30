@@ -47,6 +47,7 @@ class ServerThread(Thread):
                 await task
 
         self.run_within_event_loop(_stop_loop())
+        self.loop.close()
 
     def run_within_event_loop(self, coro: Coroutine):
         return asyncio.run_coroutine_threadsafe(coro, self.loop).result()

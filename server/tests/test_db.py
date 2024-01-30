@@ -4,7 +4,6 @@ from unittest.mock import patch
 from QRServer.common.classes import GameResultHistory
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport
-from QRServer.db.password import password_hash
 
 
 class DbTest(unittest.IsolatedAsyncioTestCase):
@@ -14,35 +13,6 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self):
         await self.conn.close()
-
-    async def test_add_member(self):
-        with patch('uuid.uuid4') as mock_uuid, \
-             patch('QRServer.db.connector.datetime') as mock_datetime, \
-             patch('QRServer.db.password.os.urandom') as mock_urandom:
-            mock_urandom.return_value = b'1234'
-            mock_uuid.return_value = '1234'
-            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0)
-
-            user_id = await self.conn.add_member('test', b'password')
-            user = await self.conn.get_user(user_id)
-            self.assertEqual(user.user_id, '1234')
-            self.assertEqual(user.username, 'test')
-            self.assertEqual(user.password, password_hash(b'password'))
-            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
-            self.assertFalse(user.is_guest)
-
-    async def test_add_guest(self):
-        with patch('uuid.uuid4') as mock_uuid, \
-             patch('QRServer.db.connector.datetime') as mock_datetime:
-            mock_uuid.return_value = '1234'
-            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0)
-
-            user_id = await self.conn.add_guest('test GUEST')
-            user = await self.conn.get_user(user_id)
-            self.assertEqual(user.user_id, '1234')
-            self.assertEqual(user.username, 'test GUEST')
-            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
-            self.assertTrue(user.is_guest)
 
     async def test_get_nonexistent_user(self):
         user = await self.conn.get_user('1234')
@@ -54,7 +24,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             mock_uuid.return_value = '1234'
             mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0)
 
-            await self.conn.add_guest('test GUEST')
+            await self.conn.authenticate_user(username='test GUEST', password=None, auto_create=True)
             user = await self.conn.get_user_by_username('test GUEST')
             self.assertEqual(user.user_id, '1234')
             self.assertEqual(user.username, 'test GUEST')
@@ -64,15 +34,15 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
     async def test_add_match_results(self):
         with patch('uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = '1'
-            winner_id = await self.conn.add_member('test_user_1', b'password')
+            winner = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
 
             mock_uuid.return_value = '2'
-            loser_id = await self.conn.add_member('test_user_2', b'password')
+            loser = await self.conn.authenticate_user('test_user_2', b'password', auto_create=True)
 
             mock_uuid.return_value = '1234'
             test_match = DbMatchReport(
-                winner_id=winner_id,
-                loser_id=loser_id,
+                winner_id=winner.user_id,
+                loser_id=loser.user_id,
                 winner_pieces_left=10,
                 loser_pieces_left=5,
                 move_counter=20,
@@ -88,8 +58,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             match = await self.conn.get_match(test_match.match_id)
 
             self.assertEqual(match.match_id, '1234')
-            self.assertEqual(match.winner_id, winner_id)
-            self.assertEqual(match.loser_id, loser_id)
+            self.assertEqual(match.winner_id, winner.user_id)
+            self.assertEqual(match.loser_id, loser.user_id)
             self.assertEqual(match.winner_pieces_left, 10)
             self.assertEqual(match.loser_pieces_left, 5)
             self.assertEqual(match.move_counter, 20)
@@ -100,12 +70,12 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(match.is_ranked)
             self.assertFalse(match.is_void)
 
-            winner = await self.conn.get_user(winner_id)
-            self.assertEqual(winner.user_id, winner_id)
+            winner = await self.conn.get_user(winner.user_id)
+            self.assertEqual(winner.user_id, winner.user_id)
             self.assertEqual(winner.username, 'test_user_1')
 
-            loser = await self.conn.get_user(loser_id)
-            self.assertEqual(loser.user_id, loser_id)
+            loser = await self.conn.get_user(loser.user_id)
+            self.assertEqual(loser.user_id, loser.user_id)
             self.assertEqual(loser.username, 'test_user_2')
 
     async def test_get_nonexistent_match(self):
@@ -117,15 +87,15 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             recent_matches = []
             for i in range(1, 16):
                 mock_uuid.return_value = str(i)
-                winner_id = await self.conn.add_member(f'test_user_{i}', b'password')
+                winner = await self.conn.authenticate_user(f'test_user_{i}', b'password', auto_create=True)
 
                 mock_uuid.return_value = str(i*100)
-                loser_id = await self.conn.add_member(f'test_user_{i*100}', b'password')
+                loser = await self.conn.authenticate_user(f'test_user_{i*100}', b'password', auto_create=True)
 
                 mock_uuid.return_value = f'1234{i}'
                 test_match = DbMatchReport(
-                    winner_id=winner_id,
-                    loser_id=loser_id,
+                    winner_id=winner.user_id,
+                    loser_id=loser.user_id,
                     winner_pieces_left=i,
                     loser_pieces_left=20-i,
                     move_counter=20,

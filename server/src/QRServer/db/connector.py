@@ -28,40 +28,6 @@ class DbConnector:
         await migrations.execute_migrations(c)
         await self.conn.commit()
 
-    async def add_member(self, username: str, password: bytes) -> Optional[str]:
-        c = await self.conn.cursor()
-        _id = str(uuid.uuid4())
-        await c.execute(
-            "insert into users ("
-            "  id,"
-            "  username,"
-            "  password,"
-            "  created_at"
-            ") values (?, ?, ?, ?)", (
-                _id,
-                username,
-                password_hash(password),
-                datetime.now().timestamp()
-            ))
-        await self.conn.commit()
-        return _id
-
-    async def add_guest(self, username: str) -> Optional[str]:
-        c = await self.conn.cursor()
-        _id = str(uuid.uuid4())
-        await c.execute(
-            "insert into users ("
-            "  id,"
-            "  username,"
-            "  created_at"
-            ") values (?, ?, ?)", (
-                _id,
-                username,
-                datetime.now().timestamp(),
-            ))
-        await self.conn.commit()
-        return _id
-
     async def get_user(self, user_id: str) -> Optional[DbUser]:
         c = await self.conn.cursor()
         await c.execute(
@@ -116,21 +82,38 @@ class DbConnector:
             ))
         await self.conn.commit()
 
-    async def authenticate_member(self, username: str, password: bytes) -> Optional[str]:
+    async def authenticate_user(self, username: str, password: Optional[bytes], auto_create=False,
+                                verify_password=True) -> Optional[DbUser]:
         c = await self.conn.cursor()
-        await c.execute("select id, password from users where username = ?", (username,))
+        if auto_create:
+            await c.execute(
+                "insert or ignore into users("
+                "  id, username, password, created_at"
+                ") values (?, ?, ?, ?)", (
+                    str(uuid.uuid4()),
+                    username,
+                    password_hash(password) if password else None,
+                    datetime.now().timestamp(),
+                )
+            )
+
+        await c.execute("select id, username, password, created_at from users where username = ?", (username,))
+
         row = await c.fetchone()
         if row is None:
-            if config.auto_register.get():
-                log.info(f'Auto registering member {username}')
-                return await self.add_member(username, password)
             return None
-        _id = row[0]
-        hashed = row[1]
-        if password_verify(password, hashed):
-            return _id
-        else:
+
+        db_user = DbUser(
+            user_id=row[0],
+            username=row[1],
+            password=row[2],
+            created_at=row[3],
+        )
+
+        if not db_user.is_guest and verify_password and not password_verify(password, db_user.password):
             return None
+
+        return db_user
 
     async def add_match_result(self, match_result: DbMatchReport):
         c = await self.conn.cursor()

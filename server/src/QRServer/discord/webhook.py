@@ -8,21 +8,29 @@ from QRServer.common.classes import GameResultHistory
 log = logging.getLogger('webhook')
 
 
-def webhook(webhook_name):
+def webhook(webhook_name, disable_log=False):
+    def webhook_debug(message):
+        if not disable_log:
+            log.debug(message)
+
     def decorator(f):
         async def webhook_wrapper(*args, **kwargs):
             webhook_url = config.get(f'discord.webhook.{webhook_name}.url')
 
             try:
                 if webhook_url:
-                    log.debug(f'Invoking a webhook "{webhook_name}"')
+                    webhook_debug(f'Invoking a webhook "{webhook_name}"')
                     json = await f(*args, **kwargs)
 
                     async with aiohttp.ClientSession() as session:
                         async with session.post(webhook_url, json=json) as response:
-                            log.debug(f'Webhook "{webhook_name}" invoked, status: {response.status}')
+                            if response.ok:
+                                webhook_debug(f'Webhook "{webhook_name}" invoked successfully')
+                            else:
+                                text = await response.text()
+                                log.error(f'Webhook "{webhook_name}" invocation failed: {response.status}, {text}')
                 else:
-                    log.debug(f'Webhook "{webhook_name}" disabled')
+                    webhook_debug(f'Webhook "{webhook_name}" disabled')
             except Exception:
                 log.exception('An error occurred during a webhook invocation')
 
@@ -91,3 +99,8 @@ async def invoke_webhook_game_ended(result: 'GameResultHistory'):
             f'The game lasted {result.time_str()} and took {result.moves} moves.',
         'color': 0x3232ff,
     }]}
+
+
+@webhook('logger', disable_log=True)
+async def invoke_webhook_logger(data: str):
+    return {'content': f'```\n{data}\n```'}

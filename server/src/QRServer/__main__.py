@@ -6,6 +6,7 @@ from threading import Thread
 from typing import Coroutine
 
 from QRServer import config, config_handlers
+from QRServer.discord import logger as discord_logger
 from QRServer.cli import QRCmd
 from QRServer.game.gameclient import game_listener
 from QRServer.game.gameserver import GameServer
@@ -29,6 +30,9 @@ class ServerThread(Thread):
         self.loop.run_until_complete(self.start_listeners())
 
     async def start_listeners(self):
+        discord_task = asyncio.create_task(discord_logger.get_daemon_task())
+        self.tasks.append(discord_task)
+
         game_task = asyncio.create_task(game_listener(self.address, self.game_port, GameServer()))
         lobby_task = asyncio.create_task(lobby_listener(self.address, self.lobby_port, LobbyServer()))
         self.tasks.append(game_task)
@@ -36,11 +40,13 @@ class ServerThread(Thread):
         await asyncio.gather(*self.tasks)
 
     def stop(self):
-        def _stop_loop():
-            for task in self.tasks:
+        async def _stop_loop():
+            # stop in reversed order
+            for task in reversed(self.tasks):
                 task.cancel()
+                await task
 
-        self.loop.call_soon_threadsafe(_stop_loop)
+        self.run_within_event_loop(_stop_loop())
 
     def run_within_event_loop(self, coro: Coroutine):
         return asyncio.run_coroutine_threadsafe(coro, self.loop).result()

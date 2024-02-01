@@ -1,6 +1,8 @@
 import logging
 import os
 
+from QRServer.discord import logger as discord_logger
+
 
 def refresh_logger_configuration():
     from QRServer import config
@@ -19,10 +21,15 @@ def refresh_logger_configuration():
 
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    handler = logging.StreamHandler()
-    handler.setLevel(log_level)
-    handler.setFormatter(log_formatter)
-    root_logger.handlers = [handler]
+
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.setLevel(log_level)
+    stderr_handler.setFormatter(log_formatter)
+
+    discord_handler = discord_logger.DiscordWebhookHandler()
+    discord_handler.setFormatter(log_formatter)
+
+    root_logger.handlers = [stderr_handler, discord_handler]
 
 
 def create_data_dir():

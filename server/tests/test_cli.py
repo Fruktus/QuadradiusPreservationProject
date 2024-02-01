@@ -8,7 +8,10 @@ from QRServer.cli import QRCmd
 class DummyServer:
     def run_within_event_loop(self, coro: Coroutine):
         loop = asyncio.new_event_loop()
-        return loop.run_until_complete(coro)
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
 
 class CliTest(unittest.TestCase):

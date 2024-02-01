@@ -71,14 +71,25 @@ class LobbyClientHandler(ClientHandler):
         username = message.get_username()
         password = message.get_password()
         is_guest = utils.is_guest(username, password)
+        if not password:
+            # Password is always mandatory, if it is missing, then
+            # someone might be sending raw or damaged packets
+            log.debug(f'Player {username} did not provide any password')
+            await self._error_bad_member()
+            self.close()
+            return
 
-        self.player.user_id = await (await connector()).authenticate_member(username, password.encode('ascii'))
-        if not is_guest and not config.auth_disable.get():
-            if self.player.user_id is None:
-                log.debug(f'Player {username} tried to connect, but failed to authenticate')
-                await self._error_bad_member()
-                self.close()
-                return
+        db_user = await (await connector()).authenticate_user(
+            username=username,
+            password=None if is_guest or config.auth_disable.get() else password.encode('ascii'),
+            auto_create=(is_guest or config.auto_register.get()),
+            verify_password=(not config.auth_disable.get()))
+
+        if not db_user:
+            log.debug(f'Player {username} tried to connect, but failed to authenticate')
+            await self._error_bad_member()
+            self.close()
+            return
 
         if self.lobby_server.username_exists(username):
             log.debug('Client duplicate in lobby: ' + username)
@@ -87,6 +98,7 @@ class LobbyClientHandler(ClientHandler):
             return
 
         # user authenticated successfully, register with lobbyserver
+        self.player.user_id = db_user.user_id
         self.player.username = username
         self.player.joined_at = datetime.now()
         self.player.communique = await (await connector()).get_comment(self.player.user_id) or ' '

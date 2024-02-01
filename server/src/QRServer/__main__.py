@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import logging
+import signal
 import sys
 from threading import Thread
 from typing import Coroutine
@@ -14,6 +15,13 @@ from QRServer.lobby.lobbyclient import lobby_listener
 from QRServer.lobby.lobbyserver import LobbyServer
 
 log = logging.getLogger('main')
+
+
+def handle_exit(sig, frame):
+    raise KeyboardInterrupt
+
+
+signal.signal(signal.SIGTERM, handle_exit)
 
 
 class ServerThread(Thread):

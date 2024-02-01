@@ -146,14 +146,16 @@ class ResponseMessagesTest(unittest.TestCase):
                 won_score=7,
                 lost_score=0,
                 start=start,
-                finish=finish),
+                finish=finish,
+                moves=15),
             GameResultHistory(
                 player_won='c',
                 player_lost='d',
                 won_score=8,
                 lost_score=2,
                 start=start,
-                finish=finish),
+                finish=finish,
+                moves=10),
         ])
         data = msg.to_data()
         self.assertEqual(

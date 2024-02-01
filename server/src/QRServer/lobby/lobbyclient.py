@@ -8,11 +8,12 @@ from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, LobbyDuplicateResponse, \
     ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingResponse, HelloLobbyRequest, \
     JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, LobbyStateResponse, \
-    ResponseMessage, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
+    LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
     PolicyFileRequest, CrossDomainPolicyAllowAllResponse
 from QRServer.db.connector import connector
+from QRServer.discord.webhook import invoke_webhook_lobby_joined, invoke_webhook_lobby_left, \
+    invoke_webhook_lobby_set_comment, invoke_webhook_lobby_message
 from QRServer.listener import listen_for_connections
-from QRServer.discord.webhook import send_webhook_joined_lobby, send_webhook_left_lobby
 
 log = logging.getLogger('lobby_client_handler')
 
@@ -41,7 +42,7 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(ServerRankingRequest, self._handle_server_ranking)
         self.register_message_handler(ServerAliveRequest, self._handle_server_alive)
         self.register_message_handler(SetCommentRequest, self._handle_set_comment)
-        self.register_message_handler(LobbyChatMessage, self._handle_broadcast)
+        self.register_message_handler(LobbyChatMessage, self._handle_chat_message)
         self.register_message_handler(ChallengeMessage, self._handle_challenge)
         self.register_message_handler(ChallengeAuthMessage, self._handle_challenge_auth)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
@@ -97,7 +98,8 @@ class LobbyClientHandler(ClientHandler):
         else:
             log.info('Member joined lobby: ' + username)
 
-        await send_webhook_joined_lobby(username, sum(player is not None for player in self.lobby_server.get_players()))
+        total_players = sum(player is not None for player in self.lobby_server.get_players())
+        await invoke_webhook_lobby_joined(username, total_players)
 
     async def _handle_challenge(self, message: ChallengeMessage):
         challenger_idx = message.get_challenger_idx()
@@ -135,11 +137,15 @@ class LobbyClientHandler(ClientHandler):
             await (await connector()).set_comment(self.player.user_id, comment)
         self.player.comment = comment
         await self.lobby_server.broadcast_msg(BroadcastCommentResponse(who, comment))
+        await invoke_webhook_lobby_set_comment(self.player.username, comment)
 
-    async def _handle_broadcast(self, message):
-        if not isinstance(message, ResponseMessage):
-            raise Exception('Trying to send a non-response message')
+    async def _handle_chat_message(self, message: LobbyChatMessage):
         await self.lobby_server.broadcast_msg(message)
+        text = message.get_text()
+        message = text.split(':', 1)[1].strip()
+        if message.startswith('(COMMUNIQUE)'):
+            return
+        await invoke_webhook_lobby_message(self.player.username, message)
 
     async def _handle_disconnect(self, message: DisconnectRequest):
         log.debug('Connection closed by client')
@@ -147,7 +153,7 @@ class LobbyClientHandler(ClientHandler):
             log.info(f'Player left lobby: {self.player.username}')
             await self.lobby_server.remove_client(self.player.idx)
             total_players = sum(player is not None for player in self.lobby_server.get_players())
-            await send_webhook_left_lobby(self.player.username, total_players)
+            await invoke_webhook_lobby_left(self.player.username, total_players)
 
         self.close()
 

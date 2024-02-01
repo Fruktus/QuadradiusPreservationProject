@@ -81,11 +81,11 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 started_at=datetime(2020, 1, 1, 0, 0, 0),
                 finished_at=datetime(2020, 1, 1, 1, 0, 0),
                 is_ranked=True,
-                is_void=False
+                is_void=False,
             )
 
-            match_id = await self.conn.add_match_result(test_match)
-            match = await self.conn.get_match(match_id)
+            await self.conn.add_match_result(test_match)
+            match = await self.conn.get_match(test_match.match_id)
 
             self.assertEqual(match.match_id, '1234')
             self.assertEqual(match.winner_id, winner_id)
@@ -134,7 +134,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     started_at=datetime(2020, 1, 1, i, 0, 0),
                     finished_at=datetime(2020, 1, 1, i+1, 0, 0),
                     is_ranked=True,
-                    is_void=False
+                    is_void=False,
                 )
 
                 await self.conn.add_match_result(test_match)
@@ -146,6 +146,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                         lost_score=20-i,
                         start=datetime(2020, 1, 1, i, 0, 0),
                         finish=datetime(2020, 1, 1, i+1, 0, 0),
+                        moves=20,
                     )
                 )
 

@@ -120,6 +120,12 @@ class GameResultHistory:
     lost_score: int
     start: datetime
     finish: datetime
+    moves: int
+
+    def time_str(self):
+        duration_sec = (self.finish - self.start).total_seconds()
+        minutes, seconds = divmod(duration_sec, 60)
+        return f'{minutes:.0f}:{seconds:02.0f}'
 
 
 @dataclass

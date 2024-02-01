@@ -82,7 +82,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
     @property
     def client_id(self) -> str:
-        return self.username if config.auth_disable.get() else self.user_id
+        return self.user_id
 
     def match_id(self) -> MatchId:
         if not config.auto_register.get() or config.auth_disable.get():
@@ -111,13 +111,12 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_auth = message.get_opponent_auth()
         self.password = message.get_password()
 
-        if not config.auth_disable.get():
-            db_user = await (await connector()).get_user_by_username(self.username)
-            self.user_id = db_user.user_id
-            self.is_guest = db_user.is_guest
+        db_user = await (await connector()).get_user_by_username(self.username)
+        self.user_id = db_user.user_id
+        self.is_guest = db_user.is_guest
 
-            db_opponent = await (await connector()).get_user_by_username(self.opponent_username)
-            self.opponent_id = db_opponent.user_id
+        db_opponent = await (await connector()).get_user_by_username(self.opponent_username)
+        self.opponent_id = db_opponent.user_id
 
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()

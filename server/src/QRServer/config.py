@@ -1,3 +1,4 @@
+import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
 from typing import List, Callable, Dict
@@ -111,6 +112,27 @@ discord_webhook_game_ended_url = ConfigKey(
     description='',
     default_value='',
     requires_restart=False)
+discord_webhook_logger_url = ConfigKey(
+    name='discord.webhook.logger.url',
+    cli_args=[],
+    description='',
+    default_value='',
+    requires_restart=False,
+    onchange=config_handlers.refresh_logger_configuration)
+discord_webhook_logger_level = ConfigKey(
+    name='discord.webhook.logger.level',
+    cli_args=[],
+    description='',
+    default_value='INFO',
+    requires_restart=False,
+    onchange=config_handlers.refresh_logger_configuration)
+discord_webhook_logger_flush_delay_s = ConfigKey(
+    name='discord.webhook.logger.flush_delay_s',
+    cli_args=[],
+    description='',
+    default_value=5,
+    requires_restart=False,
+    onchange=config_handlers.refresh_logger_configuration)
 
 
 def get_key(name: str):
@@ -220,7 +242,7 @@ def load_from_args(args, set_dirty=False):
     args = vars(args)
     if '__config' in args and args['__config']:
         conf = args['__config']
-        print(f'Loading config from file: {conf}')
+        print(f'Loading config from file: {conf}', file=sys.stderr)
         load_from_toml(conf)
     for key in all_keys():
         if key.name in args and args[key.name]:

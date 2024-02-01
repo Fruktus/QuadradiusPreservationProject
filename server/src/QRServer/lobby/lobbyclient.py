@@ -82,7 +82,7 @@ class LobbyClientHandler(ClientHandler):
         db_user = await (await connector()).authenticate_user(
             username=username,
             password=None if is_guest or config.auth_disable.get() else password.encode('ascii'),
-            auto_create=(is_guest or config.auto_register.get()),
+            auto_create=(is_guest or config.auto_register.get() or config.auth_disable.get()),
             verify_password=(not config.auth_disable.get()))
 
         if not db_user:

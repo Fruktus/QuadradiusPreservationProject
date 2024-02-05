@@ -14,9 +14,7 @@ class ConfigKey:
     description: str
     default_value: object
     cli_args: List[str] = field(default_factory=list)
-    requires_restart: bool = True
     onchange: Callable[[], None] = None
-    dirty: bool = False
 
     def get(self):
         return get(self.name)
@@ -54,84 +52,71 @@ log_long = ConfigKey(
     cli_args=['-l', '--long'],
     description='enable long log format',
     default_value=False,
-    requires_restart=False,
     onchange=config_handlers.refresh_logger_configuration)
 log_verbose = ConfigKey(
     name='log.verbose',
     cli_args=['-v', '--verbose'],
     description='log debug messages',
     default_value=False,
-    requires_restart=False,
     onchange=config_handlers.refresh_logger_configuration)
 auth_disable = ConfigKey(
     name='auth.disable',
     cli_args=['--disable-auth'],
     description='disable authentication, allow any password',
-    default_value=False,
-    requires_restart=False)
+    default_value=False)
 auto_register = ConfigKey(
     name='auth.auto_register',
     cli_args=['--auto-register'],
     description='automatically register a user upon first login attempt',
-    default_value=False,
-    requires_restart=False)
+    default_value=False)
 
 discord_webhook_lobby_joined_url = ConfigKey(
     name='discord.webhook.lobby_joined.url',
     cli_args=[],
     description='',
-    default_value='',
-    requires_restart=False)
+    default_value='')
 discord_webhook_lobby_left_url = ConfigKey(
     name='discord.webhook.lobby_left.url',
     cli_args=[],
     description='',
-    default_value='',
-    requires_restart=False)
+    default_value='')
 discord_webhook_lobby_set_comment_url = ConfigKey(
     name='discord.webhook.lobby_set_comment.url',
     cli_args=[],
     description='',
-    default_value='',
-    requires_restart=False)
+    default_value='')
 discord_webhook_lobby_message_url = ConfigKey(
     name='discord.webhook.lobby_message.url',
     cli_args=[],
     description='',
-    default_value='',
-    requires_restart=False)
+    default_value='')
 discord_webhook_game_started_url = ConfigKey(
     name='discord.webhook.game_started.url',
     cli_args=[],
     description='',
-    default_value='',
-    requires_restart=False)
+    default_value='')
 discord_webhook_game_ended_url = ConfigKey(
     name='discord.webhook.game_ended.url',
     cli_args=[],
     description='',
-    default_value='',
-    requires_restart=False)
+    default_value='')
 discord_webhook_logger_url = ConfigKey(
     name='discord.webhook.logger.url',
     cli_args=[],
     description='',
     default_value='',
-    requires_restart=False,
     onchange=config_handlers.refresh_logger_configuration)
 discord_webhook_logger_level = ConfigKey(
     name='discord.webhook.logger.level',
     cli_args=[],
     description='',
     default_value='INFO',
-    requires_restart=False,
     onchange=config_handlers.refresh_logger_configuration)
 discord_webhook_logger_flush_delay_s = ConfigKey(
     name='discord.webhook.logger.flush_delay_s',
     cli_args=[],
     description='',
     default_value=5,
-    requires_restart=False,
     onchange=config_handlers.refresh_logger_configuration)
 
 
@@ -194,8 +179,6 @@ def set(name: str, value: object):
 
     if key.onchange is not None:
         key.onchange()
-    if key.requires_restart:
-        key.dirty = True
 
 
 def all_keys() -> List[ConfigKey]:
@@ -238,7 +221,7 @@ def setup_argparse(parser: ArgumentParser):
                 **kwargs)
 
 
-def load_from_args(args, set_dirty=False):
+def load_from_args(args):
     args = vars(args)
     if '__config' in args and args['__config']:
         conf = args['__config']
@@ -247,8 +230,6 @@ def load_from_args(args, set_dirty=False):
     for key in all_keys():
         if key.name in args and args[key.name]:
             set(key.name, args[key.name])
-        if not set_dirty:
-            key.dirty = False
 
 
 def __load_dict(d, prefix: str):
@@ -262,8 +243,3 @@ def __load_dict(d, prefix: str):
 def load_from_toml(file):
     d = toml.load(file)
     __load_dict(d, '')
-
-
-def print_help():
-    for key in all_keys():
-        print(f'{key.name:20} - {key.description}')

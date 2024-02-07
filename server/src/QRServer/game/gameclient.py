@@ -12,17 +12,8 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
 from QRServer.discord.webhook import Webhook
-from QRServer.listener import listen_for_connections
 
 log = logging.getLogger('game_client_handler')
-
-
-async def game_listener(config, connector, game_server):
-    async def handler(client_socket):
-        client = GameClientHandler(config, connector, client_socket, game_server)
-        await client.run()
-
-    await listen_for_connections(config.address.get(), config.game_port.get(), handler, 'Game')
 
 
 class GameClientHandler(ClientHandler, MatchParty):

@@ -10,17 +10,8 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
     PolicyFileRequest, CrossDomainPolicyAllowAllResponse
 from QRServer.discord.webhook import Webhook
-from QRServer.listener import listen_for_connections
 
 log = logging.getLogger('lobby_client_handler')
-
-
-async def lobby_listener(config, connector, lobby_server):
-    async def handler(client_socket):
-        client = LobbyClientHandler(config, connector, client_socket, lobby_server)
-        await client.run()
-
-    await listen_for_connections(config.address.get(), config.lobby_port.get(), handler, 'Lobby')
 
 
 class LobbyClientHandler(ClientHandler):

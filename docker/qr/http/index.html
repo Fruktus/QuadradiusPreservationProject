@@ -55,40 +55,37 @@
             color: #aaaaaa;
         }
 
-        nav {
+        div.dev-alert {
             position: absolute;
             z-index: 1;
+            margin: 2px;
+            width: 20em;
         }
 
-        nav h5 {
+        div.dev-alert p.title {
             color: red;
             margin: 0;
         }
 
-        nav h6 {
+        div.dev-alert p {
             color: white;
             margin: 0;
         }
-
-        nav a:link {
-            color: blue;
-        }
-
-        nav a:visited {
-            color: purple;
-        }
-
-        nav a:hover {
-            color: cyan;
-        }
     </style>
+    <script type="application/javascript">
+        window.onbeforeunload = function () {
+            return 'Are you sure you want to leave?';
+        };
+    </script>
 </head>
 
 <body>
-    <nav>
-        <h5>THIS IS A DEVELOPMENT VERSION</h5>
-        <h6>Accounts and scores will not be saved.<br>If you encounter any errors or have any suggestions, please report them <a href="https://github.com/Fruktus/QuadradiusPreservationProject/issues/new/choose">Here</a>.</h6>
-    </nav>
+    <div class="dev-alert">
+        <p class="title">THIS IS A DEVELOPMENT VERSION</p>
+        <p>Accounts and scores will not be saved.</p>
+        <p>If you encounter any errors or have any suggestions,
+            please report them <a href="https://github.com/Fruktus/QuadradiusPreservationProject/issues/new/choose">here</a>.</p>
+    </div>
     <div class="container">
         <object class="game">
             <embed src="./quadradius_lobby.swf" class="embed" />

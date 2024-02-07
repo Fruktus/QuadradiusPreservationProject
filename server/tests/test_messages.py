@@ -4,7 +4,7 @@ from datetime import datetime
 from QRServer.common import messages
 from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common.messages import HelloGameRequest, JoinGameRequest, GameChatMessage, ServerRecentRequest, \
-    ServerRankingRequest, JoinLobbyRequest, LastPlayedResponse, ServerRankingResponse, UsePowerMessage, \
+    ServerRankingRequest, JoinLobbyRequest, LastPlayedResponse, ServerRankingThisMonthResponse, UsePowerMessage, \
     ChallengeMessage, ChallengeAuthMessage, SettingsReadyOnMessage, ResignMessage
 
 
@@ -182,8 +182,8 @@ class ResponseMessagesTest(unittest.TestCase):
             b'No recent battles# # \x00',
             data)
 
-    def test_server_ranking_response(self):
-        msg = ServerRankingResponse(True, [
+    def test_server_ranking_this_month_response(self):
+        msg = ServerRankingThisMonthResponse([
             RankingEntry(
                 player='test',
                 wins=5,
@@ -198,13 +198,6 @@ class ResponseMessagesTest(unittest.TestCase):
             b'<S>~<SERVER>~<RANKING(thisMonth)>~'
             b'test~5~20~'
             b'test2~7~7\x00',
-            data)
-
-    def test_server_ranking_response2(self):
-        msg = ServerRankingResponse(False, [])
-        data = msg.to_data()
-        self.assertEqual(
-            b'<S>~<SERVER>~<RANKING>\x00',
             data)
 
     def test_use_power_response_exception(self):

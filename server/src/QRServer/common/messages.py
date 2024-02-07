@@ -1,3 +1,4 @@
+from abc import ABCMeta
 from datetime import datetime
 from typing import List, Optional
 
@@ -9,6 +10,8 @@ delim = '~'
 
 class Message:
     args: List[str]
+    prefix = None
+    argc = None
 
     def __init__(self, args: List[str]) -> None:
         self.args = args
@@ -16,6 +19,15 @@ class Message:
         for arg in self.args:
             if not isinstance(arg, str):
                 raise ValueError(f'Wrong argument type: {type(arg)}')
+
+        prefix = self.__class__.prefix
+        argc = self.__class__.argc
+
+        if prefix is None or argc is None:
+            raise AttributeError()
+
+        if not _valid(args, prefix, argc):
+            raise ValueError(f"Invalid args for {__class__}: {args}")
 
     def to_data(self) -> bytes:
         return delim.join(self.args).encode('ascii', 'replace') + b'\x00'
@@ -26,6 +38,11 @@ class Message:
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.args.__repr__()})'
 
+    def __eq__(self, other):
+        if not isinstance(other, Message):
+            return False
+        return self.args == other.args
+
 
 ################################################################################
 # REQUESTS
@@ -33,20 +50,8 @@ class Message:
 
 
 class RequestMessage(Message):
-    prefix = None
-    argc = None
-
     def __init__(self, args: List[str]) -> None:
         super().__init__(args)
-
-        prefix = self.__class__.prefix
-        argc = self.__class__.argc
-
-        if prefix is None or argc is None:
-            raise AttributeError()
-
-        if not _valid(args, prefix, argc):
-            raise ValueError(f"Invalid args for {__class__}: {args}")
 
     @staticmethod
     def from_data(data: bytes):
@@ -63,6 +68,10 @@ class DisconnectRequest(RequestMessage):
     @staticmethod
     def from_args(args: List[str]):
         return __class__(args)
+
+    @classmethod
+    def new(cls):
+        return cls.from_args(DisconnectRequest.prefix)
 
 
 class PolicyFileRequest(RequestMessage):
@@ -102,6 +111,10 @@ class JoinLobbyRequest(RequestMessage):
     @staticmethod
     def from_args(args: List[str]):
         return __class__(args)
+
+    @classmethod
+    def new(cls, username, password):
+        return cls.from_args([*JoinLobbyRequest.prefix, username, password])
 
     def get_username(self):
         return self.args[1]
@@ -286,57 +299,95 @@ class VoidScoreRequest(RequestMessage):
 # RESPONSES
 ################################################################################
 
-class ResponseMessage(Message):
+class ResponseMessage(Message, metaclass=ABCMeta):
     def __init__(self, args: List[str]) -> None:
         super().__init__(args)
 
 
 class CrossDomainPolicyAllowAllResponse(ResponseMessage):
+    prefix = ['<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>']
+    argc = [1]
+
     def __init__(self) -> None:
         super().__init__(['<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>'])
 
 
 class PlayerCountResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<PLAYERS_COUNT>']
+    argc = [4]
+
     def __init__(self, player_count: int) -> None:
         super().__init__(['<S>', '<SERVER>', '<PLAYERS_COUNT>', str(player_count)])
 
 
 class BroadcastCommentResponse(ResponseMessage):
+    prefix = ['<B>', '<COMMENT>']
+    argc = [4]
+
     def __init__(self, who: int, comment: str) -> None:
         super().__init__(['<B>', '<COMMENT>', str(who), comment])
 
 
 class OldSwfResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<OLD_SWF>']
+    argc = [3]
+
     def __init__(self) -> None:
         super().__init__(['<S>', '<SERVER>', '<OLD_SWF>'])
 
 
 class NameTakenResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>']
+    argc = [4]
+
     def __init__(self, taken: bool) -> None:
         super().__init__(['<S>', '<SERVER>', '<NAME_TAKEN>', '<YES>' if taken else '<NO>'])
 
 
 class ServerAliveResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<ALIVE>']
+    argc = [3]
+
     def __init__(self) -> None:
         super().__init__(['<S>', '<SERVER>', '<ALIVE>'])
 
 
 class GameServerAliveResponse(ResponseMessage):
+    prefix = ['<SERVER>', '<ALIVE>']
+    argc = [2]
+
     def __init__(self) -> None:
         super().__init__(['<SERVER>', '<ALIVE>'])
 
 
 class LobbyDuplicateResponse(ResponseMessage):
-    def __init__(self) -> None:
-        super().__init__(['<L>', '<DUPLICATE>'])
+    prefix = ['<L>', '<DUPLICATE>']
+    argc = [2]
+
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+
+    @staticmethod
+    def from_args(args: List[str]):
+        return __class__(args)
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
 
 
 class LobbyBadMemberResponse(ResponseMessage):
+    prefix = ['<L>', '<BAD_MEMBER>']
+    argc = [2]
+
     def __init__(self) -> None:
         super().__init__(['<L>', '<BAD_MEMBER>'])
 
 
 class LastLoggedResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<LAST_LOGGED>']
+    argc = [6]
+
     def __init__(self, player: str, time: datetime, motd: str) -> None:
         super().__init__([
             '<S>', '<SERVER>', '<LAST_LOGGED>', player,
@@ -349,6 +400,9 @@ class LastLoggedResponse(ResponseMessage):
 
 
 class LastPlayedResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<LAST_PLAYED>']
+    argc = [18]
+
     def __init__(self, recent_games: List[GameResultHistory]) -> None:
         super().__init__([
             '<S>', '<SERVER>', '<LAST_PLAYED>',
@@ -377,11 +431,13 @@ class LastPlayedResponse(ResponseMessage):
         return '#'.join(data)
 
 
-class ServerRankingResponse(ResponseMessage):
-    def __init__(self, this_month: bool, ranking: List[RankingEntry]) -> None:
+class ServerRankingThisMonthResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
+    argc = [-1]
+
+    def __init__(self, ranking: List[RankingEntry]) -> None:
         super().__init__([
-            '<S>', '<SERVER>',
-            '<RANKING(thisMonth)>' if this_month else '<RANKING>',
+            '<S>', '<SERVER>', '<RANKING(thisMonth)>',
             *self.__serialize_entries(ranking)])
 
     def __serialize_entries(self, entries: List[RankingEntry]):
@@ -397,14 +453,29 @@ class ServerRankingResponse(ResponseMessage):
 
 
 class LobbyStateResponse(ResponseMessage):
-    def __init__(self, players: List[LobbyPlayer]) -> None:
-        super().__init__(['<L>', *self.__serialize_players(players)])
+    prefix = ['<L>']
+    argc = [170]
 
-    def __serialize_players(self, players: List[LobbyPlayer]):
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+
+    @staticmethod
+    def from_args(args: List[str]):
+        return __class__(args)
+
+    @classmethod
+    def new(cls, players: List[LobbyPlayer]):
+        return __class__(['<L>', *cls.__serialize_players(players)])
+
+    @classmethod
+    def __serialize_players(cls, players: List[LobbyPlayer]):
         to_serialize: List[Optional[LobbyPlayer]] = players[0:13]
-        return [x for e in to_serialize for x in self.__serialize_player(e)]
+        while len(to_serialize) < 13:
+            to_serialize.append(None)
+        return [x for e in to_serialize for x in cls.__serialize_player(e)]
 
-    def __serialize_player(self, player: LobbyPlayer):
+    @classmethod
+    def __serialize_player(cls, player: LobbyPlayer):
         if player is None:
             player = LobbyPlayer()
             player.username = '<EMPTY>'
@@ -417,11 +488,17 @@ class LobbyStateResponse(ResponseMessage):
 
 
 class OpponentDeadResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<OPPDEAD>']
+    argc = [3]
+
     def __init__(self) -> None:
         super().__init__(['<S>', '<SERVER>', '<OPPDEAD>'])
 
 
 class VoidScoreResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<VOID>']
+    argc = [3]
+
     def __init__(self) -> None:
         super().__init__(['<S>', '<SERVER>', '<VOID>'])
 
@@ -938,6 +1015,21 @@ __message_classes = [
     ServerRankingRequest,
     ServerAliveRequest,
     ServerPingRequest,
+    CrossDomainPolicyAllowAllResponse,
+    PlayerCountResponse,
+    BroadcastCommentResponse,
+    OldSwfResponse,
+    NameTakenResponse,
+    ServerAliveResponse,
+    GameServerAliveResponse,
+    LobbyDuplicateResponse,
+    LobbyBadMemberResponse,
+    LastLoggedResponse,
+    LastPlayedResponse,
+    ServerRankingThisMonthResponse,
+    LobbyStateResponse,
+    OpponentDeadResponse,
+    VoidScoreResponse,
     GrabPieceMessage,
     ReleasePieceMessage,
     SwitchPlayerMessage,
@@ -981,7 +1073,7 @@ def _parse_data(data: str) -> Optional[Message]:
 
 
 def _valid(args: List[str], prefix: List[str], argc: List[int]):
-    if len(args) not in argc:
+    if len(args) not in argc and -1 not in argc:
         return False
 
     for p, a in zip(prefix, args):

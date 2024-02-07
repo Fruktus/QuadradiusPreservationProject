@@ -1,7 +1,6 @@
 import logging
 from typing import Optional
 
-from QRServer import config
 from QRServer.common.classes import MatchId, MatchParty
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
@@ -12,26 +11,28 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
-from QRServer.db.connector import connector
-from QRServer.discord.webhook import invoke_webhook_game_started
+from QRServer.discord.webhook import Webhook
 from QRServer.listener import listen_for_connections
 
 log = logging.getLogger('game_client_handler')
 
 
-async def game_listener(conn_host, conn_port, game_server):
+async def game_listener(config, connector, game_server):
     async def handler(client_socket):
-        client = GameClientHandler(client_socket, game_server)
+        client = GameClientHandler(config, connector, client_socket, game_server)
         await client.run()
 
-    await listen_for_connections(conn_host, conn_port, handler, 'Game')
+    await listen_for_connections(config.address.get(), config.game_port.get(), handler, 'Game')
 
 
 class GameClientHandler(ClientHandler, MatchParty):
     opponent_handler: Optional['GameClientHandler']
 
-    def __init__(self, client_socket, game_server):
+    def __init__(self, config, connector, client_socket, game_server):
         super().__init__(client_socket)
+        self.config = config
+        self.connector = connector
+        self.webhook = Webhook(config)
         self.opponent_handler = None
         self.game_server = game_server
 
@@ -42,8 +43,8 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.own_auth = None
         self.opponent_auth = None
         self.password = None
-        self.is_guest = True
-        self.void_score = False
+        self._is_guest = True
+        self._is_void_score = False
 
         self.register_message_handler(PolicyFileRequest, self._handle_policy)
         self.register_message_handler(HelloGameRequest, self._handle_hello_game)
@@ -81,11 +82,19 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SettingsColorMessage, self._handle_forward)
 
     @property
+    def is_void_score(self):
+        return self._is_void_score
+
+    @property
+    def is_guest(self):
+        return self._is_guest
+
+    @property
     def client_id(self) -> str:
         return self.user_id
 
     def match_id(self) -> MatchId:
-        if not config.auto_register.get() or config.auth_disable.get():
+        if not self.config.auto_register.get() or self.config.auth_disable.get():
             return MatchId(self.username, self.opponent_username)
         return MatchId(self.user_id, self.opponent_id)
 
@@ -97,7 +106,7 @@ class GameClientHandler(ClientHandler, MatchParty):
     def unmatch_opponent(self):
         self.opponent_handler = None
 
-    async def _handle_policy(self, message: PolicyFileRequest):
+    async def _handle_policy(self, _: PolicyFileRequest):
         log.debug('policy file requested')
         await self.send_msg(CrossDomainPolicyAllowAllResponse())
 
@@ -111,11 +120,11 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_auth = message.get_opponent_auth()
         self.password = message.get_password()
 
-        db_user = await (await connector()).get_user_by_username(self.username)
+        db_user = await self.connector.get_user_by_username(self.username)
         self.user_id = db_user.user_id
-        self.is_guest = db_user.is_guest
+        self._is_guest = db_user.is_guest
 
-        db_opponent = await (await connector()).get_user_by_username(self.opponent_username)
+        db_opponent = await self.connector.get_user_by_username(self.opponent_username)
         self.opponent_id = db_opponent.user_id
 
         self.game_server.register_client(self)
@@ -123,7 +132,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         await self.send_msg(PlayerCountResponse(player_count))
 
         if self.username < self.opponent_username:
-            await invoke_webhook_game_started(self.username, self.opponent_username)
+            await self.webhook.invoke_webhook_game_started(self.username, self.opponent_username)
 
     async def _handle_s(self, values):
         if self.opponent_handler:
@@ -140,15 +149,15 @@ class GameClientHandler(ClientHandler, MatchParty):
         # causes synchronization problems
         pass
 
-    async def _handle_void_score(self, message: VoidScoreRequest):
-        self.void_score = True
+    async def _handle_void_score(self, _: VoidScoreRequest):
+        self._is_void_score = True
         if self.opponent_handler:
             await self.opponent_handler.send_msg(VoidScoreResponse())
 
     async def _handle_add_stats(self, message: AddStatsRequest):
         await self.game_server.add_match_stats(self, message.to_stats())
 
-    async def _handle_disconnect(self, message: DisconnectRequest):
+    async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.opponent_handler is not None:
             await self.opponent_handler.send_msg(OpponentDeadResponse())

@@ -6,7 +6,6 @@ from typing import Optional
 
 import aiosqlite
 
-from QRServer import config
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport
@@ -245,19 +244,11 @@ class DbConnector:
         await self.conn.close()
 
 
-_connector = None
-
-
-async def connector() -> DbConnector:
-    global _connector
-    if _connector:
-        return _connector
-
+async def create_connector(config) -> DbConnector:
     data_dir = os.path.abspath(config.data_dir.get())
     os.makedirs(data_dir, exist_ok=True)
     dbfile = os.path.join(data_dir, 'database.sqlite3')
     log.debug(f'Opening database: {dbfile}')
     c = DbConnector(dbfile)
     await c.connect()
-    _connector = c
     return c

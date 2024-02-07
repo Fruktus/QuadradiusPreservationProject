@@ -1,7 +1,7 @@
 import abc
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 from QRServer.db.models import DbMatchReport
 
 
@@ -27,6 +27,16 @@ class MatchParty(abc.ABC):
 
     @abc.abstractmethod
     def unmatch_opponent(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def is_void_score(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def is_guest(self):
         pass
 
 
@@ -78,7 +88,7 @@ class Match:
     def add_match_stats(self, client_id: str, match_stats: MatchStats):
         self.match_stats[client_id] = match_stats
 
-    def generate_match_report(self) -> DbMatchReport:
+    def generate_match_report(self) -> Optional[DbMatchReport]:
         if len(self.match_stats) != 2:
             return None
 
@@ -106,7 +116,7 @@ class Match:
         )
 
     def is_void(self):
-        return all(party.void_score for party in self.parties)
+        return all(party.is_void_score for party in self.parties)
 
     def is_ranked(self):
         return all(not party.is_guest for party in self.parties)

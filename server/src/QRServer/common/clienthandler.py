@@ -10,7 +10,7 @@ from typing import Callable, Optional, Dict, List, TypeVar, Type, AsyncIterable,
 from QRServer.common import messages
 from QRServer.common.messages import ResponseMessage, RequestMessage
 
-log = logging.getLogger('client_handler')
+log = logging.getLogger('qr.client_handler')
 
 RMT = TypeVar('RMT', bound=RequestMessage)
 

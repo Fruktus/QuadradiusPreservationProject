@@ -7,7 +7,7 @@ from QRServer.common.messages import ResponseMessage, LastLoggedResponse, LobbyS
     ChallengeAuthMessage
 from QRServer.lobby.lobbyclient import LobbyClientHandler
 
-log = logging.getLogger('lobby_server')
+log = logging.getLogger('qr.lobby_server')
 
 
 class LobbyServer:

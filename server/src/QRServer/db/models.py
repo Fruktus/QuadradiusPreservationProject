@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 import uuid
 import logging
 
-log = logging.getLogger('db_models')
+log = logging.getLogger('qr.db_models')
 
 
 @dataclass

@@ -13,7 +13,7 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
 from QRServer.discord.webhook import Webhook
 
-log = logging.getLogger('game_client_handler')
+log = logging.getLogger('qr.game_client_handler')
 
 
 class GameClientHandler(ClientHandler, MatchParty):

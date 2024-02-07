@@ -13,7 +13,7 @@ from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyclient import LobbyClientHandler
 from QRServer.lobby.lobbyserver import LobbyServer
 
-log = logging.getLogger('server')
+log = logging.getLogger('qr.server')
 
 
 class QRServer:

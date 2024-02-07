@@ -5,7 +5,7 @@ from QRServer.common.classes import MatchId, Match, MatchStats
 from QRServer.discord.webhook import Webhook
 from QRServer.game.gameclient import GameClientHandler
 
-log = logging.getLogger('game_server')
+log = logging.getLogger('qr.game_server')
 
 
 class GameServer:

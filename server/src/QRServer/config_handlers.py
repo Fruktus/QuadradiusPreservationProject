@@ -17,7 +17,7 @@ def refresh_logger_configuration(config):
             style='{',
             datefmt='%H:%M:%S')
 
-    root_logger = logging.getLogger()
+    root_logger = logging.getLogger('qr')
     root_logger.setLevel(log_level)
 
     stderr_handler = logging.StreamHandler()

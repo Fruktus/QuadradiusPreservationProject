@@ -6,7 +6,7 @@ from QRServer import config_handlers
 from QRServer.config import Config
 from QRServer.server import QRServer
 
-log = logging.getLogger('main')
+log = logging.getLogger('qr.main')
 
 
 async def main():

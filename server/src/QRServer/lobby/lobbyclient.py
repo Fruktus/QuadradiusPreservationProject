@@ -11,7 +11,7 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     PolicyFileRequest, CrossDomainPolicyAllowAllResponse
 from QRServer.discord.webhook import Webhook
 
-log = logging.getLogger('lobby_client_handler')
+log = logging.getLogger('qr.lobby_client_handler')
 
 
 class LobbyClientHandler(ClientHandler):

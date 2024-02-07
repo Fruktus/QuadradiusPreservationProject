@@ -11,7 +11,7 @@ from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport
 from QRServer.db.password import password_verify, password_hash
 
-log = logging.getLogger('dbconnector')
+log = logging.getLogger('qr.dbconnector')
 
 
 class DbConnector:

@@ -4,7 +4,7 @@ import aiohttp
 
 from QRServer.common.classes import GameResultHistory
 
-log = logging.getLogger('webhook')
+log = logging.getLogger('qr.webhook')
 
 
 def webhook(webhook_name, disable_log=False):

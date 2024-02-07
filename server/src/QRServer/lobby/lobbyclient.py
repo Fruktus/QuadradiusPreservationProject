@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime
 
-from QRServer import config
 from QRServer.common import utils
 from QRServer.common.classes import RankingEntry, LobbyPlayer
 from QRServer.common.clienthandler import ClientHandler
@@ -10,27 +9,28 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, LobbyStateResponse, \
     LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
     PolicyFileRequest, CrossDomainPolicyAllowAllResponse
-from QRServer.db.connector import connector
-from QRServer.discord.webhook import invoke_webhook_lobby_joined, invoke_webhook_lobby_left, \
-    invoke_webhook_lobby_set_comment, invoke_webhook_lobby_message
+from QRServer.discord.webhook import Webhook
 from QRServer.listener import listen_for_connections
 
 log = logging.getLogger('lobby_client_handler')
 
 
-async def lobby_listener(conn_host, conn_port, lobby_server):
+async def lobby_listener(config, connector, lobby_server):
     async def handler(client_socket):
-        client = LobbyClientHandler(client_socket, lobby_server)
+        client = LobbyClientHandler(config, connector, client_socket, lobby_server)
         await client.run()
 
-    await listen_for_connections(conn_host, conn_port, handler, 'Lobby')
+    await listen_for_connections(config.address.get(), config.lobby_port.get(), handler, 'Lobby')
 
 
 class LobbyClientHandler(ClientHandler):
     player: LobbyPlayer
 
-    def __init__(self, client_socket, lobby_server):
+    def __init__(self, config, connector, client_socket, lobby_server):
         super().__init__(client_socket)
+        self.config = config
+        self.connector = connector
+        self.webhook = Webhook(config)
         self.lobby_server = lobby_server
 
         self.player = LobbyPlayer()
@@ -56,7 +56,7 @@ class LobbyClientHandler(ClientHandler):
     def get_player(self) -> LobbyPlayer:
         return self.player
 
-    async def _handle_policy(self, message: PolicyFileRequest):
+    async def _handle_policy(self, _: PolicyFileRequest):
         log.debug('policy file requested')
         await self.send_msg(CrossDomainPolicyAllowAllResponse())
 
@@ -79,7 +79,8 @@ class LobbyClientHandler(ClientHandler):
             self.close()
             return
 
-        db_user = await (await connector()).authenticate_user(
+        config = self.config
+        db_user = await self.connector.authenticate_user(
             username=username,
             password=None if is_guest or config.auth_disable.get() else password.encode('ascii'),
             auto_create=(is_guest or config.auto_register.get() or config.auth_disable.get()),
@@ -101,7 +102,7 @@ class LobbyClientHandler(ClientHandler):
         self.player.user_id = db_user.user_id
         self.player.username = username
         self.player.joined_at = datetime.now()
-        self.player.communique = await (await connector()).get_comment(self.player.user_id) or ' '
+        self.player.communique = await self.connector.get_comment(self.player.user_id) or ' '
         self.player.idx = await self.lobby_server.add_client(self)
         await self.send_msg(LobbyStateResponse(self.lobby_server.get_players()))
 
@@ -111,7 +112,7 @@ class LobbyClientHandler(ClientHandler):
             log.info('Member joined lobby: ' + username)
 
         total_players = sum(player is not None for player in self.lobby_server.get_players())
-        await invoke_webhook_lobby_joined(username, total_players)
+        await self.webhook.invoke_webhook_lobby_joined(username, total_players)
 
     async def _handle_challenge(self, message: ChallengeMessage):
         challenger_idx = message.get_challenger_idx()
@@ -125,18 +126,18 @@ class LobbyClientHandler(ClientHandler):
         challenger_auth = message.get_auth()
         await self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
 
-    async def _handle_server_recent(self, message: ServerRecentRequest):
-        recent_matches = await (await connector()).get_recent_matches()
+    async def _handle_server_recent(self, _: ServerRecentRequest):
+        recent_matches = await self.connector.get_recent_matches()
         await self.send_msg(self.lobby_server.get_last_logged())
         await self.send_msg(LastPlayedResponse(recent_games=recent_matches))
 
-    async def _handle_server_ranking(self, message: ServerRankingRequest):
+    async def _handle_server_ranking(self, _: ServerRankingRequest):
         await self.send_msg(ServerRankingResponse(True, [
             RankingEntry(player='test', wins=12, games=30),
             RankingEntry(player='test2', wins=2, games=2),
         ]))
 
-    async def _handle_server_alive(self, message: ServerAliveRequest):
+    async def _handle_server_alive(self, _: ServerAliveRequest):
         await self.send_msg(ServerAliveResponse())
 
     async def _handle_set_comment(self, message: SetCommentRequest):
@@ -146,10 +147,10 @@ class LobbyClientHandler(ClientHandler):
             log.debug(f'Error while setting comment: wrong idx, expected {self.player.idx} was {who}')
             return
         if self.player.user_id:
-            await (await connector()).set_comment(self.player.user_id, comment)
+            await self.connector.set_comment(self.player.user_id, comment)
         self.player.comment = comment
         await self.lobby_server.broadcast_msg(BroadcastCommentResponse(who, comment))
-        await invoke_webhook_lobby_set_comment(self.player.username, comment)
+        await self.webhook.invoke_webhook_lobby_set_comment(self.player.username, comment)
 
     async def _handle_chat_message(self, message: LobbyChatMessage):
         await self.lobby_server.broadcast_msg(message)
@@ -157,15 +158,15 @@ class LobbyClientHandler(ClientHandler):
         message = text.split(':', 1)[1].strip()
         if message.startswith('(COMMUNIQUE)'):
             return
-        await invoke_webhook_lobby_message(self.player.username, message)
+        await self.webhook.invoke_webhook_lobby_message(self.player.username, message)
 
-    async def _handle_disconnect(self, message: DisconnectRequest):
+    async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.player.idx is not None:
             log.info(f'Player left lobby: {self.player.username}')
             await self.lobby_server.remove_client(self.player.idx)
             total_players = sum(player is not None for player in self.lobby_server.get_players())
-            await invoke_webhook_lobby_left(self.player.username, total_players)
+            await self.webhook.invoke_webhook_lobby_left(self.player.username, total_players)
 
         self.close()
 

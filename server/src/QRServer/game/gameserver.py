@@ -2,8 +2,7 @@ import logging
 from typing import Dict
 
 from QRServer.common.classes import MatchId, Match, MatchStats
-from QRServer.db.connector import connector
-from QRServer.discord.webhook import invoke_webhook_game_ended
+from QRServer.discord.webhook import Webhook
 from QRServer.game.gameclient import GameClientHandler
 
 log = logging.getLogger('game_server')
@@ -12,7 +11,10 @@ log = logging.getLogger('game_server')
 class GameServer:
     matches: Dict[MatchId, Match]
 
-    def __init__(self):
+    def __init__(self, config, connector):
+        self.config = config
+        self.connector = connector
+        self.webhook = Webhook(config)
         self.matches = {}
 
     def register_client(self, client_handler: GameClientHandler):
@@ -41,10 +43,10 @@ class GameServer:
             try:
                 report = match.generate_match_report()
                 if report:
-                    await (await connector()).add_match_result(report)
+                    await self.connector.add_match_result(report)
                     log.debug(f'Added match report {report}')
-                    result = await (await connector()).get_match2(report.match_id)
-                    await invoke_webhook_game_ended(result)
+                    result = await self.connector.get_match2(report.match_id)
+                    await self.webhook.invoke_webhook_game_ended(result)
                 else:
                     log.error('Failed to generate report')
             except Exception:

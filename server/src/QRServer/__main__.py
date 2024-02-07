@@ -4,7 +4,9 @@ import logging
 import signal
 from typing import Coroutine
 
-from QRServer import config, config_handlers
+from QRServer import config_handlers
+from QRServer.config import Config
+from QRServer.db.connector import create_connector
 from QRServer.discord import logger as discord_logger
 from QRServer.game.gameclient import game_listener
 from QRServer.game.gameserver import GameServer
@@ -15,10 +17,9 @@ log = logging.getLogger('main')
 
 
 class QRServer:
-    def __init__(self, address, game_port, lobby_port):
-        self.address = address
-        self.game_port = game_port
-        self.lobby_port = lobby_port
+    def __init__(self, config):
+        self.config = config
+        self.connector = None
         self.loop = asyncio.new_event_loop()
         self.tasks = []
 
@@ -26,15 +27,21 @@ class QRServer:
         self.loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(self.stop()))
         self.loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(self.stop()))
         try:
+            self.loop.run_until_complete(self.setup_connector())
             self.start_tasks()
             self.loop.run_forever()
         finally:
             self.loop.close()
 
+    async def setup_connector(self):
+        self.connector = await create_connector(self.config)
+
     def start_tasks(self):
-        self.start_task("Discord Logger", discord_logger.get_daemon_task())
-        self.start_task("Game Listener", game_listener(self.address, self.game_port, GameServer()))
-        self.start_task("Lobby Listener", lobby_listener(self.address, self.lobby_port, LobbyServer()))
+        self.start_task("Discord Logger", discord_logger.get_daemon_task(self.config))
+        game_server = GameServer(self.config, self.connector)
+        lobby_server = LobbyServer()
+        self.start_task("Game Listener", game_listener(self.config, self.connector, game_server))
+        self.start_task("Lobby Listener", lobby_listener(self.config, self.connector, lobby_server))
 
     def start_task(self, name: str, task: Coroutine):
         self.tasks.append(self.loop.create_task(task, name=name))
@@ -53,7 +60,8 @@ class QRServer:
 
 
 def main():
-    config_handlers.refresh_logger_configuration()
+    config = Config()
+    config_handlers.refresh_logger_configuration(config)
     parser = argparse.ArgumentParser()
     config.setup_argparse(parser)
     args = parser.parse_args()
@@ -61,11 +69,7 @@ def main():
 
     log.info('Quadradius server starting')
 
-    address = config.address.get()
-    game_port = config.game_port.get()
-    lobby_port = config.lobby_port.get()
-
-    QRServer(address, game_port, lobby_port).run()
+    QRServer(config).run()
 
     log.info('Server stopping, bye')
 

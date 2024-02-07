@@ -24,8 +24,8 @@ class QRServer:
         self.tasks = []
 
     def run(self):
-        self.loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(self.stop()))
-        self.loop.add_signal_handler(signal.SIGTERM, lambda: asyncio.create_task(self.stop()))
+        self.loop.add_signal_handler(signal.SIGINT, self.stop_sync)
+        self.loop.add_signal_handler(signal.SIGTERM, self.stop_sync)
         try:
             self.loop.run_until_complete(self.setup_connector())
             self.start_tasks()
@@ -53,6 +53,7 @@ class QRServer:
             log.debug(f'Canceling task "{task.get_name()}"...')
             task.cancel()
             await task
+        await self.connector.close()
         self.loop.stop()
 
     def stop_sync(self):

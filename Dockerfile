@@ -1,10 +1,10 @@
-FROM python:3.9 as server-builder
+FROM python:3.12 as server-builder
 
 COPY server /server
 WORKDIR /server
 RUN pip install '.[dev]' && python setup.py bdist_wheel
 
-FROM python:3.9
+FROM python:3.12
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN mkdir -p /data && \

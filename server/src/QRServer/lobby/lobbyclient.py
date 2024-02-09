@@ -141,7 +141,7 @@ class LobbyClientHandler(ClientHandler):
         if self.player.user_id:
             await self.connector.set_comment(self.player.user_id, comment)
         self.player.comment = comment
-        await self.lobby_server.broadcast_msg(BroadcastCommentResponse(who, comment))
+        await self.lobby_server.broadcast_msg(BroadcastCommentResponse.new(who, comment))
         await self.webhook.invoke_webhook_lobby_set_comment(self.player.username, comment)
 
     async def _handle_chat_message(self, message: LobbyChatMessage):

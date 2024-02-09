@@ -5,10 +5,10 @@ from QRServer.common import utils
 from QRServer.common.classes import RankingEntry, LobbyPlayer
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, LobbyDuplicateResponse, \
-    ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingResponse, HelloLobbyRequest, \
-    JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, LobbyStateResponse, \
-    LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, DisconnectRequest, \
-    PolicyFileRequest, CrossDomainPolicyAllowAllResponse
+    ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingThisMonthResponse, \
+    HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, \
+    LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, \
+    DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.lobby_client_handler')
@@ -38,7 +38,8 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(ChallengeAuthMessage, self._handle_challenge_auth)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
 
-    def get_username(self) -> str:
+    @property
+    def username(self) -> str:
         return self.player.username
 
     def get_joined_at(self) -> datetime:
@@ -85,7 +86,7 @@ class LobbyClientHandler(ClientHandler):
 
         if self.lobby_server.username_exists(username):
             log.debug('Client duplicate in lobby: ' + username)
-            await self.send_msg(LobbyDuplicateResponse())
+            await self.send_msg(LobbyDuplicateResponse.new())
             self.close()  # FIXME it seems that the connection shouldnt be completely closed
             return
 
@@ -95,7 +96,7 @@ class LobbyClientHandler(ClientHandler):
         self.player.joined_at = datetime.now()
         self.player.communique = await self.connector.get_comment(self.player.user_id) or ' '
         self.player.idx = await self.lobby_server.add_client(self)
-        await self.send_msg(LobbyStateResponse(self.lobby_server.get_players()))
+        await self.send_msg(LobbyStateResponse.new(self.lobby_server.get_players()))
 
         if is_guest:
             log.info('Guest joined lobby: ' + username)
@@ -123,7 +124,7 @@ class LobbyClientHandler(ClientHandler):
         await self.send_msg(LastPlayedResponse(recent_games=recent_matches))
 
     async def _handle_server_ranking(self, _: ServerRankingRequest):
-        await self.send_msg(ServerRankingResponse(True, [
+        await self.send_msg(ServerRankingThisMonthResponse([
             RankingEntry(player='test', wins=12, games=30),
             RankingEntry(player='test2', wins=2, games=2),
         ]))

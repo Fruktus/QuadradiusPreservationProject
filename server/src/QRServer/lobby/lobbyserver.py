@@ -51,13 +51,13 @@ class LobbyServer:
 
     def get_last_logged(self) -> LastLoggedResponse:
         if self.last_logged:
-            return LastLoggedResponse(self.last_logged.get_username(), self.last_logged.get_joined_at(), '')
+            return LastLoggedResponse(self.last_logged.username, self.last_logged.get_joined_at(), '')
         else:
             return LastLoggedResponse('<>', datetime.now(), '')
 
     async def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
-        message = LobbyStateResponse(self.get_players())
+        message = LobbyStateResponse.new(self.get_players())
         for i in range(13):
             if i == excluded_idx:
                 continue

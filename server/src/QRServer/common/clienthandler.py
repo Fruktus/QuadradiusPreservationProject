@@ -2,9 +2,7 @@ import abc
 import asyncio
 import logging
 from asyncio import CancelledError
-from queue import Queue
 from socket import socket
-from threading import Thread
 from typing import Callable, Optional, Dict, List, TypeVar, Type, AsyncIterable, Coroutine
 
 from QRServer.common import messages
@@ -17,18 +15,18 @@ RMT = TypeVar('RMT', bound=RequestMessage)
 
 class ClientHandler(abc.ABC):
     cs: Optional[socket]
-    in_queue: Queue
     handlers: Dict[bytes, List[Callable[[List[bytes]], Coroutine]]]
     message_handlers: Dict[Type[RequestMessage], List[Callable[[RequestMessage], Coroutine]]]
-    username: Optional[str]
-    _reader_thread: Thread
 
     def __init__(self, client_socket: socket):
         self.handlers = {}
         self.message_handlers = {}
         self.cs = client_socket
-        self.in_queue = Queue()
-        self.username = None
+
+    @property
+    @abc.abstractmethod
+    def username(self) -> str:
+        ...
 
     async def _socket_read(self) -> AsyncIterable[bytes]:
         loop = asyncio.get_event_loop()

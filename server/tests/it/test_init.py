@@ -9,5 +9,6 @@ class InitIT(QuadradiusIntegrationTestCase):
         self.assertGreater(self.server.lobby_port, 1023)
         self.assertGreater(self.server.game_port, 1023)
         # ensure no clients are connected
-        self.assertEqual(len(self.server.lobby_clients), 0)
-        self.assertEqual(len(self.server.game_clients), 0)
+        for i in range(13):
+            self.assertIsNone(self.server.lobby_server.clients[i])
+        self.assertEqual(len(self.server.game_server.matches), 0)

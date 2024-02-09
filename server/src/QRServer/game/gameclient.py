@@ -29,7 +29,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         self.user_id = None
         self.opponent_id = None
-        self.username = None
+        self._username = None
         self.opponent_username = None
         self.own_auth = None
         self.opponent_auth = None
@@ -73,6 +73,10 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SettingsColorMessage, self._handle_forward)
 
     @property
+    def username(self) -> str:
+        return self._username
+
+    @property
     def is_void_score(self):
         return self._is_void_score
 
@@ -105,7 +109,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         pass
 
     async def _handle_join_game(self, message: JoinGameRequest):
-        self.username = message.get_username()
+        self._username = message.get_username()
         self.own_auth = message.get_auth()
         self.opponent_username = message.get_opponent_username()
         self.opponent_auth = message.get_opponent_auth()

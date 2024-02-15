@@ -1,9 +1,7 @@
 import abc
-import asyncio
 import logging
-from asyncio import CancelledError
-from socket import socket
-from typing import Callable, Optional, Dict, List, TypeVar, Type, AsyncIterable, Coroutine
+from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError
+from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine
 
 from QRServer.common import messages
 from QRServer.common.messages import ResponseMessage, RequestMessage
@@ -14,14 +12,16 @@ RMT = TypeVar('RMT', bound=RequestMessage)
 
 
 class ClientHandler(abc.ABC):
-    cs: Optional[socket]
+    reader: StreamReader
+    writer: StreamWriter
     handlers: Dict[bytes, List[Callable[[List[bytes]], Coroutine]]]
     message_handlers: Dict[Type[RequestMessage], List[Callable[[RequestMessage], Coroutine]]]
 
-    def __init__(self, client_socket: socket):
+    def __init__(self, reader: StreamReader, writer: StreamWriter):
         self.handlers = {}
         self.message_handlers = {}
-        self.cs = client_socket
+        self.reader = reader
+        self.writer = writer
 
     @property
     @abc.abstractmethod
@@ -29,11 +29,10 @@ class ClientHandler(abc.ABC):
         ...
 
     async def _socket_read(self) -> AsyncIterable[bytes]:
-        loop = asyncio.get_event_loop()
-        while self.cs:
+        while True:
             try:
-                data = await loop.sock_recv(self.cs, 2048)
-            except (ConnectionResetError, CancelledError):
+                data = await self.reader.readuntil(b'\x00')
+            except (ConnectionResetError, CancelledError, IncompleteReadError):
                 data = None
 
             if not data:
@@ -59,6 +58,12 @@ class ClientHandler(abc.ABC):
             self.message_handlers[mtype] = [handler]
 
     async def run(self):
+        try:
+            await self._run()
+        finally:
+            self.writer.close()
+
+    async def _run(self):
         async for data in self._socket_read():
             values = data.split(messages.delim.encode('ascii'))
             prefix = values[0]
@@ -90,27 +95,21 @@ class ClientHandler(abc.ABC):
 
     async def send(self, data: bytes):
         """Deprecated, do not use"""
-        loop = asyncio.get_event_loop()
         log.warning(f'Using deprecated method to send {data}')
         log.debug(f'Sending {data} to {self.username}')
-        await loop.sock_sendall(self.cs, data)
+        self.writer.write(data)
+        await self.writer.drain()
 
     async def send_msg(self, message: ResponseMessage):
-        loop = asyncio.get_event_loop()
         log.debug(f'Sending {message} to {self.username}')
         try:
-            await loop.sock_sendall(self.cs, message.to_data())
-        except BrokenPipeError:
+            self.writer.write(message.to_data())
+            await self.writer.drain()
+        except ConnectionResetError:
             raise StopHandlerException()
 
     def close(self):
-        if self.cs:
-            try:
-                self.cs.shutdown(1)
-            except OSError:
-                pass
-            self.cs.close()
-            self.cs = None
+        self.writer.close()
         raise StopHandlerException()
 
 

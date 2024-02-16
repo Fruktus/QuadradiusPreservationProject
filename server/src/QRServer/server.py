@@ -1,8 +1,7 @@
 import asyncio
 import logging
 import signal
-import socket
-from asyncio import CancelledError, Task
+from asyncio import Task, Server, StreamReader, StreamWriter
 from typing import Coroutine, Optional, List
 
 from QRServer.common.clienthandler import ClientHandler
@@ -21,23 +20,23 @@ class QRServer:
     config: Config
     connector: Optional[DbConnector]
     _tasks: List[Task]
-    _lobby_client_tasks: List[Task]
-    _game_client_tasks: List[Task]
-    _lobby_ready: asyncio.Event
-    _game_ready: asyncio.Event
-    _lobby_port: Optional[int]
-    _game_port: Optional[int]
-    _server_stopped: asyncio.Event
+
+    # servers
+    _lobby_sock_server: Server
+    _game_sock_server: Server
     _game_server: GameServer
     _lobby_server: LobbyServer
+
+    # events
+    _lobby_ready: asyncio.Event
+    _game_ready: asyncio.Event
+    _server_stopped: asyncio.Event
 
     def __init__(self, config):
         self.config = config
         self.connector = None
         self.loop = asyncio.get_event_loop()
         self._tasks = []
-        self._lobby_client_tasks = []
-        self._game_client_tasks = []
         self._lobby_ready = asyncio.Event()
         self._game_ready = asyncio.Event()
         self._lobby_port = None
@@ -49,12 +48,12 @@ class QRServer:
         return self._tasks
 
     @property
-    def lobby_port(self):
-        return self._lobby_port
+    def lobby_socks(self):
+        return self._lobby_sock_server.sockets
 
     @property
-    def game_port(self):
-        return self._game_port
+    def game_socks(self):
+        return self._game_sock_server.sockets
 
     @property
     def game_server(self):
@@ -69,7 +68,7 @@ class QRServer:
         self.loop.add_signal_handler(signal.SIGTERM, self.stop_sync)
 
         await self.setup_connector()
-        self.start_tasks()
+        await self.start_tasks()
         await asyncio.gather(
             self._lobby_ready.wait(),
             self._game_ready.wait())
@@ -88,6 +87,10 @@ class QRServer:
             log.debug(f'Canceling task "{task.get_name()}"...')
             task.cancel()
             await task
+        self._lobby_sock_server.close()
+        self._game_sock_server.close()
+        await self._lobby_sock_server.wait_closed()
+        await self._game_sock_server.wait_closed()
         await self.connector.close()
         self._server_stopped.set()
 
@@ -95,26 +98,43 @@ class QRServer:
         self.loop.create_task(self.stop())
 
     def start_task(self, name: str, task: Coroutine):
-        self._tasks.append(self.loop.create_task(task, name=name))
+        task = self.loop.create_task(task, name=name)
+        self._tasks.append(task)
 
-    def start_tasks(self):
+        async def task_remover():
+            await task
+            log.debug(f'Task "{task.get_name()}" finished')
+            self._tasks.remove(task)
+
+        self.loop.create_task(task_remover())
+        log.debug(f'Task "{task.get_name()}" started')
+
+    async def start_tasks(self):
         self.start_task("Discord Logger", discord_logger.get_daemon_task(self.config))
         self._game_server = GameServer(self.config, self.connector)
         self._lobby_server = LobbyServer()
-        self.start_task("Game Listener", self._game_listener_task(self.config, self.connector, self._game_server))
-        self.start_task("Lobby Listener", self._lobby_listener_task(self.config, self.connector, self._lobby_server))
+        await self._game_listener_task(self.config, self.connector, self._game_server)
+        await self._lobby_listener_task(self.config, self.connector, self._lobby_server)
 
     async def _lobby_listener_task(self, config, connector, lobby_server):
-        def handler_factory(client_socket):
-            return LobbyClientHandler(config, connector, client_socket, lobby_server)
+        def handler_factory(reader, writer):
+            return LobbyClientHandler(config, connector, reader, writer, lobby_server)
 
-        await self._listen_for_connections(config.lobby_port.get(), handler_factory, True)
+        try:
+            await self._listen_for_connections(config.lobby_port.get(), handler_factory, True)
+        except Exception:
+            log.exception('Failed setting up the server')
+            await self.stop()
 
     async def _game_listener_task(self, config, connector, game_server):
-        def handler_factory(client_socket):
-            return GameClientHandler(config, connector, client_socket, game_server)
+        def handler_factory(reader, writer):
+            return GameClientHandler(config, connector, reader, writer, game_server)
 
-        await self._listen_for_connections(config.game_port.get(), handler_factory, False)
+        try:
+            await self._listen_for_connections(config.game_port.get(), handler_factory, False)
+        except Exception:
+            log.exception('Failed setting up the server')
+            await self.stop()
 
     async def _listen_for_connections(self, conn_port, handler_factory, is_lobby):
         conn_host = self.config.address.get()
@@ -124,32 +144,25 @@ class QRServer:
         else:
             log.info(f'Game starting on {conn_host}:{conn_port}')
 
-        tasks = self._lobby_client_tasks if is_lobby else self._game_client_tasks
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server:
-            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            server.bind((conn_host, conn_port))
-            server.listen(5)
-            server.setblocking(False)
-            host, port = server.getsockname()
+        def handle_client(reader: StreamReader, writer: StreamWriter):
+            handler: ClientHandler = handler_factory(reader, writer)
+            addr = writer.get_extra_info('peername')
+            name = f'Lobby client {addr}' if is_lobby else f'Game client {addr}'
+            self.start_task(name, handler.run())
 
+        server = await asyncio.start_server(handle_client, conn_host, conn_port)
+        if is_lobby:
+            self._lobby_sock_server = server
+        else:
+            self._game_sock_server = server
+
+        for sock in server.sockets:
+            host, port, *_ = sock.getsockname()
             if is_lobby:
-                self._lobby_port = port
                 log.info(f'Lobby started on {host}:{port}')
                 self._lobby_ready.set()
             else:
-                self._game_port = port
                 log.info(f'Game started on {host}:{port}')
                 self._game_ready.set()
 
-            loop = asyncio.get_event_loop()
-            try:
-                while True:
-                    client_socket, _ = await loop.sock_accept(server)
-                    handler: ClientHandler = handler_factory(client_socket)
-                    tasks.append(loop.create_task(handler.run()))
-            except (KeyboardInterrupt, CancelledError):
-                for client in tasks:
-                    client.cancel()
-                server.shutdown(1)
-                server.close()
-        await asyncio.gather(*tasks)
+        await server.start_serving()

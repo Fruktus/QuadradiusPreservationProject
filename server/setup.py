@@ -7,7 +7,7 @@ setup(
     author='Fruktus, Kamil Jarosz',
     package_dir={'': 'src'},
     packages=find_packages('src'),
-    python_requires='>=3.8',
+    python_requires='>=3.9',
     install_requires=[
         'dataclasses',
         'toml',

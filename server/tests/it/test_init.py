@@ -6,8 +6,8 @@ class InitIT(QuadradiusIntegrationTestCase):
         # ensure tasks are running
         self.assertGreater(len(self.server.tasks), 0)
         # ensure ports are assigned
-        self.assertGreater(self.server.lobby_port, 1023)
-        self.assertGreater(self.server.game_port, 1023)
+        self.assertGreater(self.server.lobby_socks[0].getsockname()[1], 1023)
+        self.assertGreater(self.server.game_socks[0].getsockname()[1], 1023)
         # ensure no clients are connected
         for i in range(13):
             self.assertIsNone(self.server.lobby_server.clients[i])

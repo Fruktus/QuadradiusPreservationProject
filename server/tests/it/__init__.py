@@ -1,7 +1,6 @@
 import asyncio
-import socket
 import unittest
-from asyncio import CancelledError, QueueEmpty
+from asyncio import CancelledError, QueueEmpty, StreamWriter, StreamReader, IncompleteReadError
 from tempfile import TemporaryDirectory
 from typing import Optional, List
 
@@ -11,32 +10,35 @@ from QRServer.config import Config
 
 
 class TestClientConnection:
-    sock: socket.socket
+    reader: StreamReader
+    writer: StreamWriter
     messages: asyncio.Queue
 
-    def __init__(self, server, sock):
+    def __init__(self, server, reader, writer):
         self.server = server
-        self.sock = sock
+        self.reader = reader
+        self.writer = writer
         self.username = None
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self._receive_messages())
         self.messages = asyncio.Queue()
 
-    def close(self):
-        self.sock.close()
+    async def close(self):
+        self.writer.close()
+        await self.writer.wait_closed()
 
     async def send_data(self, data):
-        await self.loop.sock_sendall(self.sock, data)
+        self.writer.write(data)
+        await self.writer.drain()
 
     async def send_message(self, message):
         await self.send_data(message.to_data())
 
     async def _receive_messages(self):
-        loop = asyncio.get_event_loop()
-        while self.sock:
+        while True:
             try:
-                data = await loop.sock_recv(self.sock, 2048)
-            except (ConnectionResetError, CancelledError):
+                data = await self.reader.readuntil(b'\x00')
+            except (ConnectionResetError, CancelledError, IncompleteReadError):
                 data = None
 
             if not data:
@@ -82,7 +84,7 @@ class TestClientConnection:
 
     async def disconnect(self):
         await self.send_message(DisconnectRequest.new())
-        self.close()
+        await self.close()
 
     async def wait_for_disconnect(self):
         async def run():
@@ -155,22 +157,22 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             await self.itTearDown()
         finally:
             for client in self._clients:
-                client.close()
+                await client.close()
             await self._server.stop()
             self._data_dir.cleanup()
 
     async def new_lobby_client(self) -> TestClientConnection:
-        client = await self._new_client(self._server.lobby_port)
+        host, port, *_ = self._server.lobby_socks[0].getsockname()
+        client = await self._new_client(host, port)
         self._clients.append(client)
         return client
 
     async def new_game_client(self) -> TestClientConnection:
-        client = await self._new_client(self._server.game_port)
+        host, port, *_ = self._server.game_socks[0].getsockname()
+        client = await self._new_client(host, port)
         self._clients.append(client)
         return client
 
-    async def _new_client(self, port) -> TestClientConnection:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setblocking(False)
-        await asyncio.get_event_loop().sock_connect(sock, ('127.0.0.1', port))
-        return TestClientConnection(self.server, sock)
+    async def _new_client(self, host, port) -> TestClientConnection:
+        reader, writer = await asyncio.open_connection(host, port)
+        return TestClientConnection(self.server, reader, writer)

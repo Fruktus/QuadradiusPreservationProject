@@ -68,7 +68,7 @@ class LobbyIT(QuadradiusIntegrationTestCase):
     async def test_leave_lobby_abruptly(self):
         client = await self.new_lobby_client()
         await client.join_lobby('Robert', 'cf585d509bf09ce1d2ff5d4226b7dacb')
-        client.close()
+        await client.close()
         await client.wait_for_disconnect()
 
     async def test_join_duplicate_username(self):

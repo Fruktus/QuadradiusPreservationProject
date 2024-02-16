@@ -4,7 +4,7 @@ from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadEr
 from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine, Optional
 
 from QRServer.common import messages, utils
-from QRServer.common.messages import ResponseMessage, RequestMessage
+from QRServer.common.messages import ResponseMessage, RequestMessage, Message
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbUser
@@ -44,7 +44,7 @@ class ClientHandler(abc.ABC):
                 data = None
 
             if not data:
-                log.debug('No more data to read, finishing')
+                log.debug(f'No more data to read from {self.username}, finishing')
                 yield b'<DISCONNECTED>'
                 return
             elif data[-1] == 0:
@@ -76,11 +76,11 @@ class ClientHandler(abc.ABC):
             values = data.split(messages.delim.encode('ascii'))
             prefix = values[0]
 
-            message = RequestMessage.from_data(data)
+            message = Message.from_data(data)
 
             try:
                 if message is not None:
-                    log.debug(f'Handling: {message}')
+                    log.debug(f'Handling: {message} from {self.username}')
                     mtype = type(message)
                     if mtype in self.message_handlers:
                         for handler in self.message_handlers[mtype]:

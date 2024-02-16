@@ -51,9 +51,9 @@ class LobbyServer:
 
     def get_last_logged(self) -> LastLoggedResponse:
         if self.last_logged:
-            return LastLoggedResponse(self.last_logged.username, self.last_logged.get_joined_at(), '')
+            return LastLoggedResponse.new(self.last_logged.username, self.last_logged.get_joined_at(), '')
         else:
-            return LastLoggedResponse('<>', datetime.now(), '')
+            return LastLoggedResponse.new('<>', datetime.now(), '')
 
     async def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)
@@ -67,11 +67,11 @@ class LobbyServer:
 
     async def challenge_user(self, challenger_idx, challenged_idx):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            await self.clients[challenged_idx].send_msg(ChallengeMessage(challenged_idx, challenger_idx))
+            await self.clients[challenged_idx].send_msg(ChallengeMessage.new(challenged_idx, challenger_idx))
 
     async def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            msg = ChallengeAuthMessage(challenged_idx, challenger_idx, challenger_auth)
+            msg = ChallengeAuthMessage.new(challenged_idx, challenger_idx, challenger_auth)
             await self.clients[challenged_idx].send_msg(msg)
 
     async def broadcast_msg(self, message: ResponseMessage):

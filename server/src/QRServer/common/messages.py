@@ -643,6 +643,54 @@ class RecursiveDoneMessage(RequestMessage, ResponseMessage):
         return int(self.args[2])
 
 
+class SwitcherooMessage(RequestMessage, ResponseMessage):
+    prefix = ['<S>', '<SWITCHEROO>']
+    argc = [6]
+
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls, piece: int, old_column: int, old_row: int, occupier: int):
+        return cls([*cls.prefix, str(piece), str(old_column), str(old_row), str(occupier)])
+
+
+class RemoveOneWayWallMessage(RequestMessage, ResponseMessage):
+    prefix = ['<S>', '<REMOVE_ONEWAY_WALL>']
+    argc = [4]
+
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls, wall: int, piece: int):
+        return cls([*cls.prefix, str(wall), str(piece)])
+
+
+class BankruptActionMessage(RequestMessage, ResponseMessage):
+    prefix = ['<S>', '<BR_ANIMATION>']
+    argc = [3]
+
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls, player_index: int):
+        return cls([*cls.prefix, str(player_index)])
+
+
 class RemovePlayerMessage(RequestMessage, ResponseMessage):
     prefix = ['<S>', '<REMOVE_PLAYER>']
     argc = [3]

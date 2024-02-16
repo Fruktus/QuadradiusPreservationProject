@@ -10,7 +10,8 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     NewGridCoordMessage, ResignMessage, ServerPingRequest, SettingsArenaSizeMessage, \
     SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
-    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest
+    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest, \
+    SwitcherooMessage, RemoveOneWayWallMessage, BankruptActionMessage
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.game_client_handler')
@@ -48,6 +49,9 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         # forwarding messages
         self.register_message_handler(UsePowerMessage, self._handle_forward)
+        self.register_message_handler(SwitcherooMessage, self._handle_forward)
+        self.register_message_handler(RemoveOneWayWallMessage, self._handle_forward)
+        self.register_message_handler(BankruptActionMessage, self._handle_forward)
         self.register_message_handler(GameChatMessage, self._handle_forward)
         self.register_message_handler(GrabPieceMessage, self._handle_forward)
         self.register_message_handler(ReleasePieceMessage, self._handle_forward)

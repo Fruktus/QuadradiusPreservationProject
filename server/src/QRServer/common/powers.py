@@ -75,6 +75,7 @@ __powers = [
     'BANKRUPT_ROW',
     'MULTIPLY',
     'CANCEL_MULTIPLY',
+    'RAISE_BLOCK',
     'LOWER_BLOCK',
     'CLIMB_BLOCK',
     'INVISIBLE',

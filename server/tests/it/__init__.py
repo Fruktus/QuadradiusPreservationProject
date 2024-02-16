@@ -1,7 +1,7 @@
 import asyncio
 import socket
 import unittest
-from asyncio import CancelledError
+from asyncio import CancelledError, QueueEmpty
 from tempfile import TemporaryDirectory
 from typing import Optional, List
 
@@ -14,8 +14,10 @@ class TestClientConnection:
     sock: socket.socket
     messages: asyncio.Queue
 
-    def __init__(self, sock):
+    def __init__(self, server, sock):
+        self.server = server
         self.sock = sock
+        self.username = None
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self._receive_messages())
         self.messages = asyncio.Queue()
@@ -66,13 +68,42 @@ class TestClientConnection:
                 f'  Expected: {type}\n'
                 f'  Received: {received.__class__}')
 
+    async def assert_no_more_messages(self):
+        try:
+            message = self.messages.get_nowait()
+            raise AssertionError(f'Expected no more message, but there is one: {message}')
+        except QueueEmpty:
+            return
+
     async def join_lobby(self, username, password):
+        self.username = username
         await self.send_message(JoinLobbyRequest.new(username, password))
         await self.assert_received_message_type(LobbyStateResponse)
 
     async def disconnect(self):
         await self.send_message(DisconnectRequest.new())
         self.close()
+
+    async def wait_for_disconnect(self):
+        async def run():
+            while True:
+                clients = self.server.lobby_server.clients
+                exists = False
+                for i in range(13):
+                    if clients[i] and clients[i].username == self.username:
+                        exists = True
+                        break
+
+                if not exists:
+                    return
+                else:
+                    await asyncio.sleep(0.01)
+
+        await asyncio.wait_for(run(), 1)
+
+    async def disconnect_and_wait(self):
+        await self.disconnect()
+        await self.wait_for_disconnect()
 
 
 class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
@@ -138,26 +169,8 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self._clients.append(client)
         return client
 
-    async def wait_for_empty_lobby(self):
-        # TODO maybe there's a nicer way to wait for a given player?
-        async def run_until_lobby_not_empty():
-            while True:
-                clients = self.server.lobby_server.clients
-                empty = True
-                for i in range(13):
-                    if clients[i]:
-                        empty = False
-                        break
-
-                if empty:
-                    return
-                else:
-                    await asyncio.sleep(0.01)
-
-        await asyncio.wait_for(run_until_lobby_not_empty(), 1)
-
     async def _new_client(self, port) -> TestClientConnection:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setblocking(False)
         await asyncio.get_event_loop().sock_connect(sock, ('127.0.0.1', port))
-        return TestClientConnection(sock)
+        return TestClientConnection(self.server, sock)

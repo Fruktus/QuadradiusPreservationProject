@@ -226,18 +226,19 @@ class SetCommentRequest(RequestMessage):
     def __init__(self, args: List[str]) -> None:
         super().__init__(args)
 
-        self._idx = int(self.args[2])
-        self._comment = self.args[3]
-
     @staticmethod
     def from_args(args: List[str]):
         return __class__(args)
 
+    @classmethod
+    def new(cls, idx: int, comment: str):
+        return cls([*cls.prefix, str(idx), comment])
+
     def get_idx(self) -> int:
-        return self._idx
+        return int(self.args[2])
 
     def get_comment(self) -> str:
-        return self._comment
+        return self.args[3]
 
 
 class AddStatsRequest(RequestMessage):
@@ -324,8 +325,16 @@ class BroadcastCommentResponse(ResponseMessage):
     prefix = ['<B>', '<COMMENT>']
     argc = [4]
 
-    def __init__(self, who: int, comment: str) -> None:
-        super().__init__(['<B>', '<COMMENT>', str(who), comment])
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls, who: int, comment: str):
+        return cls([*cls.prefix, str(who), comment])
 
 
 class OldSwfResponse(ResponseMessage):

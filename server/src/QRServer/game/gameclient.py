@@ -21,9 +21,7 @@ class GameClientHandler(ClientHandler, MatchParty):
     opponent_handler: Optional['GameClientHandler']
 
     def __init__(self, config, connector, reader, writer, game_server):
-        super().__init__(reader, writer)
-        self.config = config
-        self.connector = connector
+        super().__init__(config, connector, reader, writer)
         self.webhook = Webhook(config)
         self.opponent_handler = None
         self.game_server = game_server
@@ -34,7 +32,6 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_username = None
         self.own_auth = None
         self.opponent_auth = None
-        self.password = None
         self._is_guest = True
         self._is_void_score = False
 
@@ -77,10 +74,6 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SettingsColorMessage, self._handle_forward)
 
     @property
-    def username(self) -> str:
-        return self._username
-
-    @property
     def is_void_score(self):
         return self._is_void_score
 
@@ -113,13 +106,20 @@ class GameClientHandler(ClientHandler, MatchParty):
         pass
 
     async def _handle_join_game(self, message: JoinGameRequest):
-        self._username = message.get_username()
         self.own_auth = message.get_auth()
         self.opponent_username = message.get_opponent_username()
         self.opponent_auth = message.get_opponent_auth()
-        self.password = message.get_password()
 
-        db_user = await self.connector.get_user_by_username(self.username)
+        username = message.get_username()
+        password = message.get_password()
+        db_user = await self.authenticate_user(username, password)
+        if not db_user:
+            log.debug(f'Player {username} tried to connect to a game, but failed to authenticate')
+            # according to my analysis, there's no way to tell the client
+            # it failed to authenticate, so just close the connection
+            self.close()
+            return
+
         self.user_id = db_user.user_id
         self._is_guest = db_user.is_guest
 
@@ -128,7 +128,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
-        await self.send_msg(PlayerCountResponse(player_count))
+        await self.send_msg(PlayerCountResponse.new(player_count))
 
         if self.username < self.opponent_username:
             await self.webhook.invoke_webhook_game_started(self.username, self.opponent_username)

@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from typing import Optional, List
 
 from QRServer.__main__ import QRServer
-from QRServer.common.messages import Message, RequestMessage, JoinLobbyRequest, LobbyStateResponse, DisconnectRequest
+from QRServer.common.messages import Message, JoinLobbyRequest, LobbyStateResponse, DisconnectRequest
 from QRServer.config import Config
 from QRServer.db import password as db_password
 
@@ -54,7 +54,7 @@ class TestClientConnection:
             elif data[-1] == 0:
                 data = data.split(b'\x00')[:-1]
                 for i in data:
-                    await self.messages.put(RequestMessage.from_data(i))
+                    await self.messages.put(Message.from_data(i))
 
     async def receive_message(self) -> Message:
         try:

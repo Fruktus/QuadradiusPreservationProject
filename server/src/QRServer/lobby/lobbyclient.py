@@ -44,12 +44,12 @@ class LobbyClientHandler(ClientHandler):
 
     async def _handle_policy(self, _: PolicyFileRequest):
         log.debug('policy file requested')
-        await self.send_msg(CrossDomainPolicyAllowAllResponse())
+        await self.send_msg(CrossDomainPolicyAllowAllResponse.new())
 
     async def _handle_hello_lobby(self, message: HelloLobbyRequest):
         swf_version = message.get_swf_version()
         if swf_version != 5:
-            await self.send_msg(OldSwfResponse())
+            await self.send_msg(OldSwfResponse.new())
             log.debug(f'Client with invalid version tried to connect, version: {swf_version}')
             self.close()
 
@@ -109,16 +109,16 @@ class LobbyClientHandler(ClientHandler):
     async def _handle_server_recent(self, _: ServerRecentRequest):
         recent_matches = await self.connector.get_recent_matches()
         await self.send_msg(self.lobby_server.get_last_logged())
-        await self.send_msg(LastPlayedResponse(recent_games=recent_matches))
+        await self.send_msg(LastPlayedResponse.new(recent_matches))
 
     async def _handle_server_ranking(self, _: ServerRankingRequest):
-        await self.send_msg(ServerRankingThisMonthResponse([
+        await self.send_msg(ServerRankingThisMonthResponse.new([
             RankingEntry(player='test', wins=12, games=30),
             RankingEntry(player='test2', wins=2, games=2),
         ]))
 
     async def _handle_server_alive(self, _: ServerAliveRequest):
-        await self.send_msg(ServerAliveResponse())
+        await self.send_msg(ServerAliveResponse.new())
 
     async def _handle_set_comment(self, message: SetCommentRequest):
         who = message.get_idx()

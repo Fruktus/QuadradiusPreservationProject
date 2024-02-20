@@ -100,7 +100,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
     async def _handle_policy(self, _: PolicyFileRequest):
         log.debug('policy file requested')
-        await self.send_msg(CrossDomainPolicyAllowAllResponse())
+        await self.send_msg(CrossDomainPolicyAllowAllResponse.new())
 
     async def _handle_hello_game(self, message: HelloGameRequest):
         pass
@@ -151,7 +151,7 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_void_score(self, _: VoidScoreRequest):
         self._is_void_score = True
         if self.opponent_handler:
-            await self.opponent_handler.send_msg(VoidScoreResponse())
+            await self.opponent_handler.send_msg(VoidScoreResponse.new())
 
     async def _handle_add_stats(self, message: AddStatsRequest):
         await self.game_server.add_match_stats(self, message.to_stats())
@@ -159,7 +159,7 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.opponent_handler is not None:
-            await self.opponent_handler.send_msg(OpponentDeadResponse())
+            await self.opponent_handler.send_msg(OpponentDeadResponse.new())
 
         await self.game_server.remove_client(self)
         self.close()

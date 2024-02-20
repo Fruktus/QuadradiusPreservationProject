@@ -139,7 +139,7 @@ class ResponseMessagesTest(unittest.TestCase):
     def test_last_played_response(self):
         start = datetime.strptime('09:10:31', '%H:%M:%S')
         finish = datetime.strptime('09:15:32', '%H:%M:%S')
-        msg = LastPlayedResponse([
+        msg = LastPlayedResponse.new([
             GameResultHistory(
                 player_won='a',
                 player_lost='b',
@@ -170,7 +170,7 @@ class ResponseMessagesTest(unittest.TestCase):
             data)
 
     def test_last_played_response_empty(self):
-        msg = LastPlayedResponse([])
+        msg = LastPlayedResponse.new([])
         data = msg.to_data()
         self.assertEqual(
             b'<S>~<SERVER>~<LAST_PLAYED>~'
@@ -183,7 +183,7 @@ class ResponseMessagesTest(unittest.TestCase):
             data)
 
     def test_server_ranking_this_month_response(self):
-        msg = ServerRankingThisMonthResponse([
+        msg = ServerRankingThisMonthResponse.new([
             RankingEntry(
                 player='test',
                 wins=5,
@@ -201,17 +201,17 @@ class ResponseMessagesTest(unittest.TestCase):
             data)
 
     def test_use_power_response_exception(self):
-        self.assertRaises(ValueError, lambda: UsePowerMessage('power_name', 12))
+        self.assertRaises(ValueError, lambda: UsePowerMessage.new('power_name', 12))
 
     def test_use_power_response(self):
-        msg = UsePowerMessage('PLATEAU', 7)
+        msg = UsePowerMessage.new('PLATEAU', 7)
         data = msg.to_data()
         self.assertEqual(
             b'<S>~<USE_POWER>~PLATEAU~7\x00',
             data)
 
     def test_use_power_response2(self):
-        msg = UsePowerMessage('PLATEAU', 4, 'arg')
+        msg = UsePowerMessage.new('PLATEAU', 4, 'arg')
         data = msg.to_data()
         self.assertEqual(
             data,

@@ -18,9 +18,7 @@ class LobbyClientHandler(ClientHandler):
     player: LobbyPlayer
 
     def __init__(self, config, connector, reader, writer, lobby_server):
-        super().__init__(reader, writer)
-        self.config = config
-        self.connector = connector
+        super().__init__(config, connector, reader, writer)
         self.webhook = Webhook(config)
         self.lobby_server = lobby_server
 
@@ -37,10 +35,6 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(ChallengeMessage, self._handle_challenge)
         self.register_message_handler(ChallengeAuthMessage, self._handle_challenge_auth)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
-
-    @property
-    def username(self) -> str:
-        return self.player.username
 
     def get_joined_at(self) -> datetime:
         return self.player.joined_at
@@ -71,13 +65,7 @@ class LobbyClientHandler(ClientHandler):
             self.close()
             return
 
-        config = self.config
-        db_user = await self.connector.authenticate_user(
-            username=username,
-            password=None if is_guest or config.auth_disable.get() else password.encode('ascii'),
-            auto_create=(is_guest or config.auto_register.get() or config.auth_disable.get()),
-            verify_password=(not config.auth_disable.get()))
-
+        db_user = await self.authenticate_user(username, password)
         if not db_user:
             log.debug(f'Player {username} tried to connect, but failed to authenticate')
             await self._error_bad_member()
@@ -163,4 +151,4 @@ class LobbyClientHandler(ClientHandler):
         self.close()
 
     async def _error_bad_member(self):
-        await self.send_msg(LobbyBadMemberResponse())
+        await self.send_msg(LobbyBadMemberResponse.new())

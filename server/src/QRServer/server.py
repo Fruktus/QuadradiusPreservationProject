@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import signal
-from asyncio import Task, Server, StreamReader, StreamWriter
+from asyncio import Task, Server, StreamReader, StreamWriter, CancelledError
 from typing import Coroutine, Optional, List
 
 from QRServer.common.clienthandler import ClientHandler
@@ -86,7 +86,10 @@ class QRServer:
         for task in reversed(self._tasks):
             log.debug(f'Canceling task "{task.get_name()}"...')
             task.cancel()
-            await task
+            try:
+                await task
+            except CancelledError:
+                pass
         self._lobby_sock_server.close()
         self._game_sock_server.close()
         await self._lobby_sock_server.wait_closed()

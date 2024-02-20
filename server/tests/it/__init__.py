@@ -7,12 +7,18 @@ from typing import Optional, List
 from QRServer.__main__ import QRServer
 from QRServer.common.messages import Message, RequestMessage, JoinLobbyRequest, LobbyStateResponse, DisconnectRequest
 from QRServer.config import Config
+from QRServer.db import password as db_password
+
+# this significantly improves performance
+# we do not need to worry about security
+db_password._iterations = 100
 
 
 class TestClientConnection:
     reader: StreamReader
     writer: StreamWriter
     messages: asyncio.Queue
+    connection_closed: asyncio.Event
 
     def __init__(self, server, reader, writer):
         self.server = server
@@ -22,6 +28,7 @@ class TestClientConnection:
         self.loop = asyncio.get_event_loop()
         self.loop.create_task(self._receive_messages())
         self.messages = asyncio.Queue()
+        self.connection_closed = asyncio.Event()
 
     async def close(self):
         self.writer.close()
@@ -42,6 +49,7 @@ class TestClientConnection:
                 data = None
 
             if not data:
+                self.connection_closed.set()
                 return
             elif data[-1] == 0:
                 data = data.split(b'\x00')[:-1]
@@ -76,6 +84,18 @@ class TestClientConnection:
             raise AssertionError(f'Expected no more message, but there is one: {message}')
         except QueueEmpty:
             return
+
+    async def assert_connection_closed(self):
+        try:
+            return await asyncio.wait_for(self.connection_closed.wait(), 1)
+        except TimeoutError:
+            raise AssertionError('Connection was not closed')
+
+    async def join_lobby_guest(self, username):
+        username += ' GUEST'
+        self.username = username
+        await self.send_message(JoinLobbyRequest.new(username, '24f380279d84e2e715f80ed14b1db063'))
+        await self.assert_received_message_type(LobbyStateResponse)
 
     async def join_lobby(self, username, password):
         self.username = username

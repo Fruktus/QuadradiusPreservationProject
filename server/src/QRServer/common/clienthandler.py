@@ -1,10 +1,13 @@
 import abc
 import logging
 from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError
-from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine
+from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine, Optional
 
-from QRServer.common import messages
+from QRServer.common import messages, utils
 from QRServer.common.messages import ResponseMessage, RequestMessage
+from QRServer.config import Config
+from QRServer.db.connector import DbConnector
+from QRServer.db.models import DbUser
 
 log = logging.getLogger('qr.client_handler')
 
@@ -12,21 +15,26 @@ RMT = TypeVar('RMT', bound=RequestMessage)
 
 
 class ClientHandler(abc.ABC):
+    config: Config
+    connector: DbConnector
     reader: StreamReader
     writer: StreamWriter
     handlers: Dict[bytes, List[Callable[[List[bytes]], Coroutine]]]
     message_handlers: Dict[Type[RequestMessage], List[Callable[[RequestMessage], Coroutine]]]
+    _username: Optional[str]
 
-    def __init__(self, reader: StreamReader, writer: StreamWriter):
+    def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter):
+        self.config = config
+        self.connector = connector
         self.handlers = {}
         self.message_handlers = {}
         self.reader = reader
         self.writer = writer
+        self._username = None
 
     @property
-    @abc.abstractmethod
     def username(self) -> str:
-        ...
+        return self._username
 
     async def _socket_read(self) -> AsyncIterable[bytes]:
         while True:
@@ -107,6 +115,18 @@ class ClientHandler(abc.ABC):
             await self.writer.drain()
         except ConnectionResetError:
             raise StopHandlerException()
+
+    async def authenticate_user(self, username, password) -> Optional[DbUser]:
+        is_guest = utils.is_guest(username, password)
+        config = self.config
+        db_user = await self.connector.authenticate_user(
+            username=username,
+            password=None if is_guest or config.auth_disable.get() else password.encode('ascii'),
+            auto_create=(is_guest or config.auto_register.get() or config.auth_disable.get()),
+            verify_password=(not config.auth_disable.get()))
+        if db_user:
+            self._username = username
+        return db_user
 
     def close(self):
         self.writer.close()

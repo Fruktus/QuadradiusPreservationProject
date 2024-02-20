@@ -108,9 +108,9 @@ class JoinLobbyRequest(RequestMessage):
     def __init__(self, args: List[str]) -> None:
         super().__init__(args)
 
-    @staticmethod
-    def from_args(args: List[str]):
-        return __class__(args)
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
 
     @classmethod
     def new(cls, username, password):
@@ -130,9 +130,13 @@ class HelloGameRequest(RequestMessage):
     def __init__(self, args: List[str]) -> None:
         super().__init__(args)
 
-    @staticmethod
-    def from_args(args: List[str]):
-        return __class__(args)
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls):
+        return cls([*cls.prefix])
 
 
 class JoinGameRequest(RequestMessage):
@@ -142,9 +146,13 @@ class JoinGameRequest(RequestMessage):
     def __init__(self, args: List[str]) -> None:
         super().__init__(args)
 
-    @staticmethod
-    def from_args(args: List[str]):
-        return __class__(args)
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls, username: str, auth: str, opponent_username: str, opponent_auth: str, password: str):
+        return cls([*cls.prefix, username, auth, opponent_username, opponent_auth, password])
 
     def get_username(self):
         return self.args[1]
@@ -317,8 +325,16 @@ class PlayerCountResponse(ResponseMessage):
     prefix = ['<S>', '<SERVER>', '<PLAYERS_COUNT>']
     argc = [4]
 
-    def __init__(self, player_count: int) -> None:
-        super().__init__(['<S>', '<SERVER>', '<PLAYERS_COUNT>', str(player_count)])
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls, player_count: int):
+        return cls([*cls.prefix, str(player_count)])
 
 
 class BroadcastCommentResponse(ResponseMessage):
@@ -389,8 +405,16 @@ class LobbyBadMemberResponse(ResponseMessage):
     prefix = ['<L>', '<BAD_MEMBER>']
     argc = [2]
 
-    def __init__(self) -> None:
-        super().__init__(['<L>', '<BAD_MEMBER>'])
+    def __init__(self, args) -> None:
+        super().__init__(args)
+
+    @classmethod
+    def from_args(cls, args: List[str]):
+        return cls(args)
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
 
 
 class LastLoggedResponse(ResponseMessage):

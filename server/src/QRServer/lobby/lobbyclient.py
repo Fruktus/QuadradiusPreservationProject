@@ -91,7 +91,7 @@ class LobbyClientHandler(ClientHandler):
         else:
             log.info('Member joined lobby: ' + username)
 
-        total_players = sum(player is not None for player in self.lobby_server.get_players())
+        total_players = self.lobby_server.get_player_count()
         await self.webhook.invoke_webhook_lobby_joined(username, total_players)
 
     async def _handle_challenge(self, message: ChallengeMessage):
@@ -145,7 +145,7 @@ class LobbyClientHandler(ClientHandler):
         if self.player.idx is not None:
             log.info(f'Player left lobby: {self.player.username}')
             await self.lobby_server.remove_client(self.player.idx)
-            total_players = sum(player is not None for player in self.lobby_server.get_players())
+            total_players = self.lobby_server.get_player_count()
             await self.webhook.invoke_webhook_lobby_left(self.player.username, total_players)
 
         self.close()

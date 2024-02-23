@@ -22,6 +22,7 @@ class GameServer:
         if match_id not in self.matches:
             self.matches[match_id] = Match(match_id)
 
+        log.debug(f'Player {client_handler.username} joins a match {match_id}')
         self.matches[match_id].add_party(client_handler)
 
     def get_player_count(self):
@@ -34,7 +35,7 @@ class GameServer:
 
         match = self.matches[match_id]
         if client_handler.client_id in match.match_stats:
-            log.warning(f'User {client_handler.client_id} already sent results for match {match_id}')
+            log.warning(f'User {client_handler.username} already sent results for match {match_id}')
             return
 
         match.add_match_stats(client_handler.client_id, stats)
@@ -46,6 +47,9 @@ class GameServer:
                     await self.connector.add_match_result(report)
                     log.debug(f'Added match report {report}')
                     result = await self.connector.get_match2(report.match_id)
+                    log.info(f'A match has ended; '
+                             f'{result.player_won} beat {result.player_lost} '
+                             f'{result.won_score}-{result.lost_score}')
                     await self.webhook.invoke_webhook_game_ended(result)
                 else:
                     log.error('Failed to generate report')

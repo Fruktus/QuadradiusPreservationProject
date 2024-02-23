@@ -99,7 +99,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_handler = None
 
     async def _handle_policy(self, _: PolicyFileRequest):
-        log.debug('policy file requested')
+        log.debug('Policy file requested')
         await self.send_msg(CrossDomainPolicyAllowAllResponse.new())
 
     async def _handle_hello_game(self, message: HelloGameRequest):
@@ -131,6 +131,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         await self.send_msg(PlayerCountResponse.new(player_count))
 
         if self.username < self.opponent_username:
+            log.info(f'A match has started between {self.username} and {self.opponent_username}')
             await self.webhook.invoke_webhook_game_started(self.username, self.opponent_username)
 
     async def _handle_s(self, values):

@@ -19,6 +19,13 @@ class MatchId:
     def __hash__(self) -> int:
         return self.id.__hash__()
 
+    def __repr__(self):
+        args = '"' + '","'.join(self.id) + '"'
+        return f'Match({args})'
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class MatchParty(abc.ABC):
     @abc.abstractmethod
@@ -37,6 +44,11 @@ class MatchParty(abc.ABC):
     @property
     @abc.abstractmethod
     def is_guest(self):
+        pass
+
+    @property
+    @abc.abstractmethod
+    def username(self) -> str:
         pass
 
 
@@ -69,7 +81,11 @@ class Match:
 
     def add_party(self, party: MatchParty):
         if len(self.parties) >= 2:
-            raise Exception('Too many parties for a match')
+            parties_str = map(lambda p: p.username, self.parties)
+            raise Exception(
+                f'Too many parties for a match. '
+                f'Player {party.username} tried do join, '
+                f'but there are already 2 players: {parties_str}')
         self.parties.append(party)
 
         if len(self.parties) == 2:

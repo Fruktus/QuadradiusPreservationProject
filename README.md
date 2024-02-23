@@ -5,7 +5,7 @@
 [![launcher-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml)
 [![GitHub all releases](https://img.shields.io/github/downloads/Fruktus/QuadradiusPreservationProject/total)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
 [![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/quadradius?style=social)](https://www.reddit.com/r/quadradius/)
-[![Discord](https://img.shields.io/discord/1197227968112627802?label=Discord&color=7289da&link=https%3A%2F%2Fdiscord.gg%2FPBSYnzZtDG)](https://discord.gg/TrgqXnY2Vf)
+[![Discord](https://img.shields.io/discord/1197227968112627802?label=Discord&color=7289da&link=https%3A%2F%2Fdiscord.gg%2FPBSYnzZtDG)](https://discord.gg/cVkV8pah4d)
 
 The goal of this project is to keep this game alive.
 The software contained in this repository is a reimplementation of the original server, which was written in Java.

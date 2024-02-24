@@ -11,7 +11,7 @@ The goal of this project is to keep this game alive.
 The software contained in this repository is a reimplementation of the original server, which was written in Java.
 Some functionalities may be missing, if so, please report them using the [Issues](https://github.com/Fruktus/QuadradiusPreservationProject/issues) page.
 
-The website [Quadradius](http://classic.quadradius.com) is no longer available and the only way to obtain the client files is through archives or in our [Quadradius Classic Backup](https://github.com/Fruktus/QuadradiusClassic) repo.
+The website `classic.quadradius.com` is no longer available and the only way to obtain the client files is through archives or in our [Quadradius Classic Backup](https://github.com/Fruktus/QuadradiusClassic) repo.
 The project is non-profit.
 All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal with whom we are not affiliated.
 The provided software does not represent the quality of the original,

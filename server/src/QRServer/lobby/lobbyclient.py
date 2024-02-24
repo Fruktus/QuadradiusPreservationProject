@@ -82,7 +82,6 @@ class LobbyClientHandler(ClientHandler):
         self.player.user_id = db_user.user_id
         self.player.username = username
         self.player.joined_at = datetime.now()
-        self.player.communique = await self.connector.get_comment(self.player.user_id) or ' '
         self.player.idx = await self.lobby_server.add_client(self)
         await self.send_msg(LobbyStateResponse.new(self.lobby_server.get_players()))
 
@@ -126,8 +125,6 @@ class LobbyClientHandler(ClientHandler):
         if who != self.player.idx:
             log.debug(f'Error while setting comment: wrong idx, expected {self.player.idx} was {who}')
             return
-        if self.player.user_id:
-            await self.connector.set_comment(self.player.user_id, comment)
         self.player.comment = comment
         await self.lobby_server.broadcast_msg(BroadcastCommentResponse.new(who, comment))
         await self.webhook.invoke_webhook_lobby_set_comment(self.player.username, comment)

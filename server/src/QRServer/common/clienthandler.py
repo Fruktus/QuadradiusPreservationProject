@@ -118,12 +118,13 @@ class ClientHandler(abc.ABC):
 
     async def authenticate_user(self, username, password) -> Optional[DbUser]:
         is_guest = utils.is_guest(username, password)
-        config = self.config
+        auth_disabled = self.config.auth_disable.get()
+        auto_register = self.config.auto_register.get()
         db_user = await self.connector.authenticate_user(
             username=username,
-            password=None if is_guest or config.auth_disable.get() else password.encode('ascii'),
-            auto_create=(is_guest or config.auto_register.get() or config.auth_disable.get()),
-            verify_password=(not config.auth_disable.get()))
+            password=None if is_guest or auth_disabled else password.encode('ascii'),
+            auto_create=(is_guest or auto_register or auth_disabled),
+            verify_password=(not auth_disabled))
         if db_user:
             self._username = username
         return db_user

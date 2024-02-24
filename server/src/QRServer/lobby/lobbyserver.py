@@ -49,6 +49,9 @@ class LobbyServer:
                 players.append(c.get_player())
         return players
 
+    def get_player_count(self) -> int:
+        return sum(player is not None for player in self.get_players())
+
     def get_last_logged(self) -> LastLoggedResponse:
         if self.last_logged:
             return LastLoggedResponse.new(self.last_logged.username, self.last_logged.get_joined_at(), '')

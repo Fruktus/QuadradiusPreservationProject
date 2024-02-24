@@ -68,6 +68,12 @@ class Config:
             description='log debug messages',
             default_value=False,
             onchange=config_handlers.refresh_logger_configuration)
+        self.log_cron_delay = ConfigKey(
+            config=self,
+            name='log.cron_delay',
+            cli_args=[],
+            description='enable periodic state logging and set the delay in seconds (set to 0 to disable)',
+            default_value=5 * 60)
         self.auth_disable = ConfigKey(
             config=self,
             name='auth.disable',

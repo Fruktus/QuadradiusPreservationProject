@@ -114,6 +114,7 @@ class QRServer:
 
     async def start_tasks(self):
         self.start_task("Discord Logger", discord_logger.get_daemon_task(self.config))
+        self.start_task("Cron Logger", self._cron_logger())
         self._game_server = GameServer(self.config, self.connector)
         self._lobby_server = LobbyServer()
         await self._game_listener_task(self.config, self.connector, self._game_server)
@@ -169,3 +170,17 @@ class QRServer:
                 self._game_ready.set()
 
         await server.start_serving()
+
+    async def _cron_logger(self):
+        delay = self.config.log_cron_delay.get()
+        if delay == 0:
+            log.debug('Cron logger disabled')
+            return
+        log.debug(f'Running cron logger with delay of {delay} seconds')
+        while True:
+            await asyncio.sleep(delay)
+            lobby_count = self.lobby_server.get_player_count()
+            game_count = self.game_server.get_player_count()
+            if lobby_count > 0 or game_count > 0:
+                log.info(f'There are currently {lobby_count} players in the lobby, '
+                         f'and {game_count} players playing')

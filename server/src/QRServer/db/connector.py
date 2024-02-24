@@ -59,28 +59,6 @@ class DbConnector:
             created_at=row[3]
         )
 
-    async def get_comment(self, user_id: str) -> Optional[str]:
-        c = await self.conn.cursor()
-        await c.execute(
-            "select comment from users where id = ?", (
-                user_id,
-            ))
-        row = await c.fetchone()
-        if row is None:
-            return None
-        return str(row[0])
-
-    async def set_comment(self, user_id: str, comment: str) -> None:
-        c = await self.conn.cursor()
-        await c.execute(
-            "update users set"
-            "  comment = ?"
-            "where id = ?", (
-                comment,
-                user_id,
-            ))
-        await self.conn.commit()
-
     async def authenticate_user(self, username: str, password: Optional[bytes], auto_create=False,
                                 verify_password=True) -> Optional[DbUser]:
         c = await self.conn.cursor()

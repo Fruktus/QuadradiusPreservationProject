@@ -127,3 +127,35 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         await client1.assert_no_more_messages()
         await client2.assert_no_more_messages()
         await client3.assert_no_more_messages()
+
+    async def test_communique_broadcast_after_join(self):
+        client1 = await self.new_lobby_client()
+        await client1.join_lobby('Robert', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await client1.send_message(
+            SetCommentRequest.new(0, 'test communique'))
+
+        client2 = await self.new_lobby_client()
+        await client2.send_message(JoinLobbyRequest.new('Bobert', 'cf585d509bf09ce1d2ff5d4226b7dacb'))
+        await client2.assert_received_message(LobbyStateResponse.new([
+            LobbyPlayer(username='Robert', comment='test communique'),
+            LobbyPlayer(username='Bobert'),
+        ]))
+        await client2.assert_no_more_messages()
+
+    async def test_communique_non_persistent(self):
+        client1 = await self.new_lobby_client()
+        await client1.join_lobby('Robert', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await client1.send_message(
+            SetCommentRequest.new(0, 'test communique'))
+        await client1.disconnect_and_wait()
+
+        client1 = await self.new_lobby_client()
+        await client1.join_lobby('Robert', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        client2 = await self.new_lobby_client()
+        await client2.send_message(JoinLobbyRequest.new('Bobert', 'cf585d509bf09ce1d2ff5d4226b7dacb'))
+        await client2.assert_received_message(LobbyStateResponse.new([
+            LobbyPlayer(username='Robert'),
+            LobbyPlayer(username='Bobert'),
+        ]))
+        await client2.assert_no_more_messages()

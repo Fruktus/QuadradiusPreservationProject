@@ -81,7 +81,7 @@ class Match:
 
     def add_party(self, party: MatchParty):
         if len(self.parties) >= 2:
-            parties_str = map(lambda p: p.username, self.parties)
+            parties_str = list(map(lambda p: p.username, self.parties))
             raise Exception(
                 f'Too many parties for a match. '
                 f'Player {party.username} tried do join, '

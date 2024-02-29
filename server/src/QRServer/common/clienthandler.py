@@ -1,6 +1,7 @@
 import abc
 import logging
 from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError
+from datetime import datetime
 from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine, Optional
 
 from QRServer.common import messages, utils
@@ -15,6 +16,7 @@ RMT = TypeVar('RMT', bound=RequestMessage)
 
 
 class ClientHandler(abc.ABC):
+    connected_at: datetime
     config: Config
     connector: DbConnector
     reader: StreamReader
@@ -24,6 +26,7 @@ class ClientHandler(abc.ABC):
     _username: Optional[str]
 
     def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter):
+        self.connected_at = datetime.now()
         self.config = config
         self.connector = connector
         self.handlers = {}
@@ -131,6 +134,9 @@ class ClientHandler(abc.ABC):
 
     def close(self):
         self.writer.close()
+
+    def close_and_stop(self):
+        self.close()
         raise StopHandlerException()
 
 

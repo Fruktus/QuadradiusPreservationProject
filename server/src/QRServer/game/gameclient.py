@@ -117,7 +117,7 @@ class GameClientHandler(ClientHandler, MatchParty):
             log.debug(f'Player {username} tried to connect to a game, but failed to authenticate')
             # according to my analysis, there's no way to tell the client
             # it failed to authenticate, so just close the connection
-            self.close()
+            self.close_and_stop()
             return
 
         self.user_id = db_user.user_id
@@ -163,4 +163,4 @@ class GameClientHandler(ClientHandler, MatchParty):
             await self.opponent_handler.send_msg(OpponentDeadResponse.new())
 
         await self.game_server.remove_client(self)
-        self.close()
+        self.close_and_stop()

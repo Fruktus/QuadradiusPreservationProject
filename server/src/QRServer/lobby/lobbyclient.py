@@ -51,7 +51,7 @@ class LobbyClientHandler(ClientHandler):
         if swf_version != 5:
             await self.send_msg(OldSwfResponse.new())
             log.debug(f'Client with invalid version tried to connect, version: {swf_version}')
-            self.close()
+            self.close_and_stop()
 
     async def _handle_join_lobby(self, message: JoinLobbyRequest):
         username = message.get_username()
@@ -62,20 +62,20 @@ class LobbyClientHandler(ClientHandler):
             # someone might be sending raw or damaged packets
             log.debug(f'Player {username} did not provide any password')
             await self._error_bad_member()
-            self.close()
+            self.close_and_stop()
             return
 
         db_user = await self.authenticate_user(username, password)
         if not db_user:
             log.debug(f'Player {username} tried to connect, but failed to authenticate')
             await self._error_bad_member()
-            self.close()
+            self.close_and_stop()
             return
 
         if self.lobby_server.username_exists(username):
             log.debug('Client duplicate in lobby: ' + username)
             await self.send_msg(LobbyDuplicateResponse.new())
-            self.close()  # FIXME it seems that the connection shouldnt be completely closed
+            self.close_and_stop()  # FIXME it seems that the connection shouldnt be completely closed
             return
 
         # user authenticated successfully, register with lobbyserver
@@ -145,7 +145,7 @@ class LobbyClientHandler(ClientHandler):
             total_players = self.lobby_server.get_player_count()
             await self.webhook.invoke_webhook_lobby_left(self.player.username, total_players)
 
-        self.close()
+        self.close_and_stop()
 
     async def _error_bad_member(self):
         await self.send_msg(LobbyBadMemberResponse.new())

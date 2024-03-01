@@ -20,17 +20,23 @@ class LobbyServer:
         self.last_logged = None
 
     async def add_client(self, client: LobbyClientHandler):
+        idx = await self.ensure_free_idx()
+        self.clients[idx] = client
+        await self.broadcast_lobby_state(idx)
+        return idx
+
+    async def ensure_free_idx(self):
         for idx in range(13):
             if not self.clients[idx]:
-                self.clients[idx] = client
-                # possibly increment total_clients counter
-                await self.broadcast_lobby_state(idx)
                 return idx
-        return -1
-        # if no free space either kick someone or deal with it differently
+
+        to_kick_idx = min(enumerate(self.clients), key=lambda e: e[1].connected_at)[0]
+        await self.remove_client(to_kick_idx)
+        return to_kick_idx
 
     async def remove_client(self, idx):
         self.last_logged = self.clients[idx]
+        self.clients[idx].close()
         self.clients[idx] = None
         await self.broadcast_lobby_state(idx)
 

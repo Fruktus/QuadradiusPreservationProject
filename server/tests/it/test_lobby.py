@@ -159,3 +159,61 @@ class LobbyIT(QuadradiusIntegrationTestCase):
             LobbyPlayer(username='Bobert'),
         ]))
         await client2.assert_no_more_messages()
+
+    async def test_lobby_kick_on_limit(self):
+        first_client = await self.new_lobby_client()
+        await first_client.join_lobby('First Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        for i in range(12):
+            client = await self.new_lobby_client()
+            await client.join_lobby(f'Player {i}', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        # drain messages
+        for i in range(12):
+            await first_client.assert_received_message_type(LobbyStateResponse)
+        await first_client.assert_no_more_messages()
+
+        # make sure not disconnected (yet)
+        await first_client.send_message(
+            SetCommentRequest.new(0, 'test communique'))
+
+        # connect 14th player
+        client_over_limit = await self.new_lobby_client()
+        await client_over_limit.join_lobby('Player Over Limit', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        # first should be kicked
+        await first_client.assert_connection_closed()
+
+        # make sure the new player is not disconnected
+        await client_over_limit.send_message(
+            SetCommentRequest.new(0, 'test communique'))
+
+    async def test_lobby_kick_on_limit2(self):
+        first_client = await self.new_lobby_client()
+        await first_client.join_lobby('First Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        second_client = await self.new_lobby_client()
+        await second_client.join_lobby('Second Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await first_client.close()
+
+        for i in range(12):
+            client = await self.new_lobby_client()
+            await client.join_lobby(f'Player {i}', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        # drain messages
+        for i in range(13):
+            await second_client.assert_received_message_type(LobbyStateResponse)
+        await second_client.assert_no_more_messages()
+
+        # make sure not disconnected (yet)
+        await second_client.send_message(
+            SetCommentRequest.new(0, 'test communique'))
+
+        # connect 14th player
+        client_over_limit = await self.new_lobby_client()
+        await client_over_limit.join_lobby('Player Over Limit', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        # second should be kicked
+        await second_client.assert_connection_closed()
+
+        # make sure the new player is not disconnected
+        await client_over_limit.send_message(
+            SetCommentRequest.new(0, 'test communique'))

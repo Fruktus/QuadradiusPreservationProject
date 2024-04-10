@@ -26,7 +26,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_handler = None
         self.game_server = game_server
 
-        self.user_id = None
+        self._user_id = None
         self.opponent_id = None
         self._username = None
         self.opponent_username = None
@@ -82,8 +82,8 @@ class GameClientHandler(ClientHandler, MatchParty):
         return self._is_guest
 
     @property
-    def client_id(self) -> str:
-        return self.user_id
+    def user_id(self) -> str:
+        return self._user_id
 
     def match_id(self) -> MatchId:
         if not self.config.auto_register.get() or self.config.auth_disable.get():
@@ -120,7 +120,7 @@ class GameClientHandler(ClientHandler, MatchParty):
             self.close_and_stop()
             return
 
-        self.user_id = db_user.user_id
+        self._user_id = db_user.user_id
         self._is_guest = db_user.is_guest
 
         db_opponent = await self.connector.get_user_by_username(self.opponent_username)

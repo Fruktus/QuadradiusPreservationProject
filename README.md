@@ -17,6 +17,13 @@ All of the rights belong to the original authors, Jimmi Heiserman and Brad Kayal
 The provided software does not represent the quality of the original,
 and the original authors should in no way be held accountable for any liabilities.
 
+## Where to play
+You can play the current build at [quadradius.ddns.net](https://quadradius.ddns.net/).
+At the moment there is no authentication and the usernames and passwords aren't stored, you can use whatever nickname and random password you'd like.
+In the future we will most likely add some way to register to enable ranked play.
+The game is and will be free to play.
+If you'd like to discuss anything with us (authors) or fellow players you can join our discord server linked at the top or use [this link](https://discord.gg/cVkV8pah4d).
+
 ## Quadradius Launcher
 
 <p align="center">

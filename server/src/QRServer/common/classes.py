@@ -1,7 +1,7 @@
 import abc
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Dict, Set
 from QRServer.db.models import DbMatchReport
 
 
@@ -51,6 +51,11 @@ class MatchParty(abc.ABC):
     def username(self) -> str:
         pass
 
+    @property
+    @abc.abstractmethod
+    def user_id(self) -> str:
+        pass
+
 
 @dataclass
 class MatchStats:
@@ -63,14 +68,16 @@ class MatchStats:
 
 class Match:
     id: MatchId
+    user_ids: Set[str]
     parties: List[MatchParty]
-    match_stats: {}
+    match_stats: Dict[str, MatchStats]
 
     def __init__(self, _id: MatchId) -> None:
         super().__init__()
         self.id = _id
         self.parties = []
         self.match_stats = {}
+        self.user_ids = set()
         self.start_time = datetime.now()
 
     def empty(self):
@@ -87,6 +94,7 @@ class Match:
                 f'Player {party.username} tried do join, '
                 f'but there are already 2 players: {parties_str}')
         self.parties.append(party)
+        self.user_ids.add(party.user_id)
 
         if len(self.parties) == 2:
             party.match_opponent(self.parties[0])
@@ -101,30 +109,36 @@ class Match:
             self.parties[0].unmatch_opponent()
         party.unmatch_opponent()
 
-    def add_match_stats(self, client_id: str, match_stats: MatchStats):
-        self.match_stats[client_id] = match_stats
+    def add_match_stats(self, user_id: str, match_stats: MatchStats):
+        self.match_stats[user_id] = match_stats
 
     def generate_match_report(self) -> Optional[DbMatchReport]:
-        if len(self.match_stats) != 2:
+        if len(self.match_stats) < 1:
             return None
 
-        p1_id = list(self.match_stats.keys())[0]
-        p2_id = list(self.match_stats.keys())[1]
-        stat1 = self.match_stats[p1_id]
-        stat2 = self.match_stats[p2_id]
-        winner_id, winner, loser_id, loser = (p1_id, stat1, p2_id, stat2) if \
-            stat1.own_piece_count > stat2.own_piece_count else (p2_id, stat2, p1_id, stat2)
+        if len(self.match_stats) == 1:
+            winner_id, = self.match_stats.keys()
+            winner_stats = self.match_stats[winner_id]
+            loser_id = self.user_ids.difference({winner_id}).pop()
+            loser_stats = None
+        else:
+            p1_id, p2_id = self.match_stats.keys()
+            stat1 = self.match_stats[p1_id]
+            stat2 = self.match_stats[p2_id]
+
+            winner_id, winner_stats, loser_id, loser_stats = (p1_id, stat1, p2_id, stat2) if \
+                stat1.own_piece_count > stat2.own_piece_count else (p2_id, stat2, p1_id, stat2)
 
         # Winner reports his pieces normally and opponent's as 0 when giving up
-        # Loser seems to report both correctly (his own +-1, may not have got last move)
+        # Loser seems to report both correctly (his own +-1, may not have last move)
         return DbMatchReport(
             winner_id=winner_id,
             loser_id=loser_id,
-            winner_pieces_left=winner.own_piece_count,
-            loser_pieces_left=winner.opponent_piece_count,
-            move_counter=max(winner.cycle_counter, loser.cycle_counter),
-            grid_size=winner.grid_size,
-            squadron_size=winner.squadron_size,
+            winner_pieces_left=winner_stats.own_piece_count,
+            loser_pieces_left=winner_stats.opponent_piece_count,
+            move_counter=max(winner_stats.cycle_counter, loser_stats.cycle_counter if loser_stats else 0),
+            grid_size=winner_stats.grid_size,
+            squadron_size=winner_stats.squadron_size,
             started_at=self.start_time,
             finished_at=datetime.now(),
             is_ranked=self.is_ranked(),

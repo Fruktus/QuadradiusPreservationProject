@@ -1,24 +1,44 @@
 name: "Bug report"
 description: File a bug report.
-title: "[BUG] <title>"
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        - If you have questions about the project or need help, you can ask in our [Discord chat][https://discord.gg/TrgqXnY2Vf].
+        - If you have questions about the project or need help, you can join our [Discord chat](https://discord.gg/TrgqXnY2Vf) and ask.
         - Please do your best to search for duplicate issues before filing a new issue.
         - Fill out the information below to the best of your ability. Thank you!
   - type: dropdown
     attributes:
-      label: Affected platform
-      description: Is the problem with the launcher, online version or with the server?
+      label: Affected software
+      description: Is the problem with the online version, the launcher, or with the server?
       options:
-        - Launcher
         - Online Version
+        - Launcher
         - Server
     validations:
       required: true
+  - type: dropdown
+    attributes:
+      label: Affected OS
+      description: What OS did you use when this issue happened?
+      options:
+        - Linux
+        - Windows
+        - MacOS
+        - Other (describe below)
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Affected browser
+      description: What browser did you use when this issue happened?
+      options:
+        - Chromium / Chrome
+        - Firefox
+        - Other (describe below)
+    validations:
+      required: false
   - type: textarea
     attributes:
       label: Describe the bug
@@ -37,6 +57,6 @@ body:
   - type: textarea
     attributes:
       label: Additional information
-      description: If you have any additional information for us, such as username, time of incident or other, please add them here.
+      description: If you have any additional information for us, such as username, time of incident, logs, etc., please add them here.
     validations:
       required: false

@@ -114,12 +114,12 @@
     <script>
         let version = new URLSearchParams(window.location.search).get('ruffle_version');
         if (version) {
-            version = '@' + version;
+            version = '@' + version + '/ruffle.js';
         } else {
             version = '';
         }
         let ruffleScript = document.createElement("script");
-        scriptEle.setAttribute("src", `https://unpkg.com/@ruffle-rs/ruffle${version}`);
+        ruffleScript.setAttribute("src", `https://unpkg.com/@ruffle-rs/ruffle${version}`);
         document.body.appendChild(ruffleScript);
     </script>
 </body>

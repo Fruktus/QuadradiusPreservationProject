@@ -111,7 +111,17 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+    <script>
+        let version = new URLSearchParams(window.location.search).get('ruffle_version');
+        if (version) {
+            version = '@' + version;
+        } else {
+            version = '';
+        }
+        let ruffleScript = document.createElement("script");
+        scriptEle.setAttribute("src", `https://unpkg.com/@ruffle-rs/ruffle${version}`);
+        document.body.appendChild(ruffleScript);
+    </script>
 </body>
 
 </html>

@@ -1,6 +1,5 @@
 name: "Refactor Request"
 description: Request to change code to make it easier to maintain, avoid bugs and technical debt.
-title: "[REFACTOR] <title>"
 labels: ["refactor"]
 body:
   - type: markdown

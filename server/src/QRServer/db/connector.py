@@ -2,11 +2,11 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import aiosqlite
 
-from QRServer.common.classes import GameResultHistory
+from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport
 from QRServer.db.password import password_verify, password_hash
@@ -217,6 +217,42 @@ class DbConnector:
                 moves=row[6],
             ))
         return recent_matches
+
+    async def get_ranking(self, start_date: datetime, end_date: datetime, ranked_only=True,
+                          include_void=False) -> List[RankingEntry]:
+        c = await self.conn.cursor()
+
+        # Gets matches sort
+        await c.execute(
+            "select"
+            " u.username,"
+            " sum(m.winner_id = u.id) as total_wins,"
+            " count(*) as total_games"
+            " from users u"
+            " inner join matches m on (u.id = m.winner_id OR u.id = m.loser_id)"
+            " where m.started_at >= ?"
+            " and m.finished_at < ?"
+            " and (case when ? = 1 then m.is_ranked = 1 else 1=1 end)"
+            " and (case when ? = 0 then m.is_void = 0 else 1=1 end)"
+            " group by u.username"
+            " order by total_wins desc"
+            " limit 100", (
+                start_date.timestamp(),
+                end_date.timestamp(),
+                1 if ranked_only else 0,
+                1 if include_void else 0
+            )
+        )
+
+        ranking_entries = []
+        rows = await c.fetchall()
+        for row in rows:
+            ranking_entries.append(RankingEntry(
+                player=row[0],
+                wins=row[1],
+                games=row[2],
+            ))
+        return ranking_entries
 
     async def close(self):
         await self.conn.close()

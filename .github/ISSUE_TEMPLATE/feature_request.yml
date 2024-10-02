@@ -9,14 +9,15 @@ body:
         - Keep in mind that we will **not** modify the original flash files in any way.
         - Please do your best to search for duplicate requests before filing a new requests.
         - Fill out the information below to the best of your ability. Thank you!
-  - type: checkboxes
+  - type: dropdown
     attributes:
-      label: Was this feature present in original?
+      label: Feature type
+      description: Was this feature present in original?
       options:
-      - label: This feature was present in original
-        required: false
-      - label: This feature is new
-        required: false
+      - This feature was present in original
+      - This feature is new
+    validations:
+      required: true
   - type: dropdown
     attributes:
       label: Target platform

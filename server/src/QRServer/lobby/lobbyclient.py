@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 from QRServer.common import utils
-from QRServer.common.classes import RankingEntry, LobbyPlayer
+from QRServer.common.classes import LobbyPlayer
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, LobbyDuplicateResponse, \
     ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingThisMonthResponse, \
@@ -110,11 +110,16 @@ class LobbyClientHandler(ClientHandler):
         await self.send_msg(self.lobby_server.get_last_logged())
         await self.send_msg(LastPlayedResponse.new(recent_matches))
 
-    async def _handle_server_ranking(self, _: ServerRankingRequest):
-        await self.send_msg(ServerRankingThisMonthResponse.new([
-            RankingEntry(player='test', wins=12, games=30),
-            RankingEntry(player='test2', wins=2, games=2),
-        ]))
+    async def _handle_server_ranking(self, request: ServerRankingRequest):
+        start_date, end_date = utils.make_month_dates(request.get_month(), request.get_year())
+
+        rankings = await self.connector.get_ranking(
+            start_date=start_date,
+            end_date=end_date,
+            ranked_only=self.config.leaderboards_ranked_only.get(),
+            include_void=self.config.leaderboards_include_void.get()
+        )
+        await self.send_msg(ServerRankingThisMonthResponse.new(rankings))
 
     async def _handle_server_alive(self, _: ServerAliveRequest):
         await self.send_msg(ServerAliveResponse.new())

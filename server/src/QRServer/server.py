@@ -64,8 +64,13 @@ class QRServer:
         return self._lobby_server
 
     async def start(self):
-        self.loop.add_signal_handler(signal.SIGINT, self.stop_sync)
-        self.loop.add_signal_handler(signal.SIGTERM, self.stop_sync)
+        try:
+            self.loop.add_signal_handler(signal.SIGINT, self.stop_sync)
+            self.loop.add_signal_handler(signal.SIGTERM, self.stop_sync)
+        except NotImplementedError:
+            # Windows
+            signal.signal(signal.SIGINT, self.stop_sync)
+            signal.signal(signal.SIGTERM, self.stop_sync)
 
         await self.setup_connector()
         await self.start_tasks()
@@ -97,7 +102,7 @@ class QRServer:
         await self.connector.close()
         self._server_stopped.set()
 
-    def stop_sync(self):
+    def stop_sync(self, *args):
         self.loop.create_task(self.stop())
 
     def start_task(self, name: str, task: Coroutine):

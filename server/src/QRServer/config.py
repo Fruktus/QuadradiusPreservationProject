@@ -86,6 +86,18 @@ class Config:
             cli_args=['--auto-register'],
             description='automatically register a user upon first login attempt',
             default_value=False)
+        self.leaderboards_ranked_only = ConfigKey(
+            config=self,
+            name='leaderboards.ranked_only',
+            cli_args=[],
+            description='whether to only show ranked games on leaderboards',
+            default_value=True)
+        self.leaderboards_include_void = ConfigKey(
+            config=self,
+            name='leaderboards.include_void',
+            cli_args=[],
+            description='whether to include void games on leaderboards',
+            default_value=False)
 
         self.discord_webhook_lobby_joined_url = ConfigKey(
             config=self,

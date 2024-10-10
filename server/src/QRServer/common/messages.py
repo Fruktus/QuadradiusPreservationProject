@@ -260,9 +260,34 @@ class VoidScoreRequest(RequestMessage):
         return cls(cls.prefix)
 
 
+class NameTakenRequest(RequestMessage):
+    prefix = ['<SERVER>', '<NAME_TAKEN?>']
+    argc = [3]
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
+
+
+class ChangePasswordRequest(RequestMessage):
+    prefix = ['<SERVER>', '<CHPW>']
+    argc = [3]
+
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+        self._new_pw = self.args[2]
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
+
+    def get_new_password(self) -> str:
+        return self._new_pw
+
 ################################################################################
 # RESPONSES
 ################################################################################
+
 
 class ResponseMessage(Message):
     pass

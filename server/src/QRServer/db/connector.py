@@ -42,6 +42,14 @@ class DbConnector:
             password=row[2],
             created_at=row[3]
         )
+    
+    async def change_user_password(self, user_id: str, password: str):
+        c = await self.conn.cursor()
+        await c.execute(
+            "update users set password = ? where user_id = ?", (
+                password_hash(password),
+                user_id
+            ))
 
     async def get_user_by_username(self, username) -> Optional[DbUser]:
         c = await self.conn.cursor()

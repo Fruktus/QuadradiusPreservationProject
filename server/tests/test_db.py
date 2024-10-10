@@ -277,3 +277,18 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ranking_entries_full, await self.conn.get_ranking(
                 start_date=start_date, end_date=end_date, include_void=True, ranked_only=False
             ))
+
+    async def test_create_member(self):
+        with patch('uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_uuid.return_value = '1234'
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0)
+
+            await self.conn.create_member('test_user', b'password', '11111111111')
+            user = await self.conn.get_user('1234')
+
+            self.assertEqual(user.user_id, '1234')
+            self.assertEqual(user.username, 'test_user')
+            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
+            self.assertEqual(user.discord_user_id, '11111111111')
+            self.assertFalse(user.is_guest)

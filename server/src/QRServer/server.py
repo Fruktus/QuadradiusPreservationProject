@@ -8,6 +8,7 @@ from QRServer.common.clienthandler import ClientHandler
 from QRServer.config import Config
 from QRServer.db.connector import create_connector, DbConnector
 from QRServer.discord import logger as discord_logger
+from QRServer.discord.bot import DiscordBot
 from QRServer.game.gameclient import GameClientHandler
 from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyclient import LobbyClientHandler
@@ -31,6 +32,9 @@ class QRServer:
     _lobby_ready: asyncio.Event
     _game_ready: asyncio.Event
     _server_stopped: asyncio.Event
+
+    # extensions
+    _discord_bot: Optional[DiscordBot]
 
     def __init__(self, config):
         self.config = config
@@ -122,6 +126,11 @@ class QRServer:
     async def start_tasks(self):
         self.start_task("Discord Logger", discord_logger.get_daemon_task(self.config))
         self.start_task("Cron Logger", self._cron_logger())
+
+        if self.config.discord_bot_enabled.get():
+            self._discord_bot = DiscordBot(self.config, self.connector)
+            self.start_task("Discord Bot", self._discord_bot.run_bot())
+
         self._game_server = GameServer(self.config, self.connector)
         self._lobby_server = LobbyServer()
         await self._game_listener_task(self.config, self.connector, self._game_server)

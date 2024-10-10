@@ -30,7 +30,7 @@ class DbConnector:
     async def get_user(self, user_id: str) -> Optional[DbUser]:
         c = await self.conn.cursor()
         await c.execute(
-            "select id, username, password, created_at from users where id = ?", (
+            "select id, username, password, created_at, discord_user_id from users where id = ?", (
                 user_id,
             ))
         row = await c.fetchone()
@@ -40,13 +40,14 @@ class DbConnector:
             user_id=row[0],
             username=row[1],
             password=row[2],
-            created_at=row[3]
+            created_at=row[3],
+            discord_user_id=row[4],
         )
 
     async def get_user_by_username(self, username) -> Optional[DbUser]:
         c = await self.conn.cursor()
         await c.execute(
-            "select id, username, password, created_at from users where username = ?", (
+            "select id, username, password, created_at, discord_user_id from users where username = ?", (
                 username,
             ))
         row = await c.fetchone()
@@ -56,25 +57,51 @@ class DbConnector:
             user_id=row[0],
             username=row[1],
             password=row[2],
-            created_at=row[3]
+            created_at=row[3],
+            discord_user_id=row[4],
         )
 
-    async def authenticate_user(self, username: str, password: Optional[bytes], auto_create=False,
-                                verify_password=True) -> Optional[DbUser]:
+    async def get_users_by_discord_id(self, discord_user_id) -> List[DbUser]:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select id, username, password, created_at, discord_user_id from users where discord_user_id = ?", (
+                discord_user_id,
+            ))
+        rows = await c.fetchall()
+        if rows is None:
+            return []
+        result = []
+
+        for row in rows:
+            result.append(
+                DbUser(
+                    user_id=row[0],
+                    username=row[1],
+                    password=row[2],
+                    created_at=row[3],
+                    discord_user_id=row[4]
+                )
+            )
+        return result
+
+    async def authenticate_user(self, username: str, password: Optional[bytes], discord_user_id: Optional[str] = None,
+                                auto_create=False, verify_password=True) -> Optional[DbUser]:
         c = await self.conn.cursor()
         if auto_create:
             await c.execute(
                 "insert or ignore into users("
-                "  id, username, password, created_at"
-                ") values (?, ?, ?, ?)", (
+                "  id, username, password, created_at, discord_user_id"
+                ") values (?, ?, ?, ?, ?)", (
                     str(uuid.uuid4()),
                     username,
                     password_hash(password) if password else None,
                     datetime.now().timestamp(),
+                    discord_user_id,
                 )
             )
 
-        await c.execute("select id, username, password, created_at from users where username = ?", (username,))
+        await c.execute("select id, username, password, created_at, discord_user_id from users where username = ?",
+                        (username,))
 
         row = await c.fetchone()
         if row is None:
@@ -85,6 +112,7 @@ class DbConnector:
             username=row[1],
             password=row[2],
             created_at=row[3],
+            discord_user_id=row[4],
         )
 
         if not db_user.is_guest and verify_password and not password_verify(password, db_user.password):
@@ -229,7 +257,7 @@ class DbConnector:
             " sum(m.winner_id = u.id) as total_wins,"
             " count(*) as total_games"
             " from users u"
-            " inner join matches m on (u.id = m.winner_id OR u.id = m.loser_id)"
+            " inner join matches m on (u.id = m.winner_id or u.id = m.loser_id)"
             " where m.started_at >= ?"
             " and m.finished_at < ?"
             " and (case when ? = 1 then m.is_ranked = 1 else 1=1 end)"

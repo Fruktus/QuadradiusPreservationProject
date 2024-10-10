@@ -156,6 +156,24 @@ class Config:
             description='',
             default_value=5,
             onchange=config_handlers.refresh_logger_configuration)
+        self.discord_bot_enabled = ConfigKey(
+            config=self,
+            name='discord.bot.enabled',
+            cli_args=[],
+            description='Whether to enable the discord bot. Requires discord.bot.token to be set.',
+            default_value=False)
+        self.discord_bot_token = ConfigKey(
+            config=self,
+            name='discord.bot.token',
+            cli_args=[],
+            description='Discord bot token. See https://discordpy.readthedocs.io/en/stable/discord.html for tutorial',
+            default_value='')
+        self.discord_bot_max_aliases = ConfigKey(
+            config=self,
+            name='discord.bot.max_aliases',
+            cli_args=[],
+            description='Maximum number of aliases per user',
+            default_value=1)
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

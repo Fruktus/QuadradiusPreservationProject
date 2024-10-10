@@ -14,6 +14,7 @@ setup(
         'asyncio',
         'aiosqlite',
         'aiohttp',
+        'discord.py',
     ],
     extras_require={
         'dev': [

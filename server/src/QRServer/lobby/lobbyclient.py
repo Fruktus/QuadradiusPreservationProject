@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+import re
 
 from QRServer.common import utils
 from QRServer.common.classes import LobbyPlayer
@@ -8,7 +9,8 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingThisMonthResponse, \
     HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, \
     LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, \
-    DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse
+    DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, ChangePasswordRequest, \
+    NameTakenRequest
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.lobby_client_handler')
@@ -35,6 +37,8 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(ChallengeMessage, self._handle_challenge)
         self.register_message_handler(ChallengeAuthMessage, self._handle_challenge_auth)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
+        self.register_message_handler(ChangePasswordRequest, self._handle_change_password)
+        self.register_message_handler(NameTakenRequest, self._handle_name_taken)
 
     def get_joined_at(self) -> datetime:
         return self.player.joined_at
@@ -56,7 +60,7 @@ class LobbyClientHandler(ClientHandler):
     async def _handle_join_lobby(self, message: JoinLobbyRequest):
         username = message.get_username()
         password = message.get_password()
-        is_guest = utils.is_guest(username, password)
+        self.player.is_guest = utils.is_guest(username, password)
         if not password:
             # Password is always mandatory, if it is missing, then
             # someone might be sending raw or damaged packets
@@ -85,7 +89,7 @@ class LobbyClientHandler(ClientHandler):
         self.player.idx = await self.lobby_server.add_client(self)
         await self.send_msg(LobbyStateResponse.new(self.lobby_server.get_players()))
 
-        if is_guest:
+        if self.player.is_guest:
             log.info('Guest joined lobby: ' + username)
         else:
             log.info('Member joined lobby: ' + username)
@@ -151,6 +155,32 @@ class LobbyClientHandler(ClientHandler):
             await self.webhook.invoke_webhook_lobby_left(self.player.username, total_players)
 
         self.close_and_stop()
+
+    async def _handle_change_password(self, message: ChangePasswordRequest):
+        if self.player.is_guest:
+            log.debug(f'Guest user {self.player.username}:{self.player.user_id} tried to change password')
+            return
+
+        new_password = message.get_new_password()
+        self.connector.change_user_password(self.player.user_id, new_password)
+
+        # TODO find out the response format, let know that password was changed
+
+    async def _handle_name_taken(self, _: NameTakenRequest):
+        if self.player.is_guest:
+            log.debug(f'Guest user {self.player.username} tried to check if name is taken')
+            return
+
+        # Remove the ' GUEST' suffix - due to bug in SWF there may be multiple instances of it
+        username = re.sub(r'( GUEST)+$', '', self.player.username)
+        user = self.connector.get_user_by_username(username)
+
+        if user:
+            # TODO find out the response format, let know that username is available
+            pass
+        else:
+            # TODO find out the response format, let know that username is taken
+            pass
 
     async def _error_bad_member(self):
         await self.send_msg(LobbyBadMemberResponse.new())

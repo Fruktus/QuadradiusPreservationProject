@@ -1,6 +1,9 @@
+import asyncio
+from unittest.mock import patch
+
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import JoinLobbyRequest, LobbyStateResponse, LobbyDuplicateResponse, SetCommentRequest, \
-    BroadcastCommentResponse
+    BroadcastCommentResponse, NameTakenRequest, NameTakenResponseYes, NameTakenResponseNo
 from . import QuadradiusIntegrationTestCase
 
 
@@ -217,3 +220,24 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         # make sure the new player is not disconnected
         await client_over_limit.send_message(
             SetCommentRequest.new(0, 'test communique'))
+
+    @patch('asyncio.sleep', return_value=asyncio.sleep(0))
+    async def test_lobby_name_taken(self, mock_sleep):
+        # Create a member
+        member = await self.new_lobby_client()
+        await member.join_lobby('member_name', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await member.close()
+
+        guest = await self.new_lobby_client()
+        await guest.join_lobby_guest('guest_name')
+
+        mock_sleep.assert_not_called()
+
+        await guest.send_message(NameTakenRequest.new('member_name'))
+        await guest.assert_received_message(NameTakenResponseYes.new())
+        mock_sleep.assert_called_once()
+        mock_sleep.reset_mock()
+
+        await guest.send_message(NameTakenRequest.new('some other member name'))
+        await guest.assert_received_message(NameTakenResponseNo.new())
+        mock_sleep.assert_called_once()

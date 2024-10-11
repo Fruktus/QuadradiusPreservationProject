@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 
@@ -8,7 +9,8 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingThisMonthResponse, \
     HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, \
     LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, \
-    DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse
+    DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, NameTakenRequest, \
+    NameTakenResponseYes, NameTakenResponseNo
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.lobby_client_handler')
@@ -35,6 +37,7 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(ChallengeMessage, self._handle_challenge)
         self.register_message_handler(ChallengeAuthMessage, self._handle_challenge_auth)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
+        self.register_message_handler(NameTakenRequest, self._handle_name_taken)
 
     def get_joined_at(self) -> datetime:
         return self.player.joined_at
@@ -151,6 +154,20 @@ class LobbyClientHandler(ClientHandler):
             await self.webhook.invoke_webhook_lobby_left(self.player.username, total_players)
 
         self.close_and_stop()
+
+    async def _handle_name_taken(self, message: NameTakenRequest):
+        username = message.get_name_to_check()
+        log.debug(f'Checking whether a name is taken: {username}')
+
+        # Prevent users from spamming such requests
+        await asyncio.sleep(1)
+
+        user = await self.connector.get_user_by_username(username)
+
+        if user:
+            await self.send_msg(NameTakenResponseYes.new())
+        else:
+            await self.send_msg(NameTakenResponseNo.new())
 
     async def _error_bad_member(self):
         await self.send_msg(LobbyBadMemberResponse.new())

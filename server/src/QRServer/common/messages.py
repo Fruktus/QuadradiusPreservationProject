@@ -260,6 +260,22 @@ class VoidScoreRequest(RequestMessage):
         return cls(cls.prefix)
 
 
+class NameTakenRequest(RequestMessage):
+    prefix = ['<SERVER>', '<NAME_TAKEN?>']
+    argc = [3]
+
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+        self._name = self.args[2]
+
+    @classmethod
+    def new(cls, name: str):
+        return cls([*cls.prefix, name])
+
+    def get_name_to_check(self) -> str:
+        return self._name
+
+
 ################################################################################
 # RESPONSES
 ################################################################################
@@ -460,6 +476,24 @@ class OpponentDeadResponse(ResponseMessage):
 class VoidScoreResponse(ResponseMessage):
     prefix = ['<S>', '<SERVER>', '<VOID>']
     argc = [3]
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
+
+
+class NameTakenResponseNo(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<NO>']
+    argc = [4]
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
+
+
+class NameTakenResponseYes(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<YES>']
+    argc = [4]
 
     @classmethod
     def new(cls):

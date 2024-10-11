@@ -354,15 +354,6 @@ class ServerAliveResponse(ResponseMessage):
         return cls(cls.prefix)
 
 
-class GameServerAliveResponse(ResponseMessage):
-    prefix = ['<SERVER>', '<ALIVE>']
-    argc = [2]
-
-    @classmethod
-    def new(cls):
-        return cls(cls.prefix)
-
-
 class LobbyDuplicateResponse(ResponseMessage):
     prefix = ['<L>', '<DUPLICATE>']
     argc = [2]

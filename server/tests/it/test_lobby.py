@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import JoinLobbyRequest, LobbyStateResponse, LobbyDuplicateResponse, SetCommentRequest, \
-    BroadcastCommentResponse, NameTakenRequest, NameTakenResponseYes, NameTakenResponseNo
+    BroadcastCommentResponse, NameTakenRequest, NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, \
+    ChangePasswordResponseOk, LobbyBadMemberResponse
 from . import QuadradiusIntegrationTestCase
 
 
@@ -241,3 +242,43 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         await guest.send_message(NameTakenRequest.new('some other member name'))
         await guest.assert_received_message(NameTakenResponseNo.new())
         mock_sleep.assert_called_once()
+
+    async def test_lobby_password_change(self):
+        client = await self.new_lobby_client()
+        await client.join_lobby('Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        await client.send_message(ChangePasswordRequest.new('912ec803b2ce49e4a541068d495ab570'))
+        await client.assert_received_message(ChangePasswordResponseOk.new())
+
+        await client.close()
+
+        client = await self.new_lobby_client()
+        await client.send_message(
+            JoinLobbyRequest.new('Player', 'cf585d509bf09ce1d2ff5d4226b7dacb'))
+        await client.assert_received_message(LobbyBadMemberResponse.new())
+
+        client = await self.new_lobby_client()
+        await client.join_lobby('Player', '912ec803b2ce49e4a541068d495ab570')
+
+    async def test_lobby_password_change_bad_member(self):
+        client = await self.new_lobby_client()
+        await client.join_lobby('Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await client.close()
+
+        client = await self.new_lobby_client()
+        await client.send_message(
+            JoinLobbyRequest.new('Player', '912ec803b2ce49e4a541068d495ab570'))
+        await client.assert_received_message(LobbyBadMemberResponse.new())
+
+        await client.send_message(ChangePasswordRequest.new('912ec803b2ce49e4a541068d495ab570'))
+        await client.assert_no_more_messages()
+
+        client = await self.new_lobby_client()
+        await client.send_message(
+            JoinLobbyRequest.new('Player', '912ec803b2ce49e4a541068d495ab570'))
+        await client.assert_received_message(LobbyBadMemberResponse.new())
+
+    async def test_lobby_password_change_no_login(self):
+        client = await self.new_lobby_client()
+        await client.send_message(ChangePasswordRequest.new('912ec803b2ce49e4a541068d495ab570'))
+        await client.assert_no_more_messages()

@@ -178,6 +178,7 @@ class RankingEntry:
 @dataclass
 class LobbyPlayer:
     user_id: str = None
+    is_guest: bool = True
     username: str = ''
     comment: str = ''
     score: int = 0

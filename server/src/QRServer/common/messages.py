@@ -276,6 +276,22 @@ class NameTakenRequest(RequestMessage):
         return self._name
 
 
+class ChangePasswordRequest(RequestMessage):
+    prefix = ['<SERVER>', '<CHPW>']
+    argc = [3]
+
+    def __init__(self, args: List[str]) -> None:
+        super().__init__(args)
+        self._new_password = self.args[2]
+
+    @classmethod
+    def new(cls, new_password: str):
+        return cls([*cls.prefix, new_password])
+
+    def get_new_password(self) -> Optional[str]:
+        return self._new_password or None
+
+
 ################################################################################
 # RESPONSES
 ################################################################################
@@ -493,6 +509,15 @@ class NameTakenResponseNo(ResponseMessage):
 
 class NameTakenResponseYes(ResponseMessage):
     prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<YES>']
+    argc = [4]
+
+    @classmethod
+    def new(cls):
+        return cls(cls.prefix)
+
+
+class ChangePasswordResponseOk(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<CHPW>', '<OK>']
     argc = [4]
 
     @classmethod

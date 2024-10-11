@@ -92,6 +92,14 @@ class DbConnector:
 
         return db_user
 
+    async def change_user_password(self, user_id: str, password: Optional[bytes]):
+        c = await self.conn.cursor()
+        await c.execute(
+            "update users set password = ? where id = ?", (
+                password_hash(password) if password else None,
+                user_id
+            ))
+
     async def add_match_result(self, match_result: DbMatchReport):
         c = await self.conn.cursor()
         await c.execute(

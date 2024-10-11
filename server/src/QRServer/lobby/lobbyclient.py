@@ -10,7 +10,7 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, \
     LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, \
     DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, NameTakenRequest, \
-    NameTakenResponseYes, NameTakenResponseNo
+    NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, ChangePasswordResponseOk
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.lobby_client_handler')
@@ -38,6 +38,7 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(ChallengeAuthMessage, self._handle_challenge_auth)
         self.register_message_handler(DisconnectRequest, self._handle_disconnect)
         self.register_message_handler(NameTakenRequest, self._handle_name_taken)
+        self.register_message_handler(ChangePasswordRequest, self._handle_change_password)
 
     def get_joined_at(self) -> datetime:
         return self.player.joined_at
@@ -59,7 +60,7 @@ class LobbyClientHandler(ClientHandler):
     async def _handle_join_lobby(self, message: JoinLobbyRequest):
         username = message.get_username()
         password = message.get_password()
-        is_guest = utils.is_guest(username, password)
+        self.player.is_guest = utils.is_guest(username, password)
         if not password:
             # Password is always mandatory, if it is missing, then
             # someone might be sending raw or damaged packets
@@ -88,7 +89,7 @@ class LobbyClientHandler(ClientHandler):
         self.player.idx = await self.lobby_server.add_client(self)
         await self.send_msg(LobbyStateResponse.new(self.lobby_server.get_players()))
 
-        if is_guest:
+        if self.player.is_guest:
             log.info('Guest joined lobby: ' + username)
         else:
             log.info('Member joined lobby: ' + username)
@@ -168,6 +169,26 @@ class LobbyClientHandler(ClientHandler):
             await self.send_msg(NameTakenResponseYes.new())
         else:
             await self.send_msg(NameTakenResponseNo.new())
+
+    async def _handle_change_password(self, message: ChangePasswordRequest):
+        if self.player.is_guest:
+            log.warn(f'A guest {self.player.username}:{self.player.user_id} has tried to change their password')
+            return
+
+        if self.config.auth_disable.get():
+            log.warn(f'Cannot change any password when auth is disabled ({self.player.username})')
+            return
+
+        new_password = message.get_new_password()
+        if not new_password:
+            log.warn(f'Member {self.player.username} tried to change their password to an empty one')
+            return
+
+        await self.connector.change_user_password(self.player.user_id, new_password.encode('ascii'))
+
+        log.info(f'Member {self.player.username} has changed their password')
+
+        await self.send_msg(ChangePasswordResponseOk.new())
 
     async def _error_bad_member(self):
         await self.send_msg(LobbyBadMemberResponse.new())

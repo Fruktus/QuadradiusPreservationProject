@@ -48,6 +48,12 @@ async def execute_migrations(c):
             " add column created_at integer"
         )
         await _set_version(c, 4)
+    if version <= 4:
+        await c.execute(
+            "alter table users"
+            " add column discord_user_id varchar"
+        )
+        await _set_version(c, 5)
 
 
 async def _select_version(c):

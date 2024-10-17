@@ -95,6 +95,8 @@ class QRServer:
                 await task
             except CancelledError:
                 pass
+            except Exception as e:
+                log.exception(f'Error while canceling task "{task.get_name()}": {e}')
         self._lobby_sock_server.close()
         self._game_sock_server.close()
         await self._lobby_sock_server.wait_closed()

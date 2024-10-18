@@ -12,6 +12,7 @@ class DbUser:
     username: str
     password: str
     created_at: str
+    discord_user_id: str
 
     @property
     def is_guest(self):

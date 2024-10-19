@@ -172,16 +172,16 @@ class LobbyClientHandler(ClientHandler):
 
     async def _handle_change_password(self, message: ChangePasswordRequest):
         if self.player.is_guest:
-            log.warn(f'A guest {self.player.username}:{self.player.user_id} has tried to change their password')
+            log.warning(f'A guest {self.player.username}:{self.player.user_id} has tried to change their password')
             return
 
         if self.config.auth_disable.get():
-            log.warn(f'Cannot change any password when auth is disabled ({self.player.username})')
+            log.warning(f'Cannot change any password when auth is disabled ({self.player.username})')
             return
 
         new_password = message.get_new_password()
         if not new_password:
-            log.warn(f'Member {self.player.username} tried to change their password to an empty one')
+            log.warning(f'Member {self.player.username} tried to change their password to an empty one')
             return
 
         await self.connector.change_user_password(self.player.user_id, new_password.encode('ascii'))

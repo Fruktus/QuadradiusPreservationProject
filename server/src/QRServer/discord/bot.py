@@ -104,12 +104,12 @@ class DiscordBot:
             # Check if the user is auto-registered, if so let know that it can be claimed
             if not user.password:
                 await interaction.response.send_message(
-                    "This username is in use but can be claimed.\n"
+                    f"Username `{username}` is in use but can be claimed.\n"
                     f"Run `/claim {username}` to claim it.",
                     ephemeral=True)
             else:
                 await interaction.response.send_message(
-                    "This username is taken. Please choose a different one.", ephemeral=True)
+                    f"Username `{username}` is taken. Please choose a different one.", ephemeral=True)
             return
 
         log.debug(f"Registering new account for '{interaction.user}' with username '{username}'")
@@ -202,9 +202,10 @@ class DiscordBot:
         if username not in user_accounts:
             log.debug(f"User '{interaction.user}' tried to change password for not owned account: '{username}'")
 
+            owned_usernames = ', '.join([f'`{acc}`' for acc in list(user_accounts.keys())])
             await interaction.response.send_message(
                 f"You do not have an account with username: `{username}`.\n"
-                f"Owned accounts: '{list(user_accounts.keys())}'",
+                f"Owned accounts: {owned_usernames}",
                 ephemeral=True)
             return
 

@@ -2,6 +2,8 @@
 venv/
 .idea/**
 *.sqlite
+*.sqlite3
+*.sqlite3-journal
 .flatpak-builder
 node_modules
 /client/

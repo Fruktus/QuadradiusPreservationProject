@@ -104,7 +104,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.interaction.reset_mock()
         await self.bot._register(self.interaction, self.username)
         self.interaction.response.send_message.assert_called_once_with(
-            "This username is taken. Please choose a different one.",
+            "Username `test_user` is taken. Please choose a different one.",
             ephemeral=True)
 
     async def test_register_user_with_existing_autoregistered_username(self):
@@ -113,7 +113,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.interaction.reset_mock()
         await self.bot._register(self.interaction, self.username)
         self.interaction.response.send_message.assert_called_once_with(
-            "This username is in use but can be claimed.\nRun `/claim test_user` to claim it.",
+            "Username `test_user` is in use but can be claimed.\nRun `/claim test_user` to claim it.",
             ephemeral=True)
 
     async def test_claim_user(self):
@@ -217,9 +217,10 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_reset_password_unowned_user(self):
         await self.conn.create_member('test_user2', 'asd'.encode(), discord_user_id='123')
+        await self.conn.create_member('test_user3', 'asd'.encode(), discord_user_id='123')
 
         await self.bot._reset_password(self.interaction, self.username)
 
         self.interaction.response.send_message.assert_called_once_with(
-            "You do not have an account with username: `test_user`.\nOwned accounts: '['test_user2']'",
+            "You do not have an account with username: `test_user`.\nOwned accounts: `test_user2`, `test_user3`",
             ephemeral=True)

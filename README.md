@@ -19,7 +19,7 @@ and the original authors should in no way be held accountable for any liabilitie
 
 ## Where to play
 You can play the current build at [quadradius.ddns.net](https://quadradius.ddns.net/).
-At the moment there is no authentication and the usernames and passwords aren't stored, you can use whatever nickname and random password you'd like.
+You can register a member account on our Discord server.
 In the future we will most likely add some way to register to enable ranked play.
 The game is and will be free to play.
 If you'd like to discuss anything with us (authors) or fellow players you can join our discord server linked at the top or use [this link](https://discord.gg/cVkV8pah4d).
@@ -59,7 +59,6 @@ You can configure the server by passing the following CLI parameters:
 * `-q`/`--game-port` — game port (default `3001`).
 
 You can also run `python -m QRServer -h` to display help.
-You can play as a member by typing in username and any password (it is not checked at the moment).
 
 
 ### Docker and Compose

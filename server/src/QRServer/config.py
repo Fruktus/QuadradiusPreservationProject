@@ -98,6 +98,12 @@ class Config:
             cli_args=[],
             description='whether to include void games on leaderboards',
             default_value=False)
+        self.lobby_motd = ConfigKey(
+            config=self,
+            name='lobby.motd',
+            cli_args=[],
+            description='welcome message sent after joining the lobby',
+            default_value='')
 
         self.discord_webhook_lobby_joined_url = ConfigKey(
             config=self,

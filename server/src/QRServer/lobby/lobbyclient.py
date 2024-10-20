@@ -97,6 +97,9 @@ class LobbyClientHandler(ClientHandler):
         total_players = self.lobby_server.get_player_count()
         await self.webhook.invoke_webhook_lobby_joined(username, total_players)
 
+        if self.config.lobby_motd.get():
+            await self.send_msg(LobbyChatMessage.new('', self.config.lobby_motd.get()))
+
     async def _handle_challenge(self, message: ChallengeMessage):
         challenger_idx = message.get_challenger_idx()
         challenged_idx = message.get_challenged_idx()

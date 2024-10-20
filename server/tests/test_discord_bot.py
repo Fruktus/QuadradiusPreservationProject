@@ -48,7 +48,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
             self.interaction.user.send.assert_called_once_with(
                 "### Registration successful\n"
                 "- Registered account: `test_user`.\n"
-                "- Current password is: `123asd4567`.\n"
+                "- Current password is: ||`123asd4567`||.\n"
                 "You can change it in the game.\n"
                 "If you forget it, you can run `/resetpassword test_user` to reset it.")
 
@@ -131,7 +131,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
                 ephemeral=True)
             self.interaction.user.send.assert_called_once_with(
                 "### Claim successful\n- Claimed account: `test_user`.\n"
-                "- Current password is: `123asd4567`.\n"
+                "- Current password is: ||`123asd4567`||.\n"
                 "You can change it in the game.\n"
                 "If you forget it, you can run `/resetpassword test_user` to reset it.")
 
@@ -213,7 +213,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
             self.interaction.user.send.assert_called_once_with(
                 "### Password reset successful\n"
                 "Password was reset for account: `test_user`.\n"
-                "Your new password is: `123asd4567`.")
+                "Your new password is: ||`123asd4567`||.")
 
     async def test_reset_password_unowned_user(self):
         await self.conn.create_member('test_user2', 'asd'.encode(), discord_user_id='123')

@@ -130,7 +130,7 @@ class DiscordBot:
         await interaction.user.send(
             "### Registration successful\n"
             f"- Registered account: `{username}`.\n"
-            f"- Current password is: `{password}`.\n"
+            f"- Current password is: ||`{password}`||.\n"
             "You can change it in the game.\n"
             f"If you forget it, you can run `/resetpassword {username}` to reset it.")
 
@@ -182,7 +182,7 @@ class DiscordBot:
         await interaction.user.send(
             "### Claim successful\n"
             f"- Claimed account: `{username}`.\n"
-            f"- Current password is: `{password}`.\n"
+            f"- Current password is: ||`{password}`||.\n"
             "You can change it in the game.\n"
             f"If you forget it, you can run `/resetpassword {username}` to reset it.")
 
@@ -224,7 +224,7 @@ class DiscordBot:
         await interaction.user.send(
             "### Password reset successful\n"
             f"Password was reset for account: `{username}`.\n"
-            f"Your new password is: `{password}`.")
+            f"Your new password is: ||`{password}`||.")
 
     def _validate_username(self, username: str) -> Tuple[bool, str]:
         # Checks if the username is of correct length and format

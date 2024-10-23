@@ -4,25 +4,30 @@ from typing import Dict
 from QRServer.common.classes import MatchId, Match, MatchStats
 from QRServer.discord.webhook import Webhook
 from QRServer.game.gameclient import GameClientHandler
+from QRServer.metrics import MetricsReporter
 
 log = logging.getLogger('qr.game_server')
 
 
 class GameServer:
     matches: Dict[MatchId, Match]
+    metrics: MetricsReporter
 
     def __init__(self, config, connector):
         self.config = config
         self.connector = connector
         self.webhook = Webhook(config)
         self.matches = {}
+        self.metrics = MetricsReporter()
 
     def register_client(self, client_handler: GameClientHandler):
         match_id = client_handler.match_id()
         if match_id not in self.matches:
             self.matches[match_id] = Match(match_id)
+            self.metrics.active_games_inc()
 
         log.debug(f'Player {client_handler.username} joins a match {match_id}')
+        self.metrics.game_clients_inc()
         self.matches[match_id].add_party(client_handler)
 
     def get_player_count(self):
@@ -65,5 +70,7 @@ class GameServer:
         if match_id in self.matches:
             match = self.matches[match_id]
             match.remove_party(client)
+            self.metrics.game_clients_dec()
             if match.empty():
                 del self.matches[match_id]
+                self.metrics.active_games_dec()

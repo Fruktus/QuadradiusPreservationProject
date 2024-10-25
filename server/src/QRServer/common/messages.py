@@ -421,8 +421,8 @@ class LastPlayedResponse(ResponseMessage):
         return '#'.join(data)
 
 
-class ServerRankingThisMonthResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
+class ServerRankingResponse(ResponseMessage):
+    prefix = ['<S>', '<SERVER>', '<RANKING>']
     argc = [-1]
 
     @classmethod
@@ -441,6 +441,10 @@ class ServerRankingThisMonthResponse(ResponseMessage):
             str(entry.wins),
             str(entry.games),
         ]
+
+
+class ServerRankingThisMonthResponse(ServerRankingResponse):
+    prefix = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
 
 
 class LobbyStateResponse(ResponseMessage):

@@ -448,9 +448,9 @@ class LastPlayedResponse(ResponseMessage):
         return '#'.join(data)
 
 
-class ServerRankingThisMonthResponse(ResponseMessage):
+class ServerRankingResponse(ResponseMessage):
     message_type_id = 25
-    prefix: list[str] = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<RANKING>']
     argc = [-1]
 
     @classmethod
@@ -471,8 +471,13 @@ class ServerRankingThisMonthResponse(ResponseMessage):
         ]
 
 
-class LobbyStateResponse(ResponseMessage):
+class ServerRankingThisMonthResponse(ServerRankingResponse):
     message_type_id = 26
+    prefix = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
+
+
+class LobbyStateResponse(ResponseMessage):
+    message_type_id = 27
     prefix: list[str] = ['<L>']
     argc = [170]
 
@@ -501,7 +506,7 @@ class LobbyStateResponse(ResponseMessage):
 
 
 class OpponentDeadResponse(ResponseMessage):
-    message_type_id = 27
+    message_type_id = 28
     prefix: list[str] = ['<S>', '<SERVER>', '<OPPDEAD>']
     argc = [3]
 
@@ -511,7 +516,7 @@ class OpponentDeadResponse(ResponseMessage):
 
 
 class VoidScoreResponse(ResponseMessage):
-    message_type_id = 28
+    message_type_id = 29
     prefix: list[str] = ['<S>', '<SERVER>', '<VOID>']
     argc = [3]
 
@@ -521,7 +526,7 @@ class VoidScoreResponse(ResponseMessage):
 
 
 class NameTakenResponseNo(ResponseMessage):
-    message_type_id = 29
+    message_type_id = 30
     prefix: list[str] = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<NO>']
     argc = [4]
 
@@ -531,7 +536,7 @@ class NameTakenResponseNo(ResponseMessage):
 
 
 class NameTakenResponseYes(ResponseMessage):
-    message_type_id = 30
+    message_type_id = 31
     prefix: list[str] = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<YES>']
     argc = [4]
 
@@ -541,7 +546,7 @@ class NameTakenResponseYes(ResponseMessage):
 
 
 class ChangePasswordResponseOk(ResponseMessage):
-    message_type_id = 31
+    message_type_id = 32
     prefix: list[str] = ['<S>', '<SERVER>', '<CHPW>', '<OK>']
     argc = [4]
 
@@ -555,7 +560,7 @@ class ChangePasswordResponseOk(ResponseMessage):
 ################################################################################
 
 class UsePowerMessage(RequestMessage, ResponseMessage):
-    message_type_id = 32
+    message_type_id = 33
     prefix: list[str] = ['<S>', '<USE_POWER>']
     argc = [4, 5]
 
@@ -583,7 +588,7 @@ class UsePowerMessage(RequestMessage, ResponseMessage):
 
 
 class GameChatMessage(RequestMessage, ResponseMessage):
-    message_type_id = 33
+    message_type_id = 34
     prefix: list[str] = ['<S>', '<CHAT>']
     argc = [3]
 
@@ -596,7 +601,7 @@ class GameChatMessage(RequestMessage, ResponseMessage):
 
 
 class LobbyChatMessage(RequestMessage, ResponseMessage):
-    message_type_id = 34
+    message_type_id = 35
     prefix: list[str] = ['<B>', '<CHAT>']
     argc = [4]
 
@@ -618,7 +623,7 @@ class LobbyChatMessage(RequestMessage, ResponseMessage):
 
 
 class GrabPieceMessage(RequestMessage, ResponseMessage):
-    message_type_id = 35
+    message_type_id = 36
     prefix: list[str] = ['<S>', '<GRAB_PIECE>']
     argc = [3]
 
@@ -631,7 +636,7 @@ class GrabPieceMessage(RequestMessage, ResponseMessage):
 
 
 class ReleasePieceMessage(RequestMessage, ResponseMessage):
-    message_type_id = 36
+    message_type_id = 37
     prefix: list[str] = ['<S>', '<RELEASE_PIECE>']
     argc = [3]
 
@@ -644,7 +649,7 @@ class ReleasePieceMessage(RequestMessage, ResponseMessage):
 
 
 class SwitchPlayerMessage(RequestMessage, ResponseMessage):
-    message_type_id = 37
+    message_type_id = 38
     prefix: list[str] = ['<S>', '<SWITCH_PLAYER>']
     argc = [3]
 
@@ -657,7 +662,7 @@ class SwitchPlayerMessage(RequestMessage, ResponseMessage):
 
 
 class RecursiveDoneMessage(RequestMessage, ResponseMessage):
-    message_type_id = 38
+    message_type_id = 39
     prefix: list[str] = ['<S>', '<RECURSIVE_DONE>']
     argc = [3]
 
@@ -670,7 +675,7 @@ class RecursiveDoneMessage(RequestMessage, ResponseMessage):
 
 
 class SwitcherooMessage(RequestMessage, ResponseMessage):
-    message_type_id = 39
+    message_type_id = 40
     prefix: list[str] = ['<S>', '<SWITCHEROO>']
     argc = [6]
 
@@ -687,7 +692,7 @@ class SwitcherooMessage(RequestMessage, ResponseMessage):
 
 
 class RemoveOneWayWallMessage(RequestMessage, ResponseMessage):
-    message_type_id = 40
+    message_type_id = 41
     prefix: list[str] = ['<S>', '<REMOVE_ONEWAY_WALL>']
     argc = [4]
 
@@ -704,7 +709,7 @@ class RemoveOneWayWallMessage(RequestMessage, ResponseMessage):
 
 
 class BankruptActionMessage(RequestMessage, ResponseMessage):
-    message_type_id = 41
+    message_type_id = 42
     prefix: list[str] = ['<S>', '<BR_ANIMATION>']
     argc = [3]
 
@@ -721,7 +726,7 @@ class BankruptActionMessage(RequestMessage, ResponseMessage):
 
 
 class RemovePlayerMessage(RequestMessage, ResponseMessage):
-    message_type_id = 42
+    message_type_id = 43
     prefix: list[str] = ['<S>', '<REMOVE_PLAYER>']
     argc = [3]
 
@@ -734,7 +739,7 @@ class RemovePlayerMessage(RequestMessage, ResponseMessage):
 
 
 class PowerNoEffectMessage(RequestMessage, ResponseMessage):
-    message_type_id = 43
+    message_type_id = 44
     prefix: list[str] = ['<S>', '<NO_EFFECT_OPP>']
     argc = [3]
 
@@ -747,7 +752,7 @@ class PowerNoEffectMessage(RequestMessage, ResponseMessage):
 
 
 class NukeMessage(RequestMessage, ResponseMessage):
-    message_type_id = 44
+    message_type_id = 45
     prefix: list[str] = ['<S>', '<NUKE>']
     argc = [2]
 
@@ -757,7 +762,7 @@ class NukeMessage(RequestMessage, ResponseMessage):
 
 
 class JumpOnPieceMessage(RequestMessage, ResponseMessage):
-    message_type_id = 45
+    message_type_id = 46
     prefix: list[str] = ['<S>', '<JUMP_ON_PIECE_ANIMATION>']
     argc = [4]
 
@@ -773,7 +778,7 @@ class JumpOnPieceMessage(RequestMessage, ResponseMessage):
 
 
 class GetPowerSquareMessage(RequestMessage, ResponseMessage):
-    message_type_id = 46
+    message_type_id = 47
     prefix: list[str] = ['<S>', '<GET_POWER_SQUARE>']
     argc = [4]
 
@@ -789,7 +794,7 @@ class GetPowerSquareMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsLoadedMessage(RequestMessage, ResponseMessage):
-    message_type_id = 47
+    message_type_id = 48
     prefix: list[str] = ['<S>', '<SETTINGS>', '<LOADED>']
     argc = [4]
 
@@ -802,7 +807,7 @@ class SettingsLoadedMessage(RequestMessage, ResponseMessage):
 
 
 class AssignPowerSquareMessage(RequestMessage, ResponseMessage):
-    message_type_id = 48
+    message_type_id = 49
     prefix: list[str] = ['<S>', '<ASSIGN_POWER_SQUARE>']
     argc = [4]
 
@@ -818,7 +823,7 @@ class AssignPowerSquareMessage(RequestMessage, ResponseMessage):
 
 
 class AssignNextPowerCountMessage(RequestMessage, ResponseMessage):
-    message_type_id = 49
+    message_type_id = 50
     prefix: list[str] = ['<S>', '<ASSIGN_NEXT_POWER_COUNT>']
     argc = [3]
 
@@ -831,7 +836,7 @@ class AssignNextPowerCountMessage(RequestMessage, ResponseMessage):
 
 
 class NewGridCoordMessage(RequestMessage, ResponseMessage):
-    message_type_id = 50
+    message_type_id = 51
     prefix: list[str] = ['<S>', '<NEW_GRID_CORD>']
     argc = [6]
 
@@ -853,7 +858,7 @@ class NewGridCoordMessage(RequestMessage, ResponseMessage):
 
 
 class ResignMessage(RequestMessage, ResponseMessage):
-    message_type_id = 51
+    message_type_id = 52
     prefix: list[str] = ['<S>', '<SETTINGS>', '<RESIGN>']
     argc = [3]
 
@@ -863,7 +868,7 @@ class ResignMessage(RequestMessage, ResponseMessage):
 
 
 class ChallengeMessage(RequestMessage, ResponseMessage):
-    message_type_id = 52
+    message_type_id = 53
     prefix: tuple[str, None, None, str] = ('<S>', None, None, '<SHALLWEPLAYAGAME?>')
     argc = [4]
 
@@ -879,7 +884,7 @@ class ChallengeMessage(RequestMessage, ResponseMessage):
 
 
 class ChallengeAuthMessage(RequestMessage, ResponseMessage):
-    message_type_id = 53
+    message_type_id = 54
     prefix: tuple[str, None, None, str] = ('<S>', None, None, '<AUTHENTICATION>')
     argc = [5]
 
@@ -898,7 +903,7 @@ class ChallengeAuthMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsReadyOffMessage(RequestMessage, ResponseMessage):
-    message_type_id = 54
+    message_type_id = 55
     prefix: list[str] = ['<S>', '<SETTINGS>', '<READY_OFF>']
     argc = [3]
 
@@ -908,7 +913,7 @@ class SettingsReadyOffMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsArenaSizeMessage(RequestMessage, ResponseMessage):
-    message_type_id = 55
+    message_type_id = 56
     prefix: list[str] = ['<S>', '<SETTINGS>', '<ARENA_SIZE>']
     argc = [4]
 
@@ -929,7 +934,7 @@ class SettingsArenaSizeMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsSquadronSizeMessage(RequestMessage, ResponseMessage):
-    message_type_id = 56
+    message_type_id = 57
     prefix: list[str] = ['<S>', '<SETTINGS>', '<SQUADRON_SIZE>']
     argc = [4]
 
@@ -950,7 +955,7 @@ class SettingsSquadronSizeMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsTimerMessage(RequestMessage, ResponseMessage):
-    message_type_id = 57
+    message_type_id = 58
     prefix: list[str] = ['<S>', '<SETTINGS>', '<TIMER>']
     argc = [4]
 
@@ -971,7 +976,7 @@ class SettingsTimerMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsTopBottomMessage(RequestMessage, ResponseMessage):
-    message_type_id = 58
+    message_type_id = 59
     prefix: list[str] = ['<S>', '<SETTINGS>', '<TOP_BOTTOM>']
     argc = [4]
 
@@ -984,7 +989,7 @@ class SettingsTopBottomMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsColorMessage(RequestMessage, ResponseMessage):
-    message_type_id = 59
+    message_type_id = 60
     prefix: list[str] = ['<S>', '<SETTINGS>', '<COLOR>']
     argc = [5]
 
@@ -1000,7 +1005,7 @@ class SettingsColorMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsReadyOnMessage(RequestMessage, ResponseMessage):
-    message_type_id = 60
+    message_type_id = 61
     prefix: list[str] = ['<S>', '<SETTINGS>', '<READY_ON>']
     argc = [7]
 
@@ -1022,7 +1027,7 @@ class SettingsReadyOnMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsReadyOnAgainMessage(RequestMessage, ResponseMessage):
-    message_type_id = 61
+    message_type_id = 62
     prefix: list[str] = ['<S>', '<SETTINGS>', '<READY_ON>']
     argc = [3]
 

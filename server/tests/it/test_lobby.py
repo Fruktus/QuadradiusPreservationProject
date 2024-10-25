@@ -1,10 +1,12 @@
 import asyncio
 from unittest.mock import patch
+from datetime import datetime
 
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import JoinLobbyRequest, LobbyStateResponse, LobbyDuplicateResponse, SetCommentRequest, \
     NameTakenRequest, NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, \
-    ChangePasswordResponseOk, LobbyBadMemberResponse, LobbyChatMessage
+    ChangePasswordResponseOk, LobbyBadMemberResponse, LobbyChatMessage, ServerRankingRequest, \
+    ServerRankingThisMonthResponse, ServerRankingResponse
 from . import QuadradiusIntegrationTestCase
 
 
@@ -259,3 +261,23 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         client = await self.new_lobby_client()
         await client.join_lobby('Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
         await client.assert_received_message(LobbyChatMessage.new(None, 'You have been banned. Reason: Test banned'))
+
+    @patch('QRServer.lobby.lobbyclient.datetime')
+    async def test_ranking(self, datetime_mock):
+        datetime_mock.now.return_value = datetime.fromisoformat('2024-10-01T00:00:00')
+        datetime_mock.side_effect = lambda *x: datetime(*x)
+
+        client = await self.new_lobby_client()
+
+        await client.send_message(
+            JoinLobbyRequest.new('John', 'cf585d509bf09ce1d2ff5d4226b7dacb'))
+        await client.assert_received_message(
+            LobbyStateResponse.new([LobbyPlayer(username='John')]))
+
+        await client.send_message(
+            ServerRankingRequest.new('2024', '10'))
+        await client.assert_received_message(ServerRankingThisMonthResponse.new([]))
+
+        await client.send_message(
+            ServerRankingRequest.new('2024', '9'))
+        await client.assert_received_message(ServerRankingResponse.new([]))

@@ -20,7 +20,6 @@ and the original authors should in no way be held accountable for any liabilitie
 ## Where to play
 You can play the current build at [quadradius.ddns.net](https://quadradius.ddns.net/).
 You can register a member account on our Discord server.
-In the future we will most likely add some way to register to enable ranked play.
 The game is and will be free to play.
 If you'd like to discuss anything with us (authors) or fellow players you can join our discord server linked at the top or use [this link](https://discord.gg/cVkV8pah4d).
 

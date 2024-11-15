@@ -125,7 +125,7 @@ class ClientHandler(abc.ABC):
         auto_register = self.config.auto_register.get()
         db_user = await self.connector.authenticate_user(
             username=username,
-            password=None if is_guest or auth_disabled else password.encode('ascii'),
+            password=None if auth_disabled else password.encode('ascii'),
             auto_create=(is_guest or auto_register or auth_disabled),
             verify_password=(not auth_disabled))
         if db_user:

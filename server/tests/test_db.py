@@ -137,7 +137,9 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_ranking(self):
         with patch('uuid.uuid4') as mock_uuid:
-            # Generate 5 matches for user 1 in month 1
+            # Set up 4 users
+            mock_uuid.return_value = '0'
+            user0 = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
             mock_uuid.return_value = '1'
             user1 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
             mock_uuid.return_value = '2'
@@ -145,6 +147,26 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             mock_uuid.return_value = '3'
             user3 = await self.conn.authenticate_user('test_user_3', b'password', auto_create=True)
 
+            # Generate 7 matches for user 1 in month 1
+            for i in range(1, 8):
+                mock_uuid.return_value = f'0{i}'
+                test_match = DbMatchReport(
+                    winner_id=user0.user_id,
+                    loser_id=user2.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # Generate 5 matches for user 1 in month 1
             for i in range(1, 6):
                 mock_uuid.return_value = f'1{i}'
                 test_match = DbMatchReport(
@@ -201,7 +223,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
                 await self.conn.add_match_result(test_match)
 
-            # Generate 2 unranked matches
+            # Generate 2 unranked matches in month 1
             for i in range(1, 3):
                 mock_uuid.return_value = f'4{i}'
                 test_match = DbMatchReport(
@@ -240,26 +262,30 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 await self.conn.add_match_result(test_match)
 
             ranking_entries_default = [
-                RankingEntry(player='test_user_2', wins=10, games=15),
+                RankingEntry(player='test_user_0', wins=7, games=7),
                 RankingEntry(player='test_user_1', wins=5, games=5),
+                RankingEntry(player='test_user_2', wins=10, games=22),
                 RankingEntry(player='test_user_3', wins=0, games=10),
             ]
 
             ranking_entries_unranked = [
-                RankingEntry(player='test_user_2', wins=12, games=17),
+                RankingEntry(player='test_user_0', wins=7, games=7),
                 RankingEntry(player='test_user_1', wins=5, games=5),
+                RankingEntry(player='test_user_2', wins=12, games=24),
                 RankingEntry(player='test_user_3', wins=0, games=12),
             ]
 
             ranking_entries_void = [
-                RankingEntry(player='test_user_2', wins=13, games=18),
+                RankingEntry(player='test_user_0', wins=7, games=7),
                 RankingEntry(player='test_user_1', wins=5, games=5),
+                RankingEntry(player='test_user_2', wins=13, games=25),
                 RankingEntry(player='test_user_3', wins=0, games=13),
             ]
 
             ranking_entries_full = [
-                RankingEntry(player='test_user_2', wins=15, games=20),
+                RankingEntry(player='test_user_0', wins=7, games=7),
                 RankingEntry(player='test_user_1', wins=5, games=5),
+                RankingEntry(player='test_user_2', wins=15, games=27),
                 RankingEntry(player='test_user_3', wins=0, games=15),
             ]
 

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from typing import Tuple
@@ -6,6 +7,7 @@ from hashlib import md5
 from QRServer.common import utils
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
+from QRServer.metrics import get_storage_instance
 import discord
 
 log = logging.getLogger('qr.bot')
@@ -19,6 +21,7 @@ class DiscordBot:
     def __init__(self, config: Config, connector: DbConnector):
         self.config = config
         self.connector = connector
+        self.metrics_storage = get_storage_instance()
 
         self.token = self.config.discord_bot_token.get()
         self.guild_id = self.config.guild_id.get()
@@ -83,10 +86,22 @@ class DiscordBot:
         Called when the bot is ready to start receiving events
         Sets bot's status and syncs the slash commands"""
 
-        await self.client.change_presence(
-            activity=discord.Activity(type=discord.ActivityType.watching, name="QR battles"))
         await self.tree.sync(guild=discord.Object(id=self.guild_id))
+        asyncio.create_task(self._update_presence())
         log.info("Discord bot is ready")
+
+    async def _update_presence(self):
+        while True:
+            active_games = self.metrics_storage.active_games
+            presence = 'no QR Battles at the moment' if not active_games else \
+                f'{active_games} QR Battle{"s" if active_games > 1 else ""}'
+
+            await self.client.change_presence(
+                activity=discord.Activity(
+                    type=discord.ActivityType.watching, name=presence
+                    )
+                )
+            await asyncio.sleep(60)
 
     async def _register(self, interaction: discord.Interaction, username: str) -> None:
         log.debug(f"Register command received from '{interaction.user}' for account '{username}'")

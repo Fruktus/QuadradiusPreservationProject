@@ -122,22 +122,29 @@ class DiscordBot:
             discord_user_id=interaction.user.id,
         )
 
-        # Respond to interaction so it doesn't show as command fail
-        # and send credentials via DM
-        await interaction.response.send_message(
-            f"Registered account: `{username}`, credentials have been sent via DM.",
-            ephemeral=True)
-        await interaction.user.send(
-            "### Registration successful\n"
-            f"- Registered account: `{username}`.\n"
-            f"- Current password is: ||`{password}`||.\n"
-            "You can change it in the game.\n"
-            f"If you forget it, you can run `/resetpassword {username}` to reset it.")
-
         await self._send_user_notification(
             "### Account registered\n"
             f"- Owner: <@{interaction.user.id}>\n"
             f"- Username: `{username}`")
+
+        # Respond to interaction so it doesn't show as command fail
+        # and send credentials via DM
+        try:
+            await interaction.user.send(
+                "### Registration successful\n"
+                f"- Registered account: `{username}`.\n"
+                f"- Current password is: ||`{password}`||.\n"
+                "You can change it in the game.\n"
+                f"If you forget it, you can run `/resetpassword {username}` to reset it.")
+
+            await interaction.response.send_message(
+                f"Registered account: `{username}`, credentials have been sent via DM.",
+                ephemeral=True)
+        except Exception as e:
+            log.warning("Failed to send register credentials via DM", exc_info=e)
+            await interaction.response.send_message(
+                f"Registered account: `{username}`, failed to send credentials - check privacy settings.",
+                ephemeral=True)
 
     async def _claim(self, interaction: discord.Interaction, username: str) -> None:
         log.debug(f"Claim command received from '{interaction.user}' for account '{username}'")
@@ -174,22 +181,29 @@ class DiscordBot:
             discord_user_id=interaction.user.id,
         )
 
-        # Respond to interaction so it doesn't show as command fail
-        # and send credentials via DM
-        await interaction.response.send_message(
-            f"Claimed account: `{username}`, credentials have been sent via DM.",
-            ephemeral=True)
-        await interaction.user.send(
-            "### Claim successful\n"
-            f"- Claimed account: `{username}`.\n"
-            f"- Current password is: ||`{password}`||.\n"
-            "You can change it in the game.\n"
-            f"If you forget it, you can run `/resetpassword {username}` to reset it.")
-
         await self._send_user_notification(
             "### Account claimed\n"
             f"- Owner: <@{interaction.user.id}>\n"
             f"- Username: `{username}`")
+
+        # Respond to interaction so it doesn't show as command fail
+        # and send credentials via DM
+        try:
+            await interaction.user.send(
+                "### Claim successful\n"
+                f"- Claimed account: `{username}`.\n"
+                f"- Current password is: ||`{password}`||.\n"
+                "You can change it in the game.\n"
+                f"If you forget it, you can run `/resetpassword {username}` to reset it.")
+
+            await interaction.response.send_message(
+                f"Claimed account: `{username}`, credentials have been sent via DM.",
+                ephemeral=True)
+        except Exception as e:
+            log.warning("Failed to send claim credentials via DM", exc_info=e)
+            await interaction.response.send_message(
+                f"Claimed account: `{username}`, failed to send credentials - check privacy settings.",
+                ephemeral=True)
 
     async def _reset_password(self, interaction: discord.Interaction, username: str) -> None:
         log.debug(f"resetpassword command received from '{interaction.user}'")
@@ -218,13 +232,19 @@ class DiscordBot:
 
         # Respond to interaction so it doesn't show as command fail
         # and send credentials via DM
-        await interaction.response.send_message(
-            f"Password for account was reset: `{username}`, credentials have been sent via DM.",
-            ephemeral=True)
-        await interaction.user.send(
-            "### Password reset successful\n"
-            f"Password was reset for account: `{username}`.\n"
-            f"Your new password is: ||`{password}`||.")
+        try:
+            await interaction.user.send(
+                "### Password reset successful\n"
+                f"Password was reset for account: `{username}`.\n"
+                f"Your new password is: ||`{password}`||.")
+            await interaction.response.send_message(
+                f"Password for account was reset: `{username}`, credentials have been sent via DM.",
+                ephemeral=True)
+        except Exception as e:
+            log.warning("Failed to send new password via DM", exc_info=e)
+            await interaction.response.send_message(
+                f"Password for account was reset: `{username}`, failed to send credentials - check privacy settings.",
+                ephemeral=True)
 
     def _validate_username(self, username: str) -> Tuple[bool, str]:
         # Checks if the username is of correct length and format

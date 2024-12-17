@@ -283,9 +283,96 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 RankingEntry(username='test_user_2', user_id='2', wins=10, games=22),
                 RankingEntry(username='test_user_3', user_id='3', wins=0, games=10),
             ]
+
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
 
             self.assertEqual(ranking_entries, await self.conn.get_ranking(
+                start_date=start_date, end_date=end_date
+            ))
+
+    async def test_get_ranking_elo(self):
+        # Test to check if the difference between playing against the same vs different players
+        # is noticeable
+        with patch('uuid.uuid4') as mock_uuid:
+            # Set up 4 users
+            mock_uuid.return_value = '0'
+            user0 = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            mock_uuid.return_value = '1'
+            user1 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+            mock_uuid.return_value = '2'
+            user2 = await self.conn.authenticate_user('test_user_2', b'password', auto_create=True)
+            mock_uuid.return_value = '3'
+            user3 = await self.conn.authenticate_user('test_user_3', b'password', auto_create=True)
+
+            # Generate 2 matches for user_2 (winner) vs user_3 (loser)
+            for i in range(1, 3):
+                mock_uuid.return_value = f'1{i}'
+                test_match = DbMatchReport(
+                    winner_id=user2.user_id,
+                    loser_id=user3.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # Generate 2 matches for user_2 (winner) vs user_1 (loser)
+            for i in range(1, 3):
+                mock_uuid.return_value = f'2{i}'
+                test_match = DbMatchReport(
+                    winner_id=user2.user_id,
+                    loser_id=user1.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # Generate 5 matches for user_0 (winner) vs user_1 (loser) - user_1 lost some rating on user_2
+            for i in range(1, 6):
+                mock_uuid.return_value = f'0{i}'
+                test_match = DbMatchReport(
+                    winner_id=user0.user_id,
+                    loser_id=user1.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # user_2 played less games than user_1,
+            # but played against different players, therefore should have higher rating
+            ranking_entries_default = [
+                RankingEntry(user_id='2', username='test_user_2', wins=4, games=4),
+                RankingEntry(user_id='0', username='test_user_0', wins=5, games=5),
+                RankingEntry(user_id='3', username='test_user_3', wins=0, games=2),
+                RankingEntry(user_id='1', username='test_user_1', wins=0, games=7),
+            ]
+
+            start_date, end_date = utils.make_month_dates(month=1, year=2020)
+
+            self.assertEqual(ranking_entries_default, await self.conn.get_ranking(
                 start_date=start_date, end_date=end_date
             ))
 
@@ -482,3 +569,20 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(ranking_data), 2)
         self.assertEqual(ranking_data[0], (2020, 1, 1, '1', 1, 1))
         self.assertEqual(ranking_data[1], (2020, 1, 2, '2', 0, 1))
+
+    async def test_migration_v7(self):
+        await migrations.execute_migrations(self.c, self.dbconn.config, 6)
+
+        self.assertNotIn('user_ratings', await self.get_table_names())
+
+        await migrations.execute_migrations(self.c, self.dbconn.config, 7)
+
+        self.assertIn('user_ratings', await self.get_table_names())
+
+        table_info = await self.get_table_info('user_ratings')
+        self.assertEqual(len(table_info), 5)
+        self.assertEqual(table_info[0][:3], (0, 'user_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'year', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'month', 'INTEGER'))
+        self.assertEqual(table_info[3][:3], (3, 'revision', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'rating', 'INTEGER'))

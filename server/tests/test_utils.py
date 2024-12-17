@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime as dt
-
+import random as rnd
 from QRServer.common import utils
 
 
@@ -85,3 +85,69 @@ class MakeMonthDatesRange(unittest.TestCase):
                 dt(2021, 2, 1),
             ]
         )
+
+
+class CalculateNewRatingsTest(unittest.TestCase):
+    def test_rating_change(self):
+        player_1_rating = 500
+        player_2_rating = 500
+
+        player_1_rating, player_2_rating = utils.calculate_new_ratings(
+                player_1_rating, player_2_rating)
+
+        self.assertEqual(player_1_rating, 532)
+        self.assertEqual(player_2_rating, 468)
+
+    def test_rating_vs_different_players(self):
+        # Playing against the same player the same amount of times as someone who plays
+        # against different opponents should result in higher score
+        player_1_rating = 500
+        player_2_rating = 500
+        player_3_rating = 500
+
+        for _ in range(10):
+            player_1_rating, player_2_rating = utils.calculate_new_ratings(
+                player_1_rating, player_2_rating)
+
+        self.assertEqual(player_1_rating, 670)
+        self.assertEqual(player_2_rating, 330)
+
+        for _ in range(10):
+            player_3_rating, _ = utils.calculate_new_ratings(
+                player_3_rating, 500)
+
+        self.assertEqual(player_3_rating, 720)
+        self.assertGreater(player_3_rating, player_1_rating)
+
+    def test_rating_ratio(self):
+        # The ratio betweem winner/loser should remain roughly the same
+        # if the percentage remains the same
+        rnd.seed(2222)
+        player_1_rating = 500
+        player_2_rating = 500
+
+        for _ in range(1000):
+            if rnd.randrange(0, 100) > 80:
+                player_1_rating, player_2_rating = utils.calculate_new_ratings(
+                    player_1_rating, player_2_rating)
+            else:
+                player_2_rating, player_1_rating = utils.calculate_new_ratings(
+                    player_2_rating, player_1_rating)
+
+        rating_ratio_10 = player_1_rating / player_2_rating
+
+        player_1_rating = 500
+        player_2_rating = 500
+
+        for _ in range(3000):
+            if rnd.randrange(0, 100) > 80:
+                player_1_rating, player_2_rating = utils.calculate_new_ratings(
+                    player_1_rating, player_2_rating)
+            else:
+                player_2_rating, player_1_rating = utils.calculate_new_ratings(
+                    player_2_rating, player_1_rating)
+
+        rating_ratio_100 = player_1_rating / player_2_rating
+
+        self.assertEqual(round(rating_ratio_10, 2), 0.49)
+        self.assertEqual(round(rating_ratio_100, 2), 0.44)

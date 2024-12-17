@@ -33,3 +33,12 @@ class DbMatchReport:
     is_ranked: bool
     is_void: bool
     match_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+
+
+@dataclass
+class UserRating:
+    user_id: str
+    month: int
+    year: int
+    rating: int = field(default=500)
+    revision: int = field(default=0)

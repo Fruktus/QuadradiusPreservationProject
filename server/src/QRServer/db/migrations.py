@@ -54,6 +54,18 @@ async def execute_migrations(c):
             " add column discord_user_id varchar"
         )
         await _set_version(c, 5)
+    if version <= 5:
+        await c.execute(
+            "create table user_ratings ("
+            " user_id varchar,"
+            " year integer,"
+            " month integer,"
+            " revision integer,"
+            " rating real,"
+            " primary key (user_id, year, month)"
+            ")"
+        )
+        await _set_version(c, 6)
 
 
 async def _select_version(c):

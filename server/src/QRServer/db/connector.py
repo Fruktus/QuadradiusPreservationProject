@@ -7,8 +7,9 @@ from typing import List, Optional
 import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, RankingEntry
+from QRServer.common.utils import calculate_new_ratings
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport
+from QRServer.db.models import DbUser, DbMatchReport, UserRating
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -290,16 +291,19 @@ class DbConnector:
             " u.username,"
             " sum(m.winner_id = u.id) as total_wins,"
             " count(*) as total_games,"
-            " (sum(m.winner_id = u.id) * 1.0 / count(*)) as win_percentage"
+            " r.rating"
             " from users u"
             " inner join matches m on (u.id = m.winner_id or u.id = m.loser_id)"
+            " inner join user_ratings r on (u.id = r.user_id) and r.month = ? and r.year = ?"
             " where m.started_at >= ?"
             " and m.finished_at < ?"
             " and (case when ? = 1 then m.is_ranked = 1 else 1=1 end)"
             " and (case when ? = 0 then m.is_void = 0 else 1=1 end)"
             " group by u.username"
-            " order by win_percentage desc, total_wins desc"
+            " order by rating desc"
             " limit 100", (
+                start_date.month,
+                start_date.year,
                 start_date.timestamp(),
                 end_date.timestamp(),
                 1 if ranked_only else 0,
@@ -316,6 +320,77 @@ class DbConnector:
                 games=row[2],
             ))
         return ranking_entries
+
+    async def get_user_ranking(self, user_id: str, month: int, year: int) -> Optional[UserRating]:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select"
+            " rating,"
+            " revision"
+            " from user_ratings"
+            " where user_id = ?"
+            " and month = ?"
+            " and year = ?",
+            (user_id, month, year)
+            )
+        row = await c.fetchone()
+        if row:
+            return UserRating(user_id, month, year, rating=row[0], revision=row[1])
+        return None
+
+    async def update_users_ranking(self, winner_id: str, loser_id: str, month: int, year: int):
+        # CONSTS
+        RETRIES = 3
+        for _ in range(RETRIES):
+            winner = await self.get_user_ranking(winner_id, month, year)
+            winner_exists = bool(winner)
+            if not winner_exists:
+                winner = UserRating(winner_id, month, year)
+
+            loser = await self.get_user_ranking(loser_id, month, year)
+            loser_exists = bool(loser)
+            if not loser_exists:
+                loser = UserRating(loser_id, month, year)
+
+            new_winner_rating, new_loser_rating = calculate_new_ratings(winner.rating, loser.rating)
+
+            c = await self.conn.cursor()
+
+            if not winner_exists:
+                await c.execute(
+                    "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
+                        winner.user_id, month, year, winner.revision, new_winner_rating
+                    )
+                )
+            else:
+                await c.execute(
+                    "update user_ratings set rating = ?, revision = ?"
+                    " where user_id = ? and month = ? and year = ? and revision = ? returning *", (
+                        new_winner_rating, winner.revision + 1, winner_id, month, year, winner.revision
+                    )
+                )
+
+                row = await c.fetchone()
+                if not row:
+                    self.conn.rollback()
+
+            if not loser_exists:
+                await c.execute(
+                    "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
+                        loser.user_id, month, year, loser.revision, new_loser_rating
+                    )
+                )
+            else:
+                await c.execute(
+                    "update user_ratings set rating = ?, revision = ?"
+                    " where user_id = ? and month = ? and year = ? and revision = ? returning *", (
+                        new_loser_rating, loser.revision + 1, loser_id, month, year, loser.revision
+                    )
+                )
+                row = await c.fetchone()
+                if not row:
+                    self.conn.rollback()
+            self.conn.commit()
 
     async def close(self):
         await self.conn.close()

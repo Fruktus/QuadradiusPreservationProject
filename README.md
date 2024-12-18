@@ -1,6 +1,6 @@
 # Quadradius Preservation Project
 [![release](https://img.shields.io/github/v/tag/fruktus/QuadradiusPreservationProject?label=release)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
-[![platform](https://img.shields.io/badge/python-3.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/downloads/)
+[![platform](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/downloads/)
 [![server-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml)
 [![launcher-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml)
 [![GitHub all releases](https://img.shields.io/github/downloads/Fruktus/QuadradiusPreservationProject/total)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)

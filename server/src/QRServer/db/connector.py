@@ -21,7 +21,7 @@ class DbConnector:
         self.file = file
 
     async def connect(self):
-        self.conn = await aiosqlite.connect(self.file)
+        self.conn = await aiosqlite.connect(self.file, autocommit=False)
         c = await self.conn.cursor()
         await migrations.setup_metadata(c)
         await migrations.execute_migrations(c)
@@ -113,6 +113,7 @@ class DbConnector:
                     None
                 )
             )
+            await self.conn.commit()
 
         await c.execute("select id, username, password, created_at, discord_user_id from users where username = ?",
                         (username,))
@@ -141,6 +142,7 @@ class DbConnector:
                 password_hash(password) if password else None,
                 user_id
             ))
+        await self.conn.commit()
 
     async def claim_member(self, user_id: str, password: Optional[bytes], discord_user_id: str):
         c = await self.conn.cursor()
@@ -150,6 +152,7 @@ class DbConnector:
                 discord_user_id,
                 user_id,
             ))
+        await self.conn.commit()
 
     async def add_match_result(self, match_result: DbMatchReport):
         c = await self.conn.cursor()

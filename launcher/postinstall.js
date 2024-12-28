@@ -55,8 +55,8 @@ const ruffleFormat = {
     'win32': 'zip',
 }[platform]
 
-const pythonDistribution = `cpython-3.9.18+20240107-${pythonArch}-${pythonPlatform}-install_only.tar.gz`
-const pythonDistributionUrl = `https://github.com/indygreg/python-build-standalone/releases/download/20240107/${pythonDistribution}`
+const pythonDistribution = `cpython-3.12.8+20241219-${pythonArch}-${pythonPlatform}-install_only.tar.gz`
+const pythonDistributionUrl = `https://github.com/indygreg/python-build-standalone/releases/download/20241219/${pythonDistribution}`
 
 const gameSwfUrl = 'https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_game.swf'
 const lobbySwfUrl = 'https://github.com/Fruktus/QuadradiusClassic/raw/1.0.0/classic_quadradius/quadradius_lobby.swf'

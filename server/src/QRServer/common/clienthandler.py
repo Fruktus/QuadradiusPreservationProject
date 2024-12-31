@@ -1,6 +1,6 @@
 import abc
 import logging
-from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError
+from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError, LimitOverrunError
 from datetime import datetime
 from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine, Optional
 
@@ -43,7 +43,10 @@ class ClientHandler(abc.ABC):
         while True:
             try:
                 data = await self.reader.readuntil(b'\x00')
-            except (ConnectionResetError, CancelledError, IncompleteReadError):
+            except (ConnectionError, CancelledError, IncompleteReadError):
+                data = None
+            except LimitOverrunError:
+                log.exception("Limit overrun error")
                 data = None
 
             if not data:
@@ -116,7 +119,7 @@ class ClientHandler(abc.ABC):
         try:
             self.writer.write(message.to_data())
             await self.writer.drain()
-        except ConnectionResetError:
+        except ConnectionError:
             raise StopHandlerException()
 
     async def authenticate_user(self, username, password) -> Optional[DbUser]:

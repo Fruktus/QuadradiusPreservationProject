@@ -68,6 +68,8 @@ class MatchStats:
 
 class Match:
     id: MatchId
+    ranked: bool
+    users_voted_void: Set[str]
     user_ids: Set[str]
     parties: List[MatchParty]
     match_stats: Dict[str, MatchStats]
@@ -75,6 +77,9 @@ class Match:
     def __init__(self, _id: MatchId) -> None:
         super().__init__()
         self.id = _id
+        # Assume it's ranked unless a guest joins
+        self.ranked = True
+        self.users_voted_void = set()
         self.parties = []
         self.match_stats = {}
         self.user_ids = set()
@@ -96,6 +101,9 @@ class Match:
         self.parties.append(party)
         self.user_ids.add(party.user_id)
 
+        if party.is_guest:
+            self.ranked = False
+
         if len(self.parties) == 2:
             party.match_opponent(self.parties[0])
             self.parties[0].match_opponent(party)
@@ -103,6 +111,9 @@ class Match:
     def remove_party(self, party: MatchParty):
         if party not in self.parties:
             raise Exception('Cannot find the given party')
+
+        if party.is_void_score:
+            self.users_voted_void.add(party.user_id)
 
         self.parties.remove(party)
         if len(self.parties) > 0:
@@ -141,15 +152,16 @@ class Match:
             squadron_size=winner_stats.squadron_size,
             started_at=self.start_time,
             finished_at=datetime.now(),
-            is_ranked=self.is_ranked(),
+            is_ranked=self.ranked,
             is_void=self.is_void()
         )
 
     def is_void(self):
-        return all(party.is_void_score for party in self.parties)
+        for party in self.parties:
+            if party.is_void_score:
+                self.users_voted_void.add(party.user_id)
 
-    def is_ranked(self):
-        return all(not party.is_guest for party in self.parties)
+        return len(self.users_voted_void) == 2
 
 
 @dataclass

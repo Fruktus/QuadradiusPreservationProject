@@ -16,7 +16,7 @@ class DbUser:
 
     @property
     def is_guest(self):
-        return 'GUEST' in self.username and self.password is None
+        return self.username.lower().endswith(' guest')
 
 
 @dataclass

@@ -1,11 +1,16 @@
 # Quadradius Preservation Project
-[![release](https://img.shields.io/github/v/tag/fruktus/QuadradiusPreservationProject?label=release)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
 [![platform](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/downloads/)
 [![server-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml)
 [![launcher-ci](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/launcher.yml/badge.svg)](https://github.com/Fruktus/QuadradiusPreservationProject/actions/workflows/server.yml)
 [![GitHub all releases](https://img.shields.io/github/downloads/Fruktus/QuadradiusPreservationProject/total)](https://github.com/Fruktus/QuadradiusPreservationProject/releases)
 [![Subreddit subscribers](https://img.shields.io/reddit/subreddit-subscribers/quadradius?style=social)](https://www.reddit.com/r/quadradius/)
 [![Discord](https://img.shields.io/discord/1197227968112627802?label=Discord&color=7289da&link=https%3A%2F%2Fdiscord.gg%2FPBSYnzZtDG)](https://discord.gg/cVkV8pah4d)
+
+<div align="center">
+  <a href="https://quadradius.ddns.net/">
+    <img src="https://img.shields.io/badge/Play%20Now-fca903" alt="Play Now" width="200">
+  </a>
+</div>
 
 The goal of this project is to keep this game alive.
 The software contained in this repository is a reimplementation of the original server, which was written in Java.

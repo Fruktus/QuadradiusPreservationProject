@@ -1,3 +1,8 @@
+from datetime import datetime as dt
+from QRServer.common import utils
+from QRServer.common.classes import RankingEntry
+
+
 async def setup_metadata(c):
     await c.execute(
         "create table if not exists metadata ("
@@ -6,7 +11,7 @@ async def setup_metadata(c):
         ")")
 
 
-async def execute_migrations(c):
+async def execute_migrations(c, config):
     version = await _select_version(c)
     if version is None:
         await c.execute("insert into metadata (name, value) values ('version', '0')")
@@ -54,6 +59,94 @@ async def execute_migrations(c):
             " add column discord_user_id varchar"
         )
         await _set_version(c, 5)
+    if version <= 5:
+        await c.execute(
+            "create table rankings ("
+            "  year integer,"
+            "  month integer,"
+            "  position integer,"
+            "  user_id varchar,"
+            "  wins integer,"
+            "  total_games integer,"
+            "  primary key (year, month, position),"
+            "  foreign key(user_id) references users (id)"
+            ")"
+        )
+        await c.execute(
+            "select started_at"
+            " from matches"
+            " order by started_at asc"
+            " limit 1"
+        )
+        row = await c.fetchone()
+        if row:
+            first_timestamp = row[0]
+            first_dt = dt.fromtimestamp(first_timestamp)
+            dates_range = utils.make_month_dates_range(start_date=first_dt, end_date=dt.now())
+
+            ranked_only = config.leaderboards_ranked_only.get()
+            include_void = config.leaderboards_include_void.get()
+
+            for date in dates_range:
+                start_date, end_date = utils.make_month_dates(date.month, date.year)
+
+                # Generate rankings - same as the dbconnector's function at the time of writing
+                await c.execute(
+                    "select"
+                    " u.username,"
+                    " u.id,"
+                    " sum(m.winner_id = u.id) as total_wins,"
+                    " count(*) as total_games,"
+                    " (sum(m.winner_id = u.id) * 1.0 / count(*)) as win_percentage"
+                    " from users u"
+                    " inner join matches m on (u.id = m.winner_id or u.id = m.loser_id)"
+                    " where m.finished_at >= ?"
+                    " and m.finished_at < ?"
+                    " and (case when ? = 1 then m.is_ranked = 1 else 1=1 end)"
+                    " and (case when ? = 0 then m.is_void = 0 else 1=1 end)"
+                    " group by u.username"
+                    " order by win_percentage desc, total_wins desc"
+                    " limit 100", (
+                        start_date.timestamp(),
+                        end_date.timestamp(),
+                        1 if ranked_only else 0,
+                        1 if include_void else 0
+                    )
+                )
+
+                ranking_entries = []
+                rows = await c.fetchall()
+                for row in rows:
+                    ranking_entries.append(RankingEntry(
+                        username=row[0],
+                        user_id=row[1],
+                        wins=row[2],
+                        games=row[3],
+                    ))
+
+                # end
+                if ranking_entries:
+                    for position, entry in enumerate(ranking_entries):
+                        await c.execute(
+                            "insert or replace into rankings ("
+                            "  year,"
+                            "  month,"
+                            "  position,"
+                            "  user_id,"
+                            "  wins,"
+                            "  total_games"
+                            ") values ("
+                            "?, ?, ?, ?, ?, ?"
+                            ")", (
+                                date.year,
+                                date.month,
+                                position+1,
+                                entry.user_id,
+                                entry.wins,
+                                entry.games,
+                            ))
+
+        await _set_version(c, 6)
 
 
 async def _select_version(c):

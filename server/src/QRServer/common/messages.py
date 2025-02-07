@@ -437,7 +437,7 @@ class ServerRankingThisMonthResponse(ResponseMessage):
     @classmethod
     def __serialize_entry(cls, entry: RankingEntry):
         return [
-            entry.player,
+            entry.username,
             str(entry.wins),
             str(entry.games),
         ]

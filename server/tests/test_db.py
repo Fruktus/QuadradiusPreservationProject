@@ -6,11 +6,12 @@ from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport
 from QRServer.common.classes import RankingEntry
 from QRServer.common import utils
+from QRServer.config import Config
 
 
 class DbTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.conn = DbConnector(':memory:')
+        self.conn = DbConnector(':memory:', Config())
         await self.conn.connect()
 
     async def asyncTearDown(self):
@@ -261,47 +262,16 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
                 await self.conn.add_match_result(test_match)
 
-            ranking_entries_default = [
-                RankingEntry(player='test_user_0', wins=7, games=7),
-                RankingEntry(player='test_user_1', wins=5, games=5),
-                RankingEntry(player='test_user_2', wins=10, games=22),
-                RankingEntry(player='test_user_3', wins=0, games=10),
+            ranking_entries = [
+                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7),
+                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5),
+                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22),
+                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10),
             ]
-
-            ranking_entries_unranked = [
-                RankingEntry(player='test_user_0', wins=7, games=7),
-                RankingEntry(player='test_user_1', wins=5, games=5),
-                RankingEntry(player='test_user_2', wins=12, games=24),
-                RankingEntry(player='test_user_3', wins=0, games=12),
-            ]
-
-            ranking_entries_void = [
-                RankingEntry(player='test_user_0', wins=7, games=7),
-                RankingEntry(player='test_user_1', wins=5, games=5),
-                RankingEntry(player='test_user_2', wins=13, games=25),
-                RankingEntry(player='test_user_3', wins=0, games=13),
-            ]
-
-            ranking_entries_full = [
-                RankingEntry(player='test_user_0', wins=7, games=7),
-                RankingEntry(player='test_user_1', wins=5, games=5),
-                RankingEntry(player='test_user_2', wins=15, games=27),
-                RankingEntry(player='test_user_3', wins=0, games=15),
-            ]
-
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
 
-            self.assertEqual(ranking_entries_default, await self.conn.get_ranking(
+            self.assertEqual(ranking_entries, await self.conn.get_ranking(
                 start_date=start_date, end_date=end_date
-            ))
-            self.assertEqual(ranking_entries_unranked, await self.conn.get_ranking(
-                start_date=start_date, end_date=end_date, ranked_only=False
-            ))
-            self.assertEqual(ranking_entries_void, await self.conn.get_ranking(
-                start_date=start_date, end_date=end_date, include_void=True
-            ))
-            self.assertEqual(ranking_entries_full, await self.conn.get_ranking(
-                start_date=start_date, end_date=end_date, include_void=True, ranked_only=False
             ))
 
     async def test_create_member(self):

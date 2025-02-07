@@ -15,7 +15,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.config.set('discord.bot.max_aliases', 1)
         self.config.set('discord.bot.channel_user_notifications.id', '111')
 
-        self.conn = DbConnector(':memory:')
+        self.conn = DbConnector(':memory:', self.config)
         await self.conn.connect()
 
         self.bot = DiscordBot(self.config, self.conn)

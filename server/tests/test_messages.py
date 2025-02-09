@@ -187,11 +187,15 @@ class ResponseMessagesTest(unittest.TestCase):
             RankingEntry(
                 player='test',
                 wins=5,
-                games=20),
+                games=20,
+                rating=None,
+            ),
             RankingEntry(
                 player='test2',
                 wins=7,
-                games=7),
+                games=7,
+                rating=None,
+            ),
         ])
         data = msg.to_data()
         self.assertEqual(

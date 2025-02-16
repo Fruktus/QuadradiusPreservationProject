@@ -185,11 +185,13 @@ class ResponseMessagesTest(unittest.TestCase):
     def test_server_ranking_this_month_response(self):
         msg = ServerRankingThisMonthResponse.new([
             RankingEntry(
-                player='test',
+                username='test',
+                user_id='',
                 wins=5,
                 games=20),
             RankingEntry(
-                player='test2',
+                username='test2',
+                user_id='',
                 wins=7,
                 games=7),
         ])

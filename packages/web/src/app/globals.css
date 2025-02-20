@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #746f67;
+  --text-primary: #bab4ac;
+  --primary: #007bff;
+  --secondary: #6c757d;
+  --accent: #311a16;
+  --neutral: #919993;
+  --base-100: #b7b396;
+  --base-200: #311a16;
+  --base-300: #21120e;
+  --base-400: #120a07;
+  --base-500: #0a0a0a;
+  --base-600: #050505;
+  --base-700: #020202;
+  --base-800: #010101;
+  --base-900: #24241f;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}

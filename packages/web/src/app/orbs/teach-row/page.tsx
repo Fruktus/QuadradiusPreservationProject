@@ -1,6 +1,7 @@
+import { JSX } from "react";
 import Link from "next/link";
 
-export default function MultiplyPage() {
+export default function TeachRowPage(): JSX.Element {
   return (
     <div className="prose max-w-none p-6">
       <div className="flex items-start gap-8">
@@ -13,25 +14,24 @@ export default function MultiplyPage() {
 
         <div className="w-2/3">
           <div className="flex items-center gap-4 mb-6">
-            <h1 className="text-3xl font-bold m-0">Multiply</h1>
+            <h1 className="text-3xl font-bold m-0">Teach Row</h1>
           </div>
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Description</h2>
             <p className="text-gray-400">
-              Generates a new piece in the arena. This new piece will have no
-              powers of its own, but by adding pieces, you gain more coverage
-              and control of the battle arena and limit your opponent&apos;s
-              movement.
+              Teaches all powers from this piece to any friendly pieces in the
+              same row. The width of this power can be extended with Grow
+              Quadradius.
             </p>
           </div>
 
           <div>
             <h2 className="text-xl font-semibold mb-2">Strategy</h2>
             <p className="text-gray-400">
-              Use it to confront an opponent and entice them to jump your newly
-              formed piece. Then jump them back, and you come out of the
-              confrontation ahead.
+              Best used when your pieces are aligned horizontally. Position your
+              teaching piece at one end of the row to maximize the number of
+              pieces that can learn its powers.
             </p>
           </div>
         </div>

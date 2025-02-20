@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function CancelMultiplyPage() {
   return (
     <div className="prose max-w-none p-6">
@@ -35,12 +37,9 @@ export default function CancelMultiplyPage() {
       </div>
 
       <div className="mt-8">
-        <a
-          href="/quadradius/orbs"
-          className="text-blue-600 hover:text-blue-800"
-        >
+        <Link href="/orbs" className="text-blue-600 hover:text-blue-800">
           ← Back to Powers List
-        </a>
+        </Link>
       </div>
     </div>
   );

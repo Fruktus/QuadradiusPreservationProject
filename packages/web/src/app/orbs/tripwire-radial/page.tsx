@@ -1,6 +1,7 @@
+import { JSX } from "react";
 import Link from "next/link";
 
-export default function MultiplyPage() {
+export default function TripwireRadialPage(): JSX.Element {
   return (
     <div className="prose max-w-none p-6">
       <div className="flex items-start gap-8">
@@ -13,25 +14,24 @@ export default function MultiplyPage() {
 
         <div className="w-2/3">
           <div className="flex items-center gap-4 mb-6">
-            <h1 className="text-3xl font-bold m-0">Multiply</h1>
+            <h1 className="text-3xl font-bold m-0">Tripwire Radial</h1>
           </div>
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Description</h2>
             <p className="text-gray-400">
-              Generates a new piece in the arena. This new piece will have no
-              powers of its own, but by adding pieces, you gain more coverage
-              and control of the battle arena and limit your opponent&apos;s
-              movement.
+              Creates invisible tripwires in a radial pattern that trigger when
+              enemy pieces move through them. The range can be extended with
+              Grow Quadradius.
             </p>
           </div>
 
           <div>
             <h2 className="text-xl font-semibold mb-2">Strategy</h2>
             <p className="text-gray-400">
-              Use it to confront an opponent and entice them to jump your newly
-              formed piece. Then jump them back, and you come out of the
-              confrontation ahead.
+              Place tripwires around key positions or choke points to control
+              enemy movement. Multiple overlapping tripwires can create
+              effective defensive zones.
             </p>
           </div>
         </div>

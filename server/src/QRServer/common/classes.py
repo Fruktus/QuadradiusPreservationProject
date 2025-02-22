@@ -185,6 +185,7 @@ class RankingEntry:
     player: str
     wins: int
     games: int
+    rating: int
 
 
 @dataclass

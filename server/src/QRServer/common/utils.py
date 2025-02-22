@@ -17,3 +17,16 @@ def make_month_dates(month: int, year: int) -> tuple[datetime, datetime]:
 
 def generate_random_password(length: int) -> str:
     return ''.join([secrets.choice(string.ascii_letters + string.digits) for _ in range(length)])
+
+
+def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int = 64
+                          ) -> tuple[int, int]:
+    """Calculates new ratings according to ELO equation. The default values are meant for case when
+    the first player is a winner of a binary game (victory - score 1, lose - score 0)"""
+    expected_score_1 = 1 / (1 + pow(10, (loser_rating - winner_rating) / 400))
+    expected_score_2 = 1 / (1 + pow(10, (winner_rating - loser_rating) / 400))
+
+    new_winner_rating = winner_rating + k_factor * (1 - expected_score_1)
+    new_loser_rating = loser_rating + k_factor * (0 - expected_score_2)
+
+    return (round(new_winner_rating), round(new_loser_rating))

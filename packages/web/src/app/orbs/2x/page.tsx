@@ -4,12 +4,16 @@ export default function TwoXPage() {
   return (
     <OrbLayout
       title="2x"
-      description="Doubles the effectiveness of all powers on this piece. When used multiple times, powers can be quadrupled, octupled, etc."
+      description="Doubles the amount of powers your piece currently possesses. Best strategy is to wait until you acquire as many powers as possible before using it. This way you can maximize your gain."
       strategy={
         <p className="text-gray-400">
-          Best used on pieces that have powerful offensive abilities like
-          Destroy or Recruit. Multiple 2x powers can be stacked for exponential
-          effects.
+          While you can acquire more than one 2x Power, you can not self-double
+          a 2x Power (if you could, you could create an infinite amount of
+          powers). Try to hold onto this power until you build up your
+          piece&apos;s inventory. You&apos;ll gain much more. Also, great to use
+          in conjunction with Learn or Teach Powers. If this is done correctly,
+          your squadron can quickly become a super force that is near impossible
+          to defeat.
         </p>
       }
     />

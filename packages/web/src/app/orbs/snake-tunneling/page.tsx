@@ -9,7 +9,7 @@ export default function SnakeTunnelingPage() {
         <p className="text-gray-400">
           Use when enemy pieces are nearby, as the tunnel tends to seek them
           out. The raised tiles can also create barriers or paths. Combine with
-          Grow Quadradius to extend the tunnel's reach and coverage area.
+          Grow Quadradius to extend the tunnel&apos;s reach and coverage area.
         </p>
       }
     />

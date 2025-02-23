@@ -1,21 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is the web app for Quadradius manual. It is built with Next.js (react) and Tailwind
+CSS.
+It is utilizing server-side rendering (SSR) for performance and SEO.
+It is completely static and can be deployed to any static site host and has nothing to do with the actual game server.
 
-## Getting Started
+## Prerequisites
+
+- Node.js (v18 or higher)
+- npm (comes with Node.js)
+
+## Development
 
 Navigate to packages/web and run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+To run this on production, run:
+
+```bash
+npm run build
+npm run start
+```
+
+the `build` command will create a production build in a folder `.next`
+The `start` command will start the production server.

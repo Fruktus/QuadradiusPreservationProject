@@ -9,11 +9,11 @@ export default function GrowQuadradiusPage() {
         <>
           <p className="text-gray-400">
             A Grow Quadradius is only good if that piece has, or will have,
-            range-like powers. If you don't have any range-like powers (radial,
-            row, column), make it your priority to acquire some with that piece.
-            A normal radial power reaches 8 surrounding tiles, but when
-            increased with a Grow Quadradius, it reaches 24 tiles! That's triple
-            the amount.
+            range-like powers. If you don&apos;t have any range-like powers
+            (radial, row, column), make it your priority to acquire some with
+            that piece. A normal radial power reaches 8 surrounding tiles, but
+            when increased with a Grow Quadradius, it reaches 24 tiles!
+            That&apos;s triple the amount.
           </p>
           <p className="text-gray-400">
             If used a second time on the same piece, you can reach 48

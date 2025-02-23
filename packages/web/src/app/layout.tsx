@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Tabs from "./components/tabs";
+import Tabs from "./orbs/components/tabs";
 
 const tabs = [
   { label: "Interface", href: "/interface" },

@@ -1,7 +1,19 @@
-import { JSX } from "react";
-import OrbFooter from "../components/orb-footer/orb-footer";
+import { ReactNode } from "react";
+import OrbFooter from "../orb-footer/orb-footer";
 
-export default function TeachRadialPage(): JSX.Element {
+interface OrbLayoutProps {
+  title: string;
+  description: string;
+  strategy: ReactNode;
+  children?: ReactNode;
+}
+
+export default function OrbLayout({
+  title,
+  description,
+  strategy,
+  children,
+}: OrbLayoutProps) {
   return (
     <div className="prose max-w-none p-6">
       <div className="flex items-start gap-8">
@@ -14,26 +26,20 @@ export default function TeachRadialPage(): JSX.Element {
 
         <div className="w-2/3">
           <div className="flex items-center gap-4 mb-6">
-            <h1 className="text-3xl font-bold m-0">Teach Radial</h1>
+            <h1 className="text-3xl font-bold m-0">{title}</h1>
           </div>
 
           <div className="mb-6">
             <h2 className="text-xl font-semibold mb-2">Description</h2>
-            <p className="text-gray-400">
-              Teaches all powers from this piece to any friendly pieces in a
-              radial pattern around it. The range of this power can be extended
-              with Grow Quadradius.
-            </p>
+            <p className="text-gray-400">{description}</p>
           </div>
 
           <div>
             <h2 className="text-xl font-semibold mb-2">Strategy</h2>
-            <p className="text-gray-400">
-              Use this to spread powerful combinations of powers to multiple
-              pieces at once. Most effective when your pieces are positioned in
-              a cluster and the teaching piece has valuable powers to share.
-            </p>
+            {strategy}
           </div>
+
+          {children}
         </div>
       </div>
 

@@ -17,7 +17,8 @@ export default function Tabs({ tabs }: TabProps) {
     <div className="w-full border-b border-gray-700">
       <nav className="flex space-x-4">
         {tabs.map((tab) => {
-          const isActive = pathname === tab.href;
+          const isActive =
+            pathname === tab.href || (pathname === "/" && tab.href === "/orbs");
           return (
             <Link
               key={tab.href}

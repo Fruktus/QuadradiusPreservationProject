@@ -35,12 +35,6 @@ export default function TripwireRowPage(): JSX.Element {
           </div>
         </div>
       </div>
-
-      <div className="mt-8">
-        <Link href="/orbs" className="text-blue-600 hover:text-blue-800">
-          ← Back to Powers List
-        </Link>
-      </div>
     </div>
   );
 }

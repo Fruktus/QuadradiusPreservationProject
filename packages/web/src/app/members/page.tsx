@@ -1,3 +1,5 @@
+import config from "../../../configurations/config.json";
+
 interface MemberInfo {
   rank: string;
   benefits: string[];
@@ -16,20 +18,20 @@ const membershipLevels: MemberInfo[] = [
   {
     rank: "Premium Member",
     benefits: [
+      "Custom username without GUEST suffix",
+      "Owned account - no imposters",
+      "Ranked matches against members",
+      "Access to Advanced settings (including board and squadron size, colors, round time)",
       "Access to all orbs and powers",
-      "Create private matches",
-      "Custom player profile",
-      "Ad-free experience",
-      "Priority server access",
     ],
-    requirements: ["Monthly subscription", "Valid email verification"],
+    requirements: ["Monthly subscription"],
   },
 ];
 
 export default function MembersPage() {
   return (
     <div className="prose max-w-none">
-      <h2 className="text-2xl font-bold mb-6">Membership Levels</h2>
+      <h2 className="text-2xl font-bold mb-6 mt-4">Membership Levels</h2>
       <div className="grid gap-8 md:grid-cols-2">
         {membershipLevels.map((level) => (
           <div
@@ -41,7 +43,9 @@ export default function MembersPage() {
             </h3>
 
             <div className="mb-4">
-              <h4 className="text-lg font-medium mb-2">Benefits:</h4>
+              <h4 className="text-lg font-medium mb-2 text-gray-800">
+                Benefits:
+              </h4>
               <ul className="list-disc pl-5 space-y-1">
                 {level.benefits.map((benefit, index) => (
                   <li key={index} className="text-gray-600">
@@ -53,13 +57,19 @@ export default function MembersPage() {
 
             {level.requirements && (
               <div>
-                <h4 className="text-lg font-medium mb-2">Requirements:</h4>
+                <h4 className="text-lg font-medium mb-2 text-gray-800">
+                  Requirements:
+                </h4>
                 <ul className="list-disc pl-5 space-y-1">
-                  {level.requirements.map((req, index) => (
-                    <li key={index} className="text-gray-600">
-                      {req}
-                    </li>
-                  ))}
+                  <li className="text-gray-600">
+                    Free registration via{" "}
+                    <a
+                      href={config.discordRegistration}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Discord
+                    </a>
+                  </li>
                 </ul>
               </div>
             )}

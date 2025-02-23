@@ -20,6 +20,7 @@ RUN mkdir -p /data && \
     pip install websockify
 
 COPY docker /
+COPY web/http /qr/http/
 COPY --from=server-builder /server/dist/QRServer-*.whl /qr/server/
 RUN pip install /qr/server/*.whl
 

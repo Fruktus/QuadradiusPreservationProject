@@ -1,11 +1,19 @@
+import OrbLayout from "../components/orb-layout/orb-layout";
+
 export function generateStaticParams() {
   return [{ power: "nothing" }];
 }
 
 export default function PowerPage() {
   return (
-    <div className="prose max-w-none p-6">
-      <h1>Unsupported Power</h1>
-    </div>
+    <OrbLayout
+      title="Unsupported Power"
+      description="This power page has not been created yet."
+      strategy={
+        <p className="text-gray-400">
+          Please check back later for information about this power.
+        </p>
+      }
+    />
   );
 }

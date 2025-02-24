@@ -7,6 +7,7 @@ from typing import List, Optional
 import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, RankingEntry
+from QRServer.common import utils
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport
 from QRServer.db.password import password_verify, password_hash
@@ -17,14 +18,15 @@ log = logging.getLogger('qr.dbconnector')
 class DbConnector:
     conn: aiosqlite.Connection
 
-    def __init__(self, file):
+    def __init__(self, file, config):
         self.file = file
+        self.config = config
 
     async def connect(self):
         self.conn = await aiosqlite.connect(self.file, autocommit=False)
         c = await self.conn.cursor()
         await migrations.setup_metadata(c)
-        await migrations.execute_migrations(c)
+        await migrations.execute_migrations(c, self.config)
         await self.conn.commit()
 
     async def get_user(self, user_id: str) -> Optional[DbUser]:
@@ -187,6 +189,15 @@ class DbConnector:
                 match_result.is_ranked,
                 match_result.is_void
             ))
+
+        start_date, end_date = utils.make_month_dates(
+            month=match_result.finished_at.month, year=match_result.finished_at.year)
+
+        new_ranking = await self._generate_ranking(
+            start_date, end_date)
+
+        await self._update_ranking(new_ranking, year=start_date.year, month=start_date.month)
+
         await self.conn.commit()
 
     async def get_match(self, match_id: str) -> Optional[DbMatchReport]:
@@ -288,12 +299,70 @@ class DbConnector:
         await c.execute(
             "select"
             " u.username,"
+            " r.user_id,"
+            " wins,"
+            " total_games"
+            " from rankings r"
+            " inner join users u on u.id = r.user_id"
+            " where r.year == ?"
+            " and r.month == ?"
+            " order by r.position asc"  # Lower position - higher in leaderboards
+            " limit 100", (
+                start_date.year,
+                start_date.month,
+            )
+        )
+
+        ranking_entries = []
+        rows = await c.fetchall()
+        for row in rows:
+            ranking_entries.append(RankingEntry(
+                username=row[0],
+                user_id=row[1],
+                wins=row[2],
+                games=row[3],
+            ))
+        return ranking_entries
+
+    async def _update_ranking(self, ranking_entries: List[RankingEntry], year: int, month: int) -> None:
+        for position, entry in enumerate(ranking_entries):
+            c = await self.conn.cursor()
+            await c.execute(
+                "insert or replace into rankings ("
+                "  year,"
+                "  month,"
+                "  position,"
+                "  user_id,"
+                "  wins,"
+                "  total_games"
+                ") values ("
+                "?, ?, ?, ?, ?, ?"
+                ")", (
+                    year,
+                    month,
+                    position+1,
+                    entry.user_id,
+                    entry.wins,
+                    entry.games,
+                ))
+
+    async def _generate_ranking(self, start_date: datetime, end_date: datetime) -> List[RankingEntry]:
+        ranked_only = self.config.leaderboards_ranked_only.get()
+        include_void = self.config.leaderboards_include_void.get()
+
+        c = await self.conn.cursor()
+
+        # Gets matches sort
+        await c.execute(
+            "select"
+            " u.username,"
+            " u.id,"
             " sum(m.winner_id = u.id) as total_wins,"
             " count(*) as total_games,"
             " (sum(m.winner_id = u.id) * 1.0 / count(*)) as win_percentage"
             " from users u"
             " inner join matches m on (u.id = m.winner_id or u.id = m.loser_id)"
-            " where m.started_at >= ?"
+            " where m.finished_at >= ?"
             " and m.finished_at < ?"
             " and (case when ? = 1 then m.is_ranked = 1 else 1=1 end)"
             " and (case when ? = 0 then m.is_void = 0 else 1=1 end)"
@@ -311,9 +380,10 @@ class DbConnector:
         rows = await c.fetchall()
         for row in rows:
             ranking_entries.append(RankingEntry(
-                player=row[0],
-                wins=row[1],
-                games=row[2],
+                username=row[0],
+                user_id=row[1],
+                wins=row[2],
+                games=row[3],
             ))
         return ranking_entries
 
@@ -326,6 +396,6 @@ async def create_connector(config) -> DbConnector:
     os.makedirs(data_dir, exist_ok=True)
     dbfile = os.path.join(data_dir, 'database.sqlite3')
     log.debug(f'Opening database: {dbfile}')
-    c = DbConnector(dbfile)
+    c = DbConnector(dbfile, config)
     await c.connect()
     return c

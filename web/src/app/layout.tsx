@@ -4,8 +4,8 @@ import "./globals.css";
 import Tabs from "./orbs/components/tabs";
 
 const tabs = [
-  { label: "Interface", href: "/interface" },
   { label: "Game Play", href: "/gameplay" },
+  { label: "Interface", href: "/interface" },
   { label: "Advanced Training", href: "/advanced" },
   { label: "Basic Training", href: "/basic" },
   { label: "Orbs", href: "/orbs" },

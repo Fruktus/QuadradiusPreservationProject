@@ -182,7 +182,8 @@ class GameResultHistory:
 
 @dataclass
 class RankingEntry:
-    player: str
+    username: str
+    user_id: str
     wins: int
     games: int
 

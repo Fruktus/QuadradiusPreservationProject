@@ -47,8 +47,7 @@ def make_month_dates_range(start_date: datetime, end_date: datetime) -> List[dat
 
 def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int = 64
                           ) -> tuple[int, int]:
-    """Calculates new ratings according to ELO equation. The default values are meant for case when
-    the first player is a winner of a binary game (victory - score 1, lose - score 0)"""
+    # Calculates new ratings (winner: int, loser: int) according to ELO equation
     expected_score_1 = 1 / (1 + pow(10, (loser_rating - winner_rating) / 400))
     expected_score_2 = 1 / (1 + pow(10, (winner_rating - loser_rating) / 400))
 

@@ -278,10 +278,10 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 await self.conn.add_match_result(test_match)
 
             ranking_entries = [
-                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7, rating=733),
-                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5, rating=613),
-                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22, rating=580),
-                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10, rating=74),
+                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7),
+                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5),
+                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22),
+                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10),
             ]
 
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
@@ -363,16 +363,16 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # user_2 played less games than user_1,
             # but played against different players, therefore should have higher rating
-            ranking_entries_default = [
-                RankingEntry(player='test_user_2', wins=4, games=4, rating=716),
-                RankingEntry(player='test_user_0', wins=5, games=5, rating=667),
-                RankingEntry(player='test_user_3', wins=0, games=2, rating=372),
-                RankingEntry(player='test_user_1', wins=0, games=7, rating=245),
+            ranking_entries = [
+                RankingEntry(username='test_user_2', user_id='2', wins=4, games=4),
+                RankingEntry(username='test_user_0', user_id='0', wins=5, games=5),
+                RankingEntry(username='test_user_3', user_id='3', wins=0, games=2),
+                RankingEntry(username='test_user_1', user_id='1', wins=0, games=7),
             ]
 
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
 
-            self.assertEqual(ranking_entries_default, await self.conn.get_ranking(
+            self.assertEqual(ranking_entries, await self.conn.get_ranking(
                 start_date=start_date, end_date=end_date
             ))
 
@@ -579,7 +579,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('user_ratings', await self.get_table_names())
 
-        table_info = await self.get_table_info('users')
+        table_info = await self.get_table_info('user_ratings')
         self.assertEqual(len(table_info), 5)
         self.assertEqual(table_info[0][:3], (0, 'user_id', 'varchar'))
         self.assertEqual(table_info[1][:3], (1, 'year', 'INTEGER'))

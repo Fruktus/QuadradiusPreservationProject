@@ -190,6 +190,14 @@ class DbConnector:
                 match_result.is_void
             ))
 
+        ranked_only = self.config.leaderboards_ranked_only.get()
+        include_void = self.config.leaderboards_include_void.get()
+
+        if (match_result.is_ranked or not ranked_only) and (not match_result.is_void or include_void):
+            await self.update_users_rating(
+                match_result.winner_id, match_result.loser_id,
+                match_result.finished_at.month, match_result.finished_at.year)
+
         start_date, end_date = utils.make_month_dates(
             month=match_result.finished_at.month, year=match_result.finished_at.year)
 
@@ -199,14 +207,6 @@ class DbConnector:
         await self._update_ranking(new_ranking, year=start_date.year, month=start_date.month)
 
         await self.conn.commit()
-
-        ranked_only = self.config.leaderboards_ranked_only.get()
-        include_void = self.config.leaderboards_include_void.get()
-
-        if (match_result.is_ranked or not ranked_only) and (not match_result.is_void or include_void):
-            await self.update_users_rating(
-                match_result.winner_id, match_result.loser_id,
-                match_result.finished_at.month, match_result.finished_at.year)
 
     async def get_match(self, match_id: str) -> Optional[DbMatchReport]:
         c = await self.conn.cursor()
@@ -395,7 +395,6 @@ class DbConnector:
                 user_id=row[1],
                 wins=row[2],
                 games=row[3],
-                rating=row[4],
             ))
         return ranking_entries
 

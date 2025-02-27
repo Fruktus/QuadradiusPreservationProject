@@ -10,13 +10,21 @@ It is completely static and can be deployed to any static site host and has noth
 
 ## Development
 
-Navigate to packages/web and run the development server:
+Navigate to web and install packages (this needs to happen only once)
+
+```bash
+cd web
+npm install
+```
+
+Run the development server:
 
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The project uses hot-reolad, meaning that (most) changes you will make in the code will be reflected in the browser.
 
 ## Deployment
 
@@ -28,4 +36,4 @@ npm run start
 ```
 
 the `build` command will create a production build in a folder `.next`
-The `start` command will start the production server.
+The `start` command will start the production web server.

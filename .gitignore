@@ -8,3 +8,7 @@ venv/
 node_modules
 /client/
 /ruffle
+/packages/web/dist
+/packages/web/.next
+web/dist
+web/.next

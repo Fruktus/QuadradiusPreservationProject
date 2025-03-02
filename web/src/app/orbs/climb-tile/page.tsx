@@ -10,7 +10,8 @@ export default function ClimbTilePage() {
           Once this power is activated, consider the arena flat for this piece.
           No height is off limits. Not as effective in a flat, neutral arena,
           but once the landscape is disrupted, this piece can become quite
-          valuable.
+          valuable. You can use this to surprise attack unsuspecting opponent in 
+          normally unreachable high ground.
         </p>
       }
     />

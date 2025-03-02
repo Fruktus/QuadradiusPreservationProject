@@ -4,7 +4,7 @@ export default function ScavengerPage() {
   return (
     <OrbLayout
       title="Scavenger"
-      description="When any piece is destroyed, this piece has a chance to acquire one of its powers. Works on both friendly and enemy pieces."
+      description="When this piece destroys an enemy piece it will capture its powers."
       strategy={
         <p className="text-gray-400">
           Position Scavenger pieces near combat zones to maximize chances of

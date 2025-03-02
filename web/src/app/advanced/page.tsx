@@ -31,9 +31,8 @@ export default function AdvancedTraining() {
           <h3 className="font-semibold text-blue-800">Pro Tip:</h3>
           <p className="text-gray-800">
             Don&apos;t get overzealous with powers. When an opponent&apos;s
-            piece has multiple powers, using Cancel on it will remove their most
-            recently acquired power. This can be used to strip key defensive
-            abilities before attacking.
+            piece has multiple powers, using Pilfer on it will steal all their
+            powers. This can be used to turn the tide of the battle.
           </p>
         </div>
 
@@ -47,7 +46,7 @@ export default function AdvancedTraining() {
             Position pieces to threaten multiple opponent pieces simultaneously
           </li>
           <li>
-            Create &quot;power batteries&quot; by stacking multiple different
+            Create &quot;powerful threats&quot; by stacking multiple different
             powers on key pieces
           </li>
           <li>
@@ -56,32 +55,12 @@ export default function AdvancedTraining() {
           </li>
         </ul>
 
-        <h2>Common Power Combinations</h2>
-        <ul className="list-disc ml-6">
-          <li>
-            Raise + Jump: Create high ground and jump to previously unreachable
-            areas
-          </li>
-          <li>
-            Multiply + Power Transfer: Quickly distribute powers across your
-            pieces
-          </li>
-          <li>
-            Teleport + Attack powers: Surprise your opponent with unexpected
-            strikes
-          </li>
-          <li>
-            Shield + Counter: Create defensive pieces that punish attackers
-          </li>
-        </ul>
-
         <div className="bg-red-50 p-4 rounded mt-6">
           <h3 className="font-semibold text-red-800">Advanced Warning:</h3>
           <p className="text-gray-800">
             Be wary of opponents who seem to be &quot;charging up&quot; pieces
             with multiple powers. They may be setting up for a complex
-            combination attack. Consider using Cancel or similar defensive
-            powers preemptively.
+            combination attack. Consider these pieces a priority targets.
           </p>
         </div>
       </div>

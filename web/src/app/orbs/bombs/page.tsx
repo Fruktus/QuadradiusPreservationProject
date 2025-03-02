@@ -4,7 +4,7 @@ export default function BombsPage() {
   return (
     <OrbLayout
       title="Bombs"
-      description="Unleashes a round of bombs into the entire arena. They not only devastate any piece they impact but they also compress tiles down deeper, eventually leaving a hole in the arena floor."
+      description="Unleashes a round of bombs into the entire arena, attacking both friendly and enemy pieces. They not only devastate any piece they impact but they also compress tiles down deeper, eventually leaving a hole in the arena floor."
       strategy={
         <>
           <p className="text-gray-400">

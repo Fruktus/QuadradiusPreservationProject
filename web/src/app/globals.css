@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #34312c;
+  --foreground: #746f67;
+  --text-primary: #cccccc;
+  --primary: #ab9c45;
+  --secondary: #6c757d;
+  --accent: #311a16;
+  --neutral: #919993;
+  --base-100: #b7b396;
+  --base-200: #311a16;
+  --base-300: #21120e;
+  --base-400: #120a07;
+  --base-500: #0a0a0a;
+  --base-600: #050505;
+  --base-700: #020202;
+  --base-800: #010101;
+  --base-900: #24241f;
+
+  /* New colors sampled from the image */
+  --red-dark: #480000;
+  --red-medium: #a52a2a;
+  --red-light: #cd5c5c;
+  --button-bg: #8b1a1a;
+  --button-text: #ffffff;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+
+/* Header with background image */
+.header-with-bg {
+  position: relative;
+}
+
+.header-with-bg h1 {
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+/* Make tabs more visible against the background image */
+.header-with-bg nav {
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.header-with-bg a {
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  font-weight: bold;
+}
+
+/* Pixelated font classes */
+.pixel-text {
+  font-family: var(--font-silkscreen), monospace;
+  letter-spacing: 0.05em;
+}
+
+.pixel-text-press-start {
+  font-family: var(--font-press-start), monospace;
+  letter-spacing: 0.05em;
+}
+
+.pixel-text-vt323 {
+  font-family: var(--font-vt323), monospace;
+  letter-spacing: 0.05em;
+}
+
+/* For pixelated buttons that resemble the image */
+.pixel-button {
+  background-color: var(--red-dark);
+  color: var(--button-text);
+  font-family: var(--font-silkscreen), monospace;
+  border: 2px solid var(--red-light);
+  padding: 0.5rem 1rem;
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+}
+
+.pixel-button:hover {
+  background-color: var(--red-medium);
+  transform: scale(1.05);
+}
+
+/* Member badge styling to match the image */
+.member-badge {
+  background-color: var(--red-dark);
+  color: var(--button-text);
+  font-family: var(--font-silkscreen), monospace;
+  border: 1px solid var(--red-light);
+  padding: 0.25rem 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-block;
+  transform-origin: center;
+}

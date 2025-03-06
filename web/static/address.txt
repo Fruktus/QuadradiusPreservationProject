@@ -1,0 +1,1 @@
+&myIPAddress=127.0.0.1&chatPort=3000&gamePort=3001

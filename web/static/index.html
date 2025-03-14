@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Quadradius</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="config-ruffle.js"></script>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: stretch;
+            align-content: stretch;
+        }
+
+        .game {
+            flex: 1;
+        }
+
+        .embed {
+            width: 100%;
+            height: 100%;
+        }
+
+        .footer {
+            padding: 0.3em;
+            color: #444444;
+            text-align: center;
+        }
+
+        a {
+            text-decoration: none;
+        }
+
+        a:link,
+        a:visited {
+            color: #777777;
+        }
+
+        a:hover {
+            color: #aaaaaa;
+        }
+
+        div.directions {
+            position: absolute;
+            right: 0;
+            z-index: 1;
+        }
+    </style>
+    <script type="application/javascript">
+        const originalTitle = document.title;
+        window.onbeforeunload = function () {
+            return 'Are you sure you want to leave?';
+        };
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.hidden) {
+                document.title = originalTitle + " (Paused)";
+                alert('Quadradius cannot work properly when the tab is in the background and has to be paused. ' +
+                    'You WILL be timed out after some time when Quadradius is paused. ' +
+                    'This is the current limitation of Ruffle.\n\n' +
+                    'If you want to run Quadradius in the background, ' +
+                    'currently the best solution is to keep it open in a new window.');
+            } else {
+                document.title = originalTitle;
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <div class="directions">
+        <a href="/directions.html">How to play &amp; Powerup Cheatsheet</a>.
+    </div>
+    <div class="container">
+        <object class="game">
+            <embed src="./quadradius_lobby.swf" class="embed" />
+        </object>
+
+        <div class="footer">
+            Made possible by the
+            <a href="https://github.com/Fruktus/QuadradiusPreservationProject">Quadradius Preservation Project</a>.
+        </div>
+    </div>
+
+    <script>
+        let version = new URLSearchParams(window.location.search).get('ruffle_version');
+        if (version) {
+            version = '@' + version + '/ruffle.js';
+        } else {
+            version = '';
+        }
+        let ruffleScript = document.createElement("script");
+        ruffleScript.setAttribute("src", `https://unpkg.com/@ruffle-rs/ruffle${version}`);
+        document.body.appendChild(ruffleScript);
+    </script>
+</body>
+
+</html>

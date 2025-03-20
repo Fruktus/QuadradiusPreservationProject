@@ -45,9 +45,9 @@ const powers: PowerInfo[] = [
     slug: "invisible",
   },
   {
-    name: "Recruit Radial",
+    name: "Recruit",
     category: "Combat",
-    slug: "recruit-radial",
+    slug: "recruit",
   },
   {
     name: "Network Bridge",
@@ -76,19 +76,9 @@ const powers: PowerInfo[] = [
     slug: "climb-tile",
   },
   {
-    name: "Teach Radial",
+    name: "Teach",
     category: "Power Manipulation",
-    slug: "teach-radial",
-  },
-  {
-    name: "Teach Row",
-    category: "Power Manipulation",
-    slug: "teach-row",
-  },
-  {
-    name: "Teach Column",
-    category: "Power Manipulation",
-    slug: "teach-column",
+    slug: "teach",
   },
   {
     name: "2x",
@@ -113,34 +103,14 @@ const powers: PowerInfo[] = [
     slug: "power-plant",
   },
   {
-    name: "Purify Radial",
+    name: "Purify",
     category: "Power Manipulation",
-    slug: "purify-radial",
+    slug: "purify",
   },
   {
-    name: "Purify Row",
-    category: "Power Manipulation",
-    slug: "purify-row",
-  },
-  {
-    name: "Purify Column",
-    category: "Power Manipulation",
-    slug: "purify-column",
-  },
-  {
-    name: "Tripwire Radial",
+    name: "Tripwire",
     category: "Combat",
-    slug: "tripwire-radial",
-  },
-  {
-    name: "Tripwire Row",
-    category: "Combat",
-    slug: "tripwire-row",
-  },
-  {
-    name: "Tripwire Column",
-    category: "Combat",
-    slug: "tripwire-column",
+    slug: "tripwire",
   },
 ];
 

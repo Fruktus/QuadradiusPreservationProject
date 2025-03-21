@@ -137,6 +137,38 @@ const powers: PowerInfo[] = [
     category: "Movement",
     slug: "relocate",
   },
+  {
+    name: "Hotspot",
+    category: "Movement",
+    slug: "hotspot",
+  },
+  {
+    name: "Switcheroo",
+    category: "Movement",
+    memberOnly: true,
+    slug: "switcheroo",
+  },
+  {
+    name: "Centerpult",
+    category: "Movement",
+    memberOnly: true,
+    slug: "centerpult",
+  },
+  {
+    name: "Jump Proof",
+    category: "Defense",
+    slug: "jump-proof",
+  },
+  {
+    name: "Scramble",
+    category: "Power Manipulation",
+    slug: "scramble",
+  },
+  {
+    name: "Swap",
+    category: "Power Manipulation",
+    slug: "swap",
+  },
 ];
 
 export default function OrbsPage() {

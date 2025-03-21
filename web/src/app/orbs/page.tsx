@@ -226,11 +226,6 @@ export default function OrbsPage() {
 
   return (
     <div className="prose prose-invert max-w-none p-6">
-      <h1 className="text-2xl font-bold mb-2 text-white">Powers List</h1>
-      <h2 className="text-xl font-semibold mb-8 text-gray-100 ">
-        (List is partial. We are still working on it.)
-      </h2>
-
       {Object.entries(groupedPowers).map(([category, categoryPowers]) => (
         <div key={category} className="mb-4">
           <h2 className="text-xl font-semibold mb-2 text-gray-100">

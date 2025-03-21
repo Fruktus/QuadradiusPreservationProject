@@ -169,6 +169,34 @@ const powers: PowerInfo[] = [
     category: "Power Manipulation",
     slug: "swap",
   },
+  {
+    name: "Inhibit",
+    category: "Power Manipulation",
+    slug: "inhibit",
+  },
+  {
+    name: "Spyware",
+    category: "Power Manipulation",
+    slug: "spyware",
+  },
+  {
+    name: "Orb Spy",
+    category: "Power Manipulation",
+    memberOnly: true,
+    slug: "orb-spy",
+  },
+  {
+    name: "Refurb",
+    category: "Power Manipulation",
+    memberOnly: true,
+    slug: "refurb",
+  },
+  {
+    name: "Bankrupt",
+    category: "Power Manipulation",
+    memberOnly: true,
+    slug: "bankrupt",
+  },
 ];
 
 export default function OrbsPage() {

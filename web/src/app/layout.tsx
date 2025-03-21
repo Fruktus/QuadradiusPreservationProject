@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Press_Start_2P, VT323, Silkscreen } from "next/font/google";
 import "./globals.css";
-import Tabs from "../components/tabs";
-import bgImage from "../assets/qr-bg.jpg";
-
+import Tabs from "./components/tabs";
+import bgImage from "./assets/qr-bg.jpg";
 const tabs = [
   { label: "Game Play", href: "/gameplay" },
   { label: "Interface", href: "/interface" },

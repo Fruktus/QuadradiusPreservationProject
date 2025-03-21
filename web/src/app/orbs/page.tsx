@@ -112,6 +112,31 @@ const powers: PowerInfo[] = [
     category: "Combat",
     slug: "tripwire",
   },
+  {
+    name: "Pilfer",
+    category: "Power Manipulation",
+    slug: "pilfer",
+  },
+  {
+    name: "Parasite",
+    category: "Power Manipulation",
+    slug: "parasite",
+  },
+  {
+    name: "Move Diagonal",
+    category: "Movement",
+    slug: "move-diagonal",
+  },
+  {
+    name: "Flat To Sphere",
+    category: "Movement",
+    slug: "flat-to-sphere",
+  },
+  {
+    name: "Relocate",
+    category: "Movement",
+    slug: "relocate",
+  },
 ];
 
 export default function OrbsPage() {

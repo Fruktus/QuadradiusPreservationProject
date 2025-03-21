@@ -197,6 +197,21 @@ const powers: PowerInfo[] = [
     memberOnly: true,
     slug: "bankrupt",
   },
+  {
+    name: "Kamikaze",
+    category: "Combat",
+    slug: "kamikaze",
+  },
+  {
+    name: "Destroy",
+    category: "Combat",
+    slug: "destroy",
+  },
+  {
+    name: "Acidic",
+    category: "Combat",
+    slug: "acidic",
+  },
 ];
 
 export default function OrbsPage() {

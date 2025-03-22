@@ -4,7 +4,7 @@ export default function PilferPage() {
   return (
     <OrbLayout
       title="Pilfer"
-      description="A piece will steal all the powers from your opponents that are in range. This power comes in three variants:"
+      description="A piece will steal all the powers from your opponents that are in range. Available in three variants: row, column, radial."
       strategy={
         <p>
           Similar to Learn, except it is a way to learn powers from your
@@ -15,12 +15,6 @@ export default function PilferPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Pilfer Radial: Steals powers from opponents surrounding you</li>
-        <li>Pilfer Row: Steals powers from opponents in the same row</li>
-        <li>Pilfer Column: Steals powers from opponents in the same column</li>
-      </ul>
-    </OrbLayout>
+    />
   );
 }

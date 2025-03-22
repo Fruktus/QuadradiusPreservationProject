@@ -4,7 +4,7 @@ export default function BankruptPage() {
   return (
     <OrbLayout
       title="Bankrupt"
-      description="All of the vacant tiles in your range will be programmed to deplete all powers and remove any positive modifications from any opponent's torus that finds itself coming in contact with one of these tiles. Available in three variants:"
+      description="All of the vacant tiles in your range will be programmed to deplete all powers and remove any positive modifications from any opponent's torus that finds itself coming in contact with one of these tiles. Available in three variants: row, column, radial."
       strategy={
         <p>
           This power can be used to keep a strengthened or heavily modified

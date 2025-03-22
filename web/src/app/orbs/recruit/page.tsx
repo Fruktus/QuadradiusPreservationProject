@@ -4,7 +4,7 @@ export default function RecruitPage() {
   return (
     <OrbLayout
       title="Recruit"
-      description="Convert an opponent's piece to your side. This power allows you to take control of a single piece from the board, turning it into one of your own."
+      description="Activating this will recruit opponent's pieces to your side. Available in three variants: row, column, radial."
       strategy={
         <p>
           Recruit is a strategic power, best used to turn the tide of battle by
@@ -13,6 +13,13 @@ export default function RecruitPage() {
           strategy.
         </p>
       }
-    />
+      multiDimensional={true}
+    >
+      <ul>
+        <li>Recruit Radial: Affects opponent&apos;s pieces surrounding you</li>
+        <li>Recruit Row: Affects opponent&apos;s pieces in your row</li>
+        <li>Recruit Column: Affects opponent&apos;s pieces in your column</li>
+      </ul>
+    </OrbLayout>
   );
 }

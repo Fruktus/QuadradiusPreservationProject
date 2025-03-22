@@ -4,7 +4,7 @@ export default function RefurbPage() {
   return (
     <OrbLayout
       title="Refurb"
-      description="All of the tiles in your range that have either been damaged or modified in some way will be replaced with newly installed ones. Available in three variants:"
+      description="All of the tiles in your range that have either been damaged or modified in some way will be replaced with newly installed ones. Available in three variants: row, column, radial."
       strategy={
         <p>
           Can be used to remove Power Orbs, holes from either bombs or acid,

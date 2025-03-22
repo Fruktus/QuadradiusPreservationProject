@@ -4,7 +4,7 @@ export default function SpywarePage() {
   return (
     <OrbLayout
       title="Spyware"
-      description="Attaches a visible bugging device to any opponent's pieces. You can then view their power inventory. Available in three variants:"
+      description="Attaches a visible bugging device to any opponent's pieces. You can then view their power inventory. Available in three variants: row, column, radial."
       strategy={
         <p>
           While you can view any powers on your opponent&apos;s pieces that are

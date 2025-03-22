@@ -4,7 +4,7 @@ export default function AcidicPage() {
   return (
     <OrbLayout
       title="Acidic"
-      description="Dissolve any piece in your path. This power allows you to remove a single piece from the board, regardless of its position."
+      description="Activating this will dissolve all enemy pieces in your path, and make the tile unusable. Available in three variants: row, column, radial."
       strategy={
         <p>
           Acidic is a precise and powerful tool, best used to eliminate key
@@ -13,6 +13,13 @@ export default function AcidicPage() {
           against you.
         </p>
       }
-    />
+      multiDimensional={true}
+    >
+      <ul>
+        <li>Acidic Radial: Affects enemy pieces surrounding you</li>
+        <li>Acidic Row: Affects enemy pieces in your row</li>
+        <li>Acidic Column: Affects enemy pieces in your column</li>
+      </ul>
+    </OrbLayout>
   );
 }

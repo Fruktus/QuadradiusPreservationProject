@@ -4,7 +4,7 @@ export default function DestroyPage() {
   return (
     <OrbLayout
       title="Destroy"
-      description="Annihilate any piece in your path. This power allows you to remove a single piece from the board, regardless of its position."
+      description="Activating this will destroy all enemy pieces in your path. Available in three variants: row, column, radial."
       strategy={
         <p>
           Destroy is a precise and powerful tool, best used to eliminate key
@@ -13,6 +13,13 @@ export default function DestroyPage() {
           against you.
         </p>
       }
-    />
+      multiDimensional={true}
+    >
+      <ul>
+        <li>Destroy Radial: Affects enemy pieces surrounding you</li>
+        <li>Destroy Row: Affects enemy pieces in your row</li>
+        <li>Destroy Column: Affects enemy pieces in your column</li>
+      </ul>
+    </OrbLayout>
   );
 }

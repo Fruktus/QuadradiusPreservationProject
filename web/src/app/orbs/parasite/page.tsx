@@ -4,7 +4,7 @@ export default function ParasitePage() {
   return (
     <OrbLayout
       title="Parasite"
-      description="Leeches onto the power absorbing mechanism of opponents. Any forthcoming powers they acquire, so do you. Also shares leeched powers with your whole network of parasitic pieces. Available in three variants:"
+      description="Leeches onto the power absorbing mechanism of opponents. Any forthcoming powers they acquire, so do you. Also shares leeched powers with your whole network of parasitic pieces. Available in three variants: row, column, radial."
       strategy={
         <p>
           A good player will try to avoid getting Power Orbs when they are

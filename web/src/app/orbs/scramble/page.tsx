@@ -4,7 +4,7 @@ export default function ScramblePage() {
   return (
     <OrbLayout
       title="Scramble"
-      description="Scrambles the positions of your piece and the surrounding pieces. Chaotic in nature, so should be used when your position could not be worsened."
+      description="Scrambles the positions of your piece and the surrounding pieces. Chaotic in nature, so should be used when your position could not be worsened. Available in three variants: row, column, radial."
       strategy={
         <p>
           All the pieces that fall within range of this power&apos;s effect are

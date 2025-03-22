@@ -45,9 +45,9 @@ const powers: PowerInfo[] = [
     slug: "invisible",
   },
   {
-    name: "Recruit Radial",
+    name: "Recruit",
     category: "Combat",
-    slug: "recruit-radial",
+    slug: "recruit",
   },
   {
     name: "Network Bridge",
@@ -76,19 +76,9 @@ const powers: PowerInfo[] = [
     slug: "climb-tile",
   },
   {
-    name: "Teach Radial",
+    name: "Teach",
     category: "Power Manipulation",
-    slug: "teach-radial",
-  },
-  {
-    name: "Teach Row",
-    category: "Power Manipulation",
-    slug: "teach-row",
-  },
-  {
-    name: "Teach Column",
-    category: "Power Manipulation",
-    slug: "teach-column",
+    slug: "teach",
   },
   {
     name: "2x",
@@ -113,34 +103,114 @@ const powers: PowerInfo[] = [
     slug: "power-plant",
   },
   {
-    name: "Purify Radial",
+    name: "Purify",
     category: "Power Manipulation",
-    slug: "purify-radial",
+    slug: "purify",
   },
   {
-    name: "Purify Row",
+    name: "Tripwire",
+    category: "Combat",
+    slug: "tripwire",
+  },
+  {
+    name: "Pilfer",
     category: "Power Manipulation",
-    slug: "purify-row",
+    slug: "pilfer",
   },
   {
-    name: "Purify Column",
+    name: "Parasite",
     category: "Power Manipulation",
-    slug: "purify-column",
+    slug: "parasite",
   },
   {
-    name: "Tripwire Radial",
-    category: "Combat",
-    slug: "tripwire-radial",
+    name: "Move Diagonal",
+    category: "Movement",
+    slug: "move-diagonal",
   },
   {
-    name: "Tripwire Row",
-    category: "Combat",
-    slug: "tripwire-row",
+    name: "Flat To Sphere",
+    category: "Movement",
+    slug: "flat-to-sphere",
   },
   {
-    name: "Tripwire Column",
+    name: "Relocate",
+    category: "Movement",
+    slug: "relocate",
+  },
+  {
+    name: "Hotspot",
+    category: "Movement",
+    slug: "hotspot",
+  },
+  {
+    name: "Switcheroo",
+    category: "Movement",
+    memberOnly: true,
+    slug: "switcheroo",
+  },
+  {
+    name: "Centerpult",
+    category: "Movement",
+    memberOnly: true,
+    slug: "centerpult",
+  },
+  {
+    name: "Jump Proof",
+    category: "Defense",
+    slug: "jump-proof",
+  },
+  {
+    name: "Scramble",
+    category: "Power Manipulation",
+    slug: "scramble",
+  },
+  {
+    name: "Swap",
+    category: "Power Manipulation",
+    slug: "swap",
+  },
+  {
+    name: "Inhibit",
+    category: "Power Manipulation",
+    slug: "inhibit",
+  },
+  {
+    name: "Spyware",
+    category: "Power Manipulation",
+    slug: "spyware",
+  },
+  {
+    name: "Orb Spy",
+    category: "Power Manipulation",
+    memberOnly: true,
+    slug: "orb-spy",
+  },
+  {
+    name: "Refurb",
+    category: "Power Manipulation",
+    memberOnly: true,
+    slug: "refurb",
+  },
+  {
+    name: "Bankrupt",
+    category: "Power Manipulation",
+    memberOnly: true,
+    slug: "bankrupt",
+  },
+  {
+    name: "Kamikaze",
     category: "Combat",
-    slug: "tripwire-column",
+    slug: "kamikaze",
+  },
+  {
+    name: "Destroy",
+    category: "Combat",
+    slug: "destroy",
+  },
+  {
+    name: "Acidic",
+    category: "Combat",
+    slug: "acidic",
   },
 ];
 
@@ -156,11 +226,6 @@ export default function OrbsPage() {
 
   return (
     <div className="prose prose-invert max-w-none p-6">
-      <h1 className="text-2xl font-bold mb-2 text-white">Powers List</h1>
-      <h2 className="text-xl font-semibold mb-8 text-gray-100 ">
-        (List is partial. We are still working on it.)
-      </h2>
-
       {Object.entries(groupedPowers).map(([category, categoryPowers]) => (
         <div key={category} className="mb-4">
           <h2 className="text-xl font-semibold mb-2 text-gray-100">

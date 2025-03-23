@@ -4,7 +4,7 @@ export default function CenterpultPage() {
   return (
     <OrbLayout
       title="Centerpult"
-      description="Your piece can catapult itself into the vacant center of any four, symmetric pieces, as long as occupying the empty, center tile will complete either a plus sign or an 'x' shaped pattern."
+      description="our piece can catapult itself into the vacant center of any four, symmetric pieces (both your own and your opponent's), as long as occupying the empty, center tile will complete either a plus sign or an 'x' shaped pattern."
       strategy={
         <p>
           Once this piece has an activated Centerpult, it could move into the

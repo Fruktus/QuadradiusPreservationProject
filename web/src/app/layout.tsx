@@ -75,7 +75,7 @@ export default function RootLayout({
               </h1>
               <div className="justify-end mb-4 inline-block">
                 <a
-                  href={config.discordUrl}
+                  href={config.discordChannel}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center px-4 py-2 bg-[var(--base-300)] hover:bg-[var(--base-200)] text-white rounded-lg transition-colors"

@@ -4,7 +4,7 @@ export default function InhibitPage() {
   return (
     <OrbLayout
       title="Inhibit"
-      description="Disables the power absorbing mechanism of your opponent's pieces. While they can still swap powers, this inhibits their ability to acquire new powers by docking with the Power Orb. Available in three variants: row, column, radial."
+      description="Disables the power absorbing mechanism of your opponent's pieces. While they can still use the powers they possess, this inhibits their ability to acquire new powers by docking with the Power Orb. Available in three variants: row, column, radial."
       strategy={
         <p>
           Putting this annoyance on your opponent&apos;s piece will render them
@@ -20,12 +20,6 @@ export default function InhibitPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Inhibit Radial: Affects opponents surrounding you</li>
-        <li>Inhibit Row: Affects opponents in your row</li>
-        <li>Inhibit Column: Affects opponents in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

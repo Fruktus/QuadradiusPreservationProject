@@ -16,12 +16,6 @@ export default function OrbSpyPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Orb Spy Radial: Affects tiles surrounding you</li>
-        <li>Orb Spy Row: Affects tiles in your row</li>
-        <li>Orb Spy Column: Affects tiles in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

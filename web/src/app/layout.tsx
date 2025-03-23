@@ -4,6 +4,8 @@ import { Press_Start_2P, VT323, Silkscreen } from "next/font/google";
 import "./globals.css";
 import Tabs from "./components/tabs";
 import bgImage from "./assets/qr-bg.jpg";
+import config from "../../configurations/config.json";
+
 const tabs = [
   { label: "Game Play", href: "/gameplay" },
   { label: "Interface", href: "/interface" },
@@ -73,7 +75,7 @@ export default function RootLayout({
               </h1>
               <div className="justify-end mb-4 inline-block">
                 <a
-                  href="https://discord.com/channels/1197227968112627802"
+                  href={config.discordUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center px-4 py-2 bg-[var(--base-300)] hover:bg-[var(--base-200)] text-white rounded-lg transition-colors"

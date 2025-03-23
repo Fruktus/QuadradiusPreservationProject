@@ -14,12 +14,6 @@ export default function DestroyPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Destroy Radial: Affects enemy pieces surrounding you</li>
-        <li>Destroy Row: Affects enemy pieces in your row</li>
-        <li>Destroy Column: Affects enemy pieces in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

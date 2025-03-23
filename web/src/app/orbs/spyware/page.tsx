@@ -17,12 +17,6 @@ export default function SpywarePage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Spyware Radial: Affects opponents surrounding you</li>
-        <li>Spyware Row: Affects opponents in your row</li>
-        <li>Spyware Column: Affects opponents in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

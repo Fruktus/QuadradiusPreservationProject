@@ -14,12 +14,6 @@ export default function AcidicPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Acidic Radial: Affects enemy pieces surrounding you</li>
-        <li>Acidic Row: Affects enemy pieces in your row</li>
-        <li>Acidic Column: Affects enemy pieces in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

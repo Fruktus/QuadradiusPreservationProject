@@ -22,12 +22,6 @@ export default function BankruptPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Bankrupt Radial: Affects tiles surrounding you</li>
-        <li>Bankrupt Row: Affects tiles in your row</li>
-        <li>Bankrupt Column: Affects tiles in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

@@ -16,12 +16,6 @@ export default function KamikazePage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Kamikaze Radial: Affects pieces surrounding you</li>
-        <li>Kamikaze Row: Affects pieces in your row</li>
-        <li>Kamikaze Column: Affects pieces in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

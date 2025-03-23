@@ -14,16 +14,11 @@ export default function RefurbPage() {
           tile height back to neutral elevation. Great way to tread past
           obstacles and reach an opponent where they felt safe. Also, after
           heavy carnage from both Bombs and Smart Bombs, this is a great way to
-          gain more usable ground back.
+          gain more usable ground back. Any enemy pieces on tripwired tiles
+          within your range will be destroyed when the tiles are replaced.
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Refurb Radial: Affects tiles surrounding you</li>
-        <li>Refurb Row: Affects tiles in your row</li>
-        <li>Refurb Column: Affects tiles in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

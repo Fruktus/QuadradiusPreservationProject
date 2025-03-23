@@ -19,12 +19,6 @@ export default function ParasitePage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Parasite Radial: Affects opponents surrounding you</li>
-        <li>Parasite Row: Affects opponents in your row</li>
-        <li>Parasite Column: Affects opponents in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

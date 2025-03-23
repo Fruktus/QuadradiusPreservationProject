@@ -14,12 +14,6 @@ export default function RecruitPage() {
         </p>
       }
       multiDimensional={true}
-    >
-      <ul>
-        <li>Recruit Radial: Affects opponent&apos;s pieces surrounding you</li>
-        <li>Recruit Row: Affects opponent&apos;s pieces in your row</li>
-        <li>Recruit Column: Affects opponent&apos;s pieces in your column</li>
-      </ul>
-    </OrbLayout>
+    ></OrbLayout>
   );
 }

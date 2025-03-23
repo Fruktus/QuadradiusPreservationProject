@@ -1,11 +1,13 @@
 import { ReactNode } from "react";
 import OrbFooter from "../orb-footer/orb-footer";
+import MultiDimention from "../multidimention/multidimention";
 
 interface OrbLayoutProps {
   title: string;
   description: string;
   strategy: ReactNode;
   children?: ReactNode;
+  multiDimensional?: boolean;
 }
 
 export default function OrbLayout({
@@ -13,6 +15,7 @@ export default function OrbLayout({
   description,
   strategy,
   children,
+  multiDimensional,
 }: OrbLayoutProps) {
   return (
     <div className="prose max-w-none p-6">
@@ -25,8 +28,9 @@ export default function OrbLayout({
         </div>
 
         <div className="w-2/3">
-          <div className="flex items-center gap-4 mb-6">
-            <h1 className="text-3xl font-bold m-0">{title}</h1>
+          <div className="flex items-center gap-4 mb-2 justify flex-row">
+            <h1 className="text-3xl font-bold inline">{title} </h1>
+            {multiDimensional && <MultiDimention />}
           </div>
 
           <div className="mb-6">

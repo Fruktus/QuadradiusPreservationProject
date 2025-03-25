@@ -65,6 +65,7 @@ export default function MembersPage() {
                     Free registration via{" "}
                     <a
                       href={config.discordRegistration}
+                      target="_blank"
                       className="text-blue-600 hover:text-blue-800"
                     >
                       Discord

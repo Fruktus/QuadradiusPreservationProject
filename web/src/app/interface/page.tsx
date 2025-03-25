@@ -37,7 +37,7 @@ export default function Interface() {
         power. You can then click on the highlight to activate that power.
       </p>
 
-      <h1 className="text-3xl font-bold mb-6 mt-6">Chatting</h1>
+      <h1 className="text-3xl font-bold mb-6 mt-6">Chatting:</h1>
       <p>
         You can type anywhere in the game while you are playing and send a
         message to your opponent. Just type and hit ENTER. This is where you do

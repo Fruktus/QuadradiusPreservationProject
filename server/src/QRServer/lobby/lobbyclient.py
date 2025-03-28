@@ -165,7 +165,8 @@ class LobbyClientHandler(ClientHandler):
     async def _handle_chat_message(self, message: LobbyChatMessage):
         await self.lobby_server.broadcast_msg(message)
         text = message.get_text()
-        text_message = text.split(':', 1)[1].strip()
+        _, sep, after = text.partition(':')
+        text_message = after.strip() if sep else text.strip()
         if text_message.startswith('(COMMUNIQUE)'):
             return
         await self.webhook.invoke_webhook_lobby_message(self.player.username, text_message)

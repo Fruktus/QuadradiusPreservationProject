@@ -1,0 +1,82 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: black;
+  color: white;
+  font-family: sans-serif;
+}
+
+.container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: stretch;
+  align-content: stretch;
+}
+
+.game {
+  flex: 1;
+}
+
+.embed {
+  width: 100%;
+  height: 100%;
+}
+
+.footer {
+  padding: 0.3em;
+  color: #444444;
+  text-align: center;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:link,
+a:visited {
+  color: #777777;
+}
+
+a:hover {
+  color: #aaaaaa;
+}
+
+div.directions {
+  position: absolute;
+  right: 8px;
+  z-index: 1;
+  top: 8px;
+}
+
+#fullscreen-toggle {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 5px;
+  cursor: pointer;
+  display: flex; /* Hide by default */
+  align-items: center;
+  justify-content: center;
+  opacity: 0.25;
+}
+
+/* Show only on iPad devices */
+@media only screen and (min-device-width: 768px) and (max-device-width: 1024px) {
+  #fullscreen-toggle {
+    display: flex;
+  }
+}
+
+#fullscreen-toggle:hover {
+  background: rgba(255, 255, 255, 0.9);
+  opacity: 0.8;
+}

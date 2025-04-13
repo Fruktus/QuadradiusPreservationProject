@@ -14,6 +14,8 @@ export default function DestroyPage() {
         </p>
       }
       multiDimensional={true}
+      animationFile="destroy.gif"
+      animationTitle="This shows destroy radial variant."
     ></OrbLayout>
   );
 }

@@ -65,7 +65,7 @@
     <script type="application/javascript">
         const originalTitle = document.title;
         window.onbeforeunload = function () {
-            return 'Are you sure you want to leave?';
+            return 'Leaving the page during a game will end the game with a loss. Are you sure you want to leave?';
         };
 
         document.addEventListener('visibilitychange', function () {
@@ -85,7 +85,7 @@
 
 <body>
     <div class="directions">
-        <a href="/directions.html">How to play &amp; Powerup Cheatsheet</a>.
+        <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>.
     </div>
     <div class="container">
         <object class="game">
@@ -94,7 +94,7 @@
 
         <div class="footer">
             Made possible by the
-            <a href="https://github.com/Fruktus/QuadradiusPreservationProject">Quadradius Preservation Project</a>.
+            <a href="https://github.com/Fruktus/QuadradiusPreservationProject" target="_blank">Quadradius Preservation Project</a>.
         </div>
     </div>
 

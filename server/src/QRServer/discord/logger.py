@@ -42,7 +42,7 @@ async def _flush_messages_periodically(config):
 
 
 async def _flush_messages(webhook):
-    global _messages_buffer
+    global _messages_buffer  # noqa: F824
     with _messages_lock:
         if not _messages_buffer:
             return

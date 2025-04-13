@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import OrbFooter from "../orb-footer/orb-footer";
 import MultiDimention from "../multidimention/multidimention";
+import Image from "next/image";
 
 interface OrbLayoutProps {
   title: string;
@@ -8,6 +9,8 @@ interface OrbLayoutProps {
   strategy: ReactNode;
   children?: ReactNode;
   multiDimensional?: boolean;
+  animationFile?: string;
+  animationTitle?: string;
 }
 
 export default function OrbLayout({
@@ -16,15 +19,31 @@ export default function OrbLayout({
   strategy,
   children,
   multiDimensional,
+  animationFile,
+  animationTitle,
 }: OrbLayoutProps) {
   return (
     <div className="prose max-w-none p-6">
       <div className="flex items-start gap-8">
         <div className="w-1/3">
-          <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-            {/* Placeholder for GIF */}
-            <span className="text-gray-400">Animation Coming Soon</span>
+          <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+            {animationFile ? (
+              <Image
+                src={`/orbs-previews/${animationFile}`}
+                alt={`${title} animation`}
+                width={300}
+                height={300}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-gray-400">Animation Coming Soon</span>
+            )}
           </div>
+          {animationTitle && (
+            <div className="text-center text-sm text-gray-400">
+              {animationTitle}
+            </div>
+          )}
         </div>
 
         <div className="w-2/3">

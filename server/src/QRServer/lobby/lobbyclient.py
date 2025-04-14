@@ -10,7 +10,8 @@ from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, L
     HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, \
     LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, \
     DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, NameTakenRequest, \
-    NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, ChangePasswordResponseOk
+    NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, ChangePasswordResponseOk, \
+    ServerRankingResponse
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.lobby_client_handler')
@@ -118,6 +119,7 @@ class LobbyClientHandler(ClientHandler):
         await self.send_msg(LastPlayedResponse.new(recent_matches))
 
     async def _handle_server_ranking(self, request: ServerRankingRequest):
+        now = datetime.now()
         start_date, end_date = utils.make_month_dates(request.get_month(), request.get_year())
 
         rankings = await self.connector.get_ranking(
@@ -126,7 +128,10 @@ class LobbyClientHandler(ClientHandler):
             ranked_only=self.config.leaderboards_ranked_only.get(),
             include_void=self.config.leaderboards_include_void.get()
         )
-        await self.send_msg(ServerRankingThisMonthResponse.new(rankings))
+        if now.month == request.get_month() and now.year == request.get_year():
+            await self.send_msg(ServerRankingThisMonthResponse.new(rankings))
+        else:
+            await self.send_msg(ServerRankingResponse.new(rankings))
 
     async def _handle_server_alive(self, _: ServerAliveRequest):
         await self.send_msg(ServerAliveResponse.new())

@@ -186,6 +186,7 @@ class RankingEntry:
     user_id: str
     wins: int
     games: int
+    rating: int = -1
 
 
 @dataclass

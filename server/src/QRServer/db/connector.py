@@ -309,9 +309,12 @@ class DbConnector:
             " u.username,"
             " r.user_id,"
             " wins,"
-            " total_games"
+            " total_games,"
+            " ur.rating"
             " from rankings r"
             " inner join users u on u.id = r.user_id"
+            " inner join user_ratings ur on u.id = ur.user_id"
+            "  and ur.year = r.year and ur.month = r.month"
             " where r.year == ?"
             " and r.month == ?"
             " order by r.position asc"  # Lower position - higher in leaderboards
@@ -329,6 +332,7 @@ class DbConnector:
                 user_id=row[1],
                 wins=row[2],
                 games=row[3],
+                rating=row[4],
             ))
         return ranking_entries
 

@@ -278,10 +278,10 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 await self.conn.add_match_result(test_match)
 
             ranking_entries = [
-                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7),
-                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5),
-                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22),
-                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10),
+                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7, rating=733),
+                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5, rating=613),
+                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22, rating=580),
+                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10, rating=74),
             ]
 
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
@@ -364,10 +364,10 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             # user_2 played less games than user_1,
             # but played against different players, therefore should have higher rating
             ranking_entries_default = [
-                RankingEntry(user_id='2', username='test_user_2', wins=4, games=4),
-                RankingEntry(user_id='0', username='test_user_0', wins=5, games=5),
-                RankingEntry(user_id='3', username='test_user_3', wins=0, games=2),
-                RankingEntry(user_id='1', username='test_user_1', wins=0, games=7),
+                RankingEntry(user_id='2', username='test_user_2', wins=4, games=4, rating=716),
+                RankingEntry(user_id='0', username='test_user_0', wins=5, games=5, rating=667),
+                RankingEntry(user_id='3', username='test_user_3', wins=0, games=2, rating=372),
+                RankingEntry(user_id='1', username='test_user_1', wins=0, games=7, rating=245),
             ]
 
             start_date, end_date = utils.make_month_dates(month=1, year=2020)

@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
+from QRServer.db.common import retry_on_update_collision
 import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, RankingEntry
@@ -418,59 +419,46 @@ class DbConnector:
             return UserRating(user_id, month, year, rating=row[0], revision=row[1])
         return None
 
+    @retry_on_update_collision(retries=3)
     async def update_users_rating(self, winner_id: str, loser_id: str, month: int, year: int):
-        # CONSTS
-        RETRIES = 3
-        for _ in range(RETRIES):
-            winner = await self.get_user_rating(winner_id, month, year)
-            winner_exists = bool(winner)
-            if not winner_exists:
-                winner = UserRating(winner_id, month, year)
+        winner = await self.get_user_rating(winner_id, month, year)
+        winner_exists = bool(winner)
+        if not winner_exists:
+            winner = UserRating(winner_id, month, year)
 
-            loser = await self.get_user_rating(loser_id, month, year)
-            loser_exists = bool(loser)
-            if not loser_exists:
-                loser = UserRating(loser_id, month, year)
+        loser = await self.get_user_rating(loser_id, month, year)
+        loser_exists = bool(loser)
+        if not loser_exists:
+            loser = UserRating(loser_id, month, year)
 
-            new_winner_rating, new_loser_rating = utils.calculate_new_ratings(winner.rating, loser.rating)
+        new_winner_rating, new_loser_rating = utils.calculate_new_ratings(winner.rating, loser.rating)
 
-            c = await self.conn.cursor()
+        c = await self.conn.cursor()
 
-            if not winner_exists:
-                await c.execute(
-                    "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
-                        winner.user_id, month, year, winner.revision, new_winner_rating
-                    )
+        await self._update_or_insert_rating(c, winner, new_winner_rating, winner_exists, month, year)
+        await self._update_or_insert_rating(c, loser, new_loser_rating, loser_exists, month, year)
+
+        await self.conn.commit()
+
+    async def _update_or_insert_rating(self, c, user: UserRating, new_rating: float, user_exists: bool, month: int,
+                                       year: int):
+        if not user_exists:
+            await c.execute(
+                "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
+                    user.user_id, month, year, user.revision, new_rating
                 )
-            else:
-                await c.execute(
-                    "update user_ratings set rating = ?, revision = ?"
-                    " where user_id = ? and month = ? and year = ? and revision = ? returning *", (
-                        new_winner_rating, winner.revision + 1, winner_id, month, year, winner.revision
-                    )
+            )
+        else:
+            await c.execute(
+                "update user_ratings set rating = ?, revision = ?"
+                " where user_id = ? and month = ? and year = ? and revision = ? returning *", (
+                    new_rating, user.revision + 1, user.user_id, month, year, user.revision
                 )
+            )
 
-                row = await c.fetchone()
-                if not row:
-                    self.conn.rollback()
-
-            if not loser_exists:
-                await c.execute(
-                    "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
-                        loser.user_id, month, year, loser.revision, new_loser_rating
-                    )
-                )
-            else:
-                await c.execute(
-                    "update user_ratings set rating = ?, revision = ?"
-                    " where user_id = ? and month = ? and year = ? and revision = ? returning *", (
-                        new_loser_rating, loser.revision + 1, loser_id, month, year, loser.revision
-                    )
-                )
-                row = await c.fetchone()
-                if not row:
-                    self.conn.rollback()
-            await self.conn.commit()
+            row = await c.fetchone()
+            if not row:
+                self.conn.rollback()
 
     async def close(self):
         await self.conn.close()

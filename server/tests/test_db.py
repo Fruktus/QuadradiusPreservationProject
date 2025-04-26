@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest.mock import patch
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
+from QRServer.db.common import UpdateCollisionError
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport
 from QRServer.common.classes import RankingEntry
@@ -390,6 +391,44 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
             self.assertEqual(user.discord_user_id, '11111111111')
             self.assertFalse(user.is_guest)
+
+    async def test_update_rating_rollback(self):
+        # Forces collision (update during other update) to test if rollback will work
+
+        with patch('uuid.uuid4') as mock_uuid:
+            # Set up 4 users
+            mock_uuid.return_value = '0'
+            winner = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            mock_uuid.return_value = '1'
+            loser = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+
+            # This helper will be executed every time when update_user_rating rungs
+            # This will cause the outer call to fail (but the helper will succeed)
+            # so with 3 retries we should see 3 updates (revision 2 - counting from 0)
+            async def perform_conflicting_update():
+                await self.conn.update_users_rating(winner.user_id, loser.user_id, 4, 2025)
+
+            # Try and update user rating - if every retry fails this will raise exception
+            collision_detected = False
+            try:
+                await self.conn.update_users_rating(winner.user_id, loser.user_id, 4, 2025, perform_conflicting_update)
+            except UpdateCollisionError:
+                collision_detected = True
+
+            self.assertTrue(collision_detected)
+
+            winner_rating = await self.conn.get_user_rating(winner.user_id, 4, 2025)
+            loser_rating = await self.conn.get_user_rating(loser.user_id, 4, 2025)
+
+            self.assertEqual(winner_rating.year, 2025)
+            self.assertEqual(winner_rating.month, 4)
+            self.assertEqual(winner_rating.rating, 580)
+            self.assertEqual(winner_rating.revision, 2)  # updated 3 times -> revision == 2
+
+            self.assertEqual(loser_rating.year, 2025)
+            self.assertEqual(loser_rating.month, 4)
+            self.assertEqual(loser_rating.rating, 420)
+            self.assertEqual(loser_rating.revision, 2)  # updated 3 times -> revision == 2
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):

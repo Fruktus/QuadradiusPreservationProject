@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from QRServer.db.common import retry_on_update_collision
+from QRServer.db.common import UpdateCollisionError, retry_on_update_collision
 import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, RankingEntry
@@ -197,10 +197,13 @@ class DbConnector:
         ranked_only = self.config.leaderboards_ranked_only.get()
         include_void = self.config.leaderboards_include_void.get()
 
-        if (match_result.is_ranked or not ranked_only) and (not match_result.is_void or include_void):
-            await self.update_users_rating(
-                match_result.winner_id, match_result.loser_id,
-                match_result.finished_at.month, match_result.finished_at.year)
+        try:
+            if (match_result.is_ranked or not ranked_only) and (not match_result.is_void or include_void):
+                await self.update_users_rating(
+                    match_result.winner_id, match_result.loser_id,
+                    match_result.finished_at.month, match_result.finished_at.year)
+        except UpdateCollisionError as e:
+            log.error(f'Failed to save rating to DB after all retries: {e}')
 
         new_ranking = await self._generate_ranking(
             start_date, end_date)
@@ -420,7 +423,7 @@ class DbConnector:
         return None
 
     @retry_on_update_collision(retries=3)
-    async def update_users_rating(self, winner_id: str, loser_id: str, month: int, year: int):
+    async def update_users_rating(self, winner_id: str, loser_id: str, month: int, year: int, on_before_update=None):
         winner = await self.get_user_rating(winner_id, month, year)
         winner_exists = bool(winner)
         if not winner_exists:
@@ -433,6 +436,9 @@ class DbConnector:
 
         new_winner_rating, new_loser_rating = utils.calculate_new_ratings(winner.rating, loser.rating)
 
+        if on_before_update:
+            await on_before_update()
+
         c = await self.conn.cursor()
 
         await self._update_or_insert_rating(c, winner, new_winner_rating, winner_exists, month, year)
@@ -443,11 +449,15 @@ class DbConnector:
     async def _update_or_insert_rating(self, c, user: UserRating, new_rating: float, user_exists: bool, month: int,
                                        year: int):
         if not user_exists:
-            await c.execute(
-                "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
-                    user.user_id, month, year, user.revision, new_rating
+            try:
+                await c.execute(
+                    "insert into user_ratings (user_id, month, year, revision, rating) values (?, ?, ?, ?, ?)", (
+                        user.user_id, month, year, user.revision, new_rating
+                    )
                 )
-            )
+            except aiosqlite.IntegrityError:
+                self.conn.rollback()
+                raise UpdateCollisionError()
         else:
             await c.execute(
                 "update user_ratings set rating = ?, revision = ?"
@@ -459,6 +469,7 @@ class DbConnector:
             row = await c.fetchone()
             if not row:
                 self.conn.rollback()
+                raise UpdateCollisionError()
 
     async def close(self):
         await self.conn.close()

@@ -24,6 +24,7 @@ async def execute_migrations(c, config, max_version=None):
         _migration_upgrade_to_v4,
         _migration_upgrade_to_v5,
         _migration_upgrade_to_v6,
+        _migration_upgrade_to_v7,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -184,3 +185,18 @@ async def _migration_upgrade_to_v6(c, config):
                         ))
 
     await _set_version(c, 6)
+
+
+async def _migration_upgrade_to_v7(c, config):
+    await c.execute(
+        "create table user_ratings ("
+        " user_id varchar,"
+        " year integer,"
+        " month integer,"
+        " revision integer,"
+        " rating integer,"
+        " primary key (user_id, year, month),"
+        " foreign key(user_id) references users (id)"
+        ")"
+    )
+    await _set_version(c, 7)

@@ -4,6 +4,7 @@ from datetime import datetime
 from unittest.mock import patch
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
+from QRServer.db.common import UpdateCollisionError
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport
 from QRServer.common.classes import RankingEntry
@@ -278,14 +279,101 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 await self.conn.add_match_result(test_match)
 
             ranking_entries = [
-                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7),
-                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5),
-                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22),
-                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10),
+                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7, rating=640),
+                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5, rating=575),
+                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22, rating=538),
+                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10, rating=247),
             ]
+
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
 
             self.assertEqual(ranking_entries, await self.conn.get_ranking(
+                start_date=start_date, end_date=end_date
+            ))
+
+    async def test_get_ranking_elo(self):
+        # Test to check if the difference between playing against the same vs different players
+        # is noticeable
+        with patch('uuid.uuid4') as mock_uuid:
+            # Set up 4 users
+            mock_uuid.return_value = '0'
+            user0 = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            mock_uuid.return_value = '1'
+            user1 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+            mock_uuid.return_value = '2'
+            user2 = await self.conn.authenticate_user('test_user_2', b'password', auto_create=True)
+            mock_uuid.return_value = '3'
+            user3 = await self.conn.authenticate_user('test_user_3', b'password', auto_create=True)
+
+            # Generate 2 matches for user_2 (winner) vs user_3 (loser)
+            for i in range(1, 3):
+                mock_uuid.return_value = f'1{i}'
+                test_match = DbMatchReport(
+                    winner_id=user2.user_id,
+                    loser_id=user3.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # Generate 2 matches for user_2 (winner) vs user_1 (loser)
+            for i in range(1, 3):
+                mock_uuid.return_value = f'2{i}'
+                test_match = DbMatchReport(
+                    winner_id=user2.user_id,
+                    loser_id=user1.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # Generate 5 matches for user_0 (winner) vs user_1 (loser) - user_1 lost some rating on user_2
+            for i in range(1, 6):
+                mock_uuid.return_value = f'0{i}'
+                test_match = DbMatchReport(
+                    winner_id=user0.user_id,
+                    loser_id=user1.user_id,
+                    winner_pieces_left=i,
+                    loser_pieces_left=20-i,
+                    move_counter=20,
+                    grid_size='small',
+                    squadron_size='medium',
+                    started_at=datetime(2020, 1, 1, i, 0, 0),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    is_ranked=True,
+                    is_void=False,
+                )
+
+                await self.conn.add_match_result(test_match)
+
+            # user_2 played less games than user_1,
+            # but played against different players, therefore should have higher rating
+            ranking_entries_default = [
+                RankingEntry(user_id='2', username='test_user_2', wins=4, games=4, rating=607),
+                RankingEntry(user_id='0', username='test_user_0', wins=5, games=5, rating=600),
+                RankingEntry(user_id='3', username='test_user_3', wins=0, games=2, rating=442),
+                RankingEntry(user_id='1', username='test_user_1', wins=0, games=7, rating=351),
+            ]
+
+            start_date, end_date = utils.make_month_dates(month=1, year=2020)
+
+            self.assertEqual(ranking_entries_default, await self.conn.get_ranking(
                 start_date=start_date, end_date=end_date
             ))
 
@@ -303,6 +391,44 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
             self.assertEqual(user.discord_user_id, '11111111111')
             self.assertFalse(user.is_guest)
+
+    async def test_update_rating_rollback(self):
+        # Forces collision (update during other update) to test if rollback will work
+
+        with patch('uuid.uuid4') as mock_uuid:
+            # Set up 4 users
+            mock_uuid.return_value = '0'
+            winner = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            mock_uuid.return_value = '1'
+            loser = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+
+            # This helper will be executed every time when update_user_rating rungs
+            # This will cause the outer call to fail (but the helper will succeed)
+            # so with 3 retries we should see 3 updates (revision 2 - counting from 0)
+            async def perform_conflicting_update():
+                await self.conn.update_users_rating(winner.user_id, loser.user_id, 4, 2025)
+
+            # Try and update user rating - if every retry fails this will raise exception
+            collision_detected = False
+            try:
+                await self.conn.update_users_rating(winner.user_id, loser.user_id, 4, 2025, perform_conflicting_update)
+            except UpdateCollisionError:
+                collision_detected = True
+
+            self.assertTrue(collision_detected)
+
+            winner_rating = await self.conn.get_user_rating(winner.user_id, 4, 2025)
+            loser_rating = await self.conn.get_user_rating(loser.user_id, 4, 2025)
+
+            self.assertEqual(winner_rating.year, 2025)
+            self.assertEqual(winner_rating.month, 4)
+            self.assertEqual(winner_rating.rating, 580)
+            self.assertEqual(winner_rating.revision, 2)  # updated 3 times -> revision == 2
+
+            self.assertEqual(loser_rating.year, 2025)
+            self.assertEqual(loser_rating.month, 4)
+            self.assertEqual(loser_rating.rating, 420)
+            self.assertEqual(loser_rating.revision, 2)  # updated 3 times -> revision == 2
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
@@ -482,3 +608,20 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(ranking_data), 2)
         self.assertEqual(ranking_data[0], (2020, 1, 1, '1', 1, 1))
         self.assertEqual(ranking_data[1], (2020, 1, 2, '2', 0, 1))
+
+    async def test_migration_v7(self):
+        await migrations.execute_migrations(self.c, self.dbconn.config, 6)
+
+        self.assertNotIn('user_ratings', await self.get_table_names())
+
+        await migrations.execute_migrations(self.c, self.dbconn.config, 7)
+
+        self.assertIn('user_ratings', await self.get_table_names())
+
+        table_info = await self.get_table_info('user_ratings')
+        self.assertEqual(len(table_info), 5)
+        self.assertEqual(table_info[0][:3], (0, 'user_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'year', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'month', 'INTEGER'))
+        self.assertEqual(table_info[3][:3], (3, 'revision', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'rating', 'INTEGER'))

@@ -317,7 +317,7 @@ class DbConnector:
             " ur.rating"
             " from rankings r"
             " inner join users u on u.id = r.user_id"
-            " inner join user_ratings ur on u.id = ur.user_id"
+            " left join user_ratings ur on u.id = ur.user_id"
             "  and ur.year = r.year and ur.month = r.month"
             " where r.year == ?"
             " and r.month == ?"

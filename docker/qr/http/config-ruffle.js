@@ -18,4 +18,7 @@ window.RufflePlayer.config = {
             proxyUrl: `${protocol}//${host}/websocket/game`,
         },
     ],
+    urlRewriteRules: [
+        ["http://www.quadradius.com/quadboard", "https://discord.gg/cVkV8pah4d"], // Quadboard
+    ],
 };

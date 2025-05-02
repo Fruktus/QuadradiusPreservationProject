@@ -11,7 +11,7 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest, \
-    SwitcherooMessage, RemoveOneWayWallMessage, BankruptActionMessage
+    SwitcherooMessage, RemoveOneWayWallMessage, BankruptActionMessage, ServerAliveResponse
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.game_client_handler')
@@ -145,9 +145,7 @@ class GameClientHandler(ClientHandler, MatchParty):
             await self.opponent_handler.send_msg(message)
 
     async def _handle_ping(self, message: ServerPingRequest):
-        # we have to ignore this message, responding to it
-        # causes synchronization problems
-        pass
+        await self.send_msg(ServerAliveResponse.new())
 
     async def _handle_void_score(self, _: VoidScoreRequest):
         self._is_void_score = True

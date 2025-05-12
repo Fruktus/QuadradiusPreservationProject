@@ -38,6 +38,15 @@ export default function Gameplay() {
           some help from powers later on).
         </p>
       </div>
+      <div className="bg-yellow-50 p-4 rounded mt-6">
+        <h3 className="font-semibold text-yellow-800">Warning:</h3>
+        <p className="text-gray-800">
+          Don&apos;t get overzealous with the powers. If you get 10 or more of
+          any single power on any single piece, you can overheat. The mechanized
+          torus was not built to withstand this type of power storage and the
+          core will melt down.
+        </p>
+      </div>
     </div>
   );
 }

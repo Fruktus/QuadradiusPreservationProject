@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (version) {
     version = "@" + version + "/ruffle.js";
   } else {
-    version = "";
+    version = "@0.1.0-nightly.2025.6.21/ruffle.js";
   }
   let ruffleScript = document.createElement("script");
   ruffleScript.setAttribute(

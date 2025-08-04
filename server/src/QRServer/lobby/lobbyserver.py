@@ -6,6 +6,8 @@ from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import ResponseMessage, LastLoggedResponse, LobbyStateResponse, ChallengeMessage, \
     ChallengeAuthMessage
 from QRServer.lobby.lobbyclient import LobbyClientHandler
+from QRServer.metrics import MetricsReporter
+
 
 log = logging.getLogger('qr.lobby_server')
 
@@ -14,14 +16,17 @@ class LobbyServer:
     __server_boot_time = datetime.now()
     last_logged: Optional[LobbyClientHandler]
     clients: List[Optional[LobbyClientHandler]]
+    metrics: MetricsReporter
 
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked
         self.last_logged = None
+        self.metrics = MetricsReporter()
 
     async def add_client(self, client: LobbyClientHandler):
         idx = await self.ensure_free_idx()
         self.clients[idx] = client
+        self.metrics.lobby_clients_inc()
         await self.broadcast_lobby_state(idx)
         return idx
 
@@ -38,6 +43,7 @@ class LobbyServer:
         self.last_logged = self.clients[idx]
         self.clients[idx].close()
         self.clients[idx] = None
+        self.metrics.lobby_clients_dec()
         await self.broadcast_lobby_state(idx)
 
     def username_exists(self, username):

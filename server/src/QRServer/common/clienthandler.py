@@ -109,8 +109,8 @@ class ClientHandler(abc.ABC):
 
     async def send(self, data: bytes):
         """Deprecated, do not use"""
-        log.warning(f'Using deprecated method to send {data}')
-        log.debug(f'Sending {data} to {self.username}')
+        log.warning(f'Using deprecated method to send {data!r}')
+        log.debug(f'Sending {data!r} to {self.username}')
         self.writer.write(data)
         await self.writer.drain()
 

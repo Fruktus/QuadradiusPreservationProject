@@ -45,8 +45,8 @@ class LobbyServer:
                 return True
         return False
 
-    def get_players(self) -> list[LobbyPlayer]:
-        players = []
+    def get_players(self) -> list[LobbyPlayer | None]:
+        players: list[LobbyPlayer | None] = []
         for c in self.clients:
             if c is None:
                 players.append(None)

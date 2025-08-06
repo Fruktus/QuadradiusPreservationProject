@@ -10,8 +10,8 @@ delim = '~'
 
 class Message:
     args: list[str]
-    prefix = None
-    argc = None
+    prefix: list[str] | None = None
+    argc: list[int] | None = None
 
     def __init__(self, args: list[str]) -> None:
         self.args = args
@@ -162,7 +162,7 @@ class ServerRankingRequest(RequestMessage):
 
     @classmethod
     def new(cls, year: int, month: int):
-        return cls([*cls.prefix, year, month])
+        return cls([*cls.prefix, str(year), str(month)])
 
     def get_year(self) -> int:
         return self._year
@@ -430,7 +430,7 @@ class ServerRankingThisMonthResponse(ResponseMessage):
 
     @classmethod
     def __serialize_entries(cls, entries: list[RankingEntry]):
-        to_serialize: list[RankingEntry | None] = entries[0:100]
+        to_serialize: list[RankingEntry] = entries[0:100]
         return [x for e in to_serialize for x in cls.__serialize_entry(e)]
 
     @classmethod
@@ -458,7 +458,7 @@ class LobbyStateResponse(ResponseMessage):
         return [x for e in to_serialize for x in cls.__serialize_player(e)]
 
     @classmethod
-    def __serialize_player(cls, player: LobbyPlayer):
+    def __serialize_player(cls, player: LobbyPlayer | None):
         if player is None:
             player = LobbyPlayer()
             player.username = '<EMPTY>'

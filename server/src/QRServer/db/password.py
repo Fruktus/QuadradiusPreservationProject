@@ -17,7 +17,7 @@ def password_hash(password: bytes) -> str:
     return (salt + h).decode('ascii')
 
 
-def password_verify(provided_password: bytes, stored_hash: str) -> bool:
+def password_verify(provided_password: bytes | None, stored_hash: str | None) -> bool:
     if not stored_hash or not provided_password:
         return False
 
@@ -28,5 +28,5 @@ def password_verify(provided_password: bytes, stored_hash: str) -> bool:
         provided_password,
         salt.encode('ascii'),
         _iterations)
-    h = binascii.hexlify(h).decode('ascii')
-    return h == stored_hash
+    h_str = binascii.hexlify(h).decode('ascii')
+    return h_str == stored_hash

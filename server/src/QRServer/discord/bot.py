@@ -1,6 +1,5 @@
 import logging
 import re
-from typing import Tuple
 from hashlib import md5
 
 from QRServer.common import utils
@@ -246,7 +245,7 @@ class DiscordBot:
                 f"Password for account was reset: `{username}`, failed to send credentials - check privacy settings.",
                 ephemeral=True)
 
-    def _validate_username(self, username: str) -> Tuple[bool, str]:
+    def _validate_username(self, username: str) -> tuple[bool, str]:
         # Checks if the username is of correct length and format
         # Returns a tuple of (valid, error message)
 
@@ -262,7 +261,7 @@ class DiscordBot:
 
         return (True, "")
 
-    async def _is_allowed_to_register(self, discord_user_id: str) -> Tuple[bool, str]:
+    async def _is_allowed_to_register(self, discord_user_id: str) -> tuple[bool, str]:
         # Checks if the user meets criteria to register a new username
         # Such as max alias count or banned status
         # Returns a tuple of (allowed, error message)
@@ -273,7 +272,7 @@ class DiscordBot:
 
         return (True, "")
 
-    def _can_use_bot(self, guild_id: str) -> Tuple[bool, str]:
+    def _can_use_bot(self, guild_id: str) -> tuple[bool, str]:
         # Checks if the user is allowed to use the bot
         # If the user is not part of the server, then not
         # Returns a tuple of (allowed, error message)
@@ -284,7 +283,7 @@ class DiscordBot:
         return (True, "")
 
     async def _basic_validations_passed(
-            self, interaction: discord.Interaction, username: str) -> Tuple[bool, str]:
+            self, interaction: discord.Interaction, username: str) -> tuple[bool, str]:
         # Checks the basic things for registering and claiming a username
         discord_user_id = interaction.user.id
 

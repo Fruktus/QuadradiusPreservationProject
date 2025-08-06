@@ -2,7 +2,6 @@ import asyncio
 import unittest
 from asyncio import CancelledError, QueueEmpty, StreamWriter, StreamReader, IncompleteReadError
 from tempfile import TemporaryDirectory
-from typing import Optional, List
 
 from QRServer.__main__ import QRServer
 from QRServer.common.messages import Message, JoinLobbyRequest, LobbyStateResponse, DisconnectRequest
@@ -129,10 +128,10 @@ class TestClientConnection:
 
 
 class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
-    _data_dir: Optional[TemporaryDirectory]
-    _config: Optional[Config]
-    _server: Optional[QRServer]
-    _clients: List[TestClientConnection]
+    _data_dir: TemporaryDirectory | None
+    _config: Config | None
+    _server: QRServer | None
+    _clients: list[TestClientConnection]
 
     def __init__(self, method_name='runTest'):
         super().__init__(method_name)

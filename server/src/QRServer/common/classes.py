@@ -1,7 +1,6 @@
 import abc
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Set
 from QRServer.db.models import DbMatchReport
 
 
@@ -69,10 +68,10 @@ class MatchStats:
 class Match:
     id: MatchId
     ranked: bool
-    users_voted_void: Set[str]
-    user_ids: Set[str]
-    parties: List[MatchParty]
-    match_stats: Dict[str, MatchStats]
+    users_voted_void: set[str]
+    user_ids: set[str]
+    parties: list[MatchParty]
+    match_stats: dict[str, MatchStats]
 
     def __init__(self, _id: MatchId) -> None:
         super().__init__()
@@ -123,7 +122,7 @@ class Match:
     def add_match_stats(self, user_id: str, match_stats: MatchStats):
         self.match_stats[user_id] = match_stats
 
-    def generate_match_report(self) -> Optional[DbMatchReport]:
+    def generate_match_report(self) -> DbMatchReport | None:
         if len(self.match_stats) < 1:
             return None
 
@@ -196,6 +195,6 @@ class LobbyPlayer:
     username: str = ''
     comment: str = ''
     score: int = 0
-    awards: List[int] = field(default_factory=lambda: [0] * 10)
+    awards: list[int] = field(default_factory=lambda: [0] * 10)
     idx: int = None
     joined_at: datetime = None

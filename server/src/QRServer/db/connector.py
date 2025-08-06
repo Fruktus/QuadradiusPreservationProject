@@ -2,7 +2,6 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import List, Optional
 
 from QRServer.db.common import UpdateCollisionError, retry_on_update_collision
 import aiosqlite
@@ -30,7 +29,7 @@ class DbConnector:
         await migrations.execute_migrations(c, self.config)
         await self.conn.commit()
 
-    async def get_user(self, user_id: str) -> Optional[DbUser]:
+    async def get_user(self, user_id: str) -> DbUser | None:
         c = await self.conn.cursor()
         await c.execute(
             "select id, username, password, created_at, discord_user_id from users where id = ?", (
@@ -47,7 +46,7 @@ class DbConnector:
             discord_user_id=row[4],
         )
 
-    async def get_user_by_username(self, username) -> Optional[DbUser]:
+    async def get_user_by_username(self, username) -> DbUser | None:
         c = await self.conn.cursor()
         await c.execute(
             "select id, username, password, created_at, discord_user_id from users where username = ?", (
@@ -64,7 +63,7 @@ class DbConnector:
             discord_user_id=row[4],
         )
 
-    async def get_users_by_discord_id(self, discord_user_id: str) -> List[DbUser]:
+    async def get_users_by_discord_id(self, discord_user_id: str) -> list[DbUser]:
         c = await self.conn.cursor()
         await c.execute(
             "select id, username, password, created_at, discord_user_id from users where discord_user_id = ?", (
@@ -87,7 +86,7 @@ class DbConnector:
             )
         return result
 
-    async def create_member(self, username: str, password: bytes, discord_user_id: Optional[str] = None) -> None:
+    async def create_member(self, username: str, password: bytes, discord_user_id: str | None = None) -> None:
         c = await self.conn.cursor()
         await c.execute(
             "insert into users("
@@ -101,8 +100,8 @@ class DbConnector:
             ))
         await self.conn.commit()
 
-    async def authenticate_user(self, username: str, password: Optional[bytes], auto_create=False,
-                                verify_password=True) -> Optional[DbUser]:
+    async def authenticate_user(self, username: str, password: bytes | None, auto_create=False,
+                                verify_password=True) -> DbUser | None:
         c = await self.conn.cursor()
         if auto_create:
             await c.execute(
@@ -138,7 +137,7 @@ class DbConnector:
 
         return db_user
 
-    async def change_user_password(self, user_id: str, password: Optional[bytes]):
+    async def change_user_password(self, user_id: str, password: bytes | None):
         c = await self.conn.cursor()
         await c.execute(
             "update users set password = ? where id = ?", (
@@ -147,7 +146,7 @@ class DbConnector:
             ))
         await self.conn.commit()
 
-    async def claim_member(self, user_id: str, password: Optional[bytes], discord_user_id: str):
+    async def claim_member(self, user_id: str, password: bytes | None, discord_user_id: str):
         c = await self.conn.cursor()
         await c.execute(
             "update users set password = ?, discord_user_id = ? where id = ? and password is null", (
@@ -212,7 +211,7 @@ class DbConnector:
 
         await self.conn.commit()
 
-    async def get_match(self, match_id: str) -> Optional[DbMatchReport]:
+    async def get_match(self, match_id: str) -> DbMatchReport | None:
         c = await self.conn.cursor()
         await c.execute(
             "select id, winner_id, loser_id, winner_pieces_left,"
@@ -304,7 +303,7 @@ class DbConnector:
         return recent_matches
 
     async def get_ranking(self, start_date: datetime, end_date: datetime, ranked_only=True,
-                          include_void=False) -> List[RankingEntry]:
+                          include_void=False) -> list[RankingEntry]:
         c = await self.conn.cursor()
 
         # Gets matches sort
@@ -340,7 +339,7 @@ class DbConnector:
             ))
         return ranking_entries
 
-    async def _update_ranking(self, ranking_entries: List[RankingEntry], year: int, month: int) -> None:
+    async def _update_ranking(self, ranking_entries: list[RankingEntry], year: int, month: int) -> None:
         for position, entry in enumerate(ranking_entries):
             c = await self.conn.cursor()
             await c.execute(
@@ -362,7 +361,7 @@ class DbConnector:
                     entry.games,
                 ))
 
-    async def _generate_ranking(self, start_date: datetime, end_date: datetime) -> List[RankingEntry]:
+    async def _generate_ranking(self, start_date: datetime, end_date: datetime) -> list[RankingEntry]:
         ranked_only = self.config.leaderboards_ranked_only.get()
         include_void = self.config.leaderboards_include_void.get()
 
@@ -405,7 +404,7 @@ class DbConnector:
             ))
         return ranking_entries
 
-    async def get_user_rating(self, user_id: str, month: int, year: int) -> Optional[UserRating]:
+    async def get_user_rating(self, user_id: str, month: int, year: int) -> UserRating | None:
         c = await self.conn.cursor()
         await c.execute(
             "select"

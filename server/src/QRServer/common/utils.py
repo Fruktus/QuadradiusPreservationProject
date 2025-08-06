@@ -2,7 +2,6 @@ import hashlib
 from datetime import datetime
 import secrets
 import string
-from typing import List
 
 
 def is_guest(username: str, password: str):
@@ -22,7 +21,7 @@ def generate_random_password(length: int) -> str:
     return ''.join([secrets.choice(string.ascii_letters + string.digits) for _ in range(length)])
 
 
-def make_month_dates_range(start_date: datetime, end_date: datetime) -> List[datetime]:
+def make_month_dates_range(start_date: datetime, end_date: datetime) -> list[datetime]:
     # Returns a list of datetimes between the start_date and end_date (end inclusive)
     if start_date > end_date:
         return []

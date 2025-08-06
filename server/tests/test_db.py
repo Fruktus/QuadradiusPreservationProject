@@ -1,4 +1,3 @@
-from typing import List, Tuple
 import unittest
 from datetime import datetime
 from unittest.mock import patch
@@ -446,14 +445,14 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         await self.dbconn.conn.close()
 
-    async def get_table_names(self) -> List[str]:
+    async def get_table_names(self) -> list[str]:
         # Utility to pull the names of the existing tables
         # Flattens them to list of strings from tuples
         await self.c.execute("select name from sqlite_master where type='table';")
         tables = await self.c.fetchall()
         return [i[0] for i in tables]
 
-    async def get_table_info(self, table_name: str) -> List[Tuple]:
+    async def get_table_info(self, table_name: str) -> list[tuple]:
         await self.c.execute(f'pragma table_info(\'{table_name}\')')
         return await self.c.fetchall()
 

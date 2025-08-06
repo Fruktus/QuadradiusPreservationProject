@@ -144,10 +144,10 @@ class LobbyClientHandler(ClientHandler):
     async def _handle_chat_message(self, message: LobbyChatMessage):
         await self.lobby_server.broadcast_msg(message)
         text = message.get_text()
-        message = text.split(':', 1)[1].strip()
-        if message.startswith('(COMMUNIQUE)'):
+        text_message = text.split(':', 1)[1].strip()
+        if text_message.startswith('(COMMUNIQUE)'):
             return
-        await self.webhook.invoke_webhook_lobby_message(self.player.username, message)
+        await self.webhook.invoke_webhook_lobby_message(self.player.username, text_message)
 
     async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')

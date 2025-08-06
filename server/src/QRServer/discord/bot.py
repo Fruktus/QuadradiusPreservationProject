@@ -209,8 +209,8 @@ class DiscordBot:
         username = username.strip()
 
         # Get user's accounts
-        user_accounts = await self.connector.get_users_by_discord_id(interaction.user.id)
-        user_accounts = {user.username: user for user in user_accounts}
+        user_account_list = await self.connector.get_users_by_discord_id(interaction.user.id)
+        user_accounts = {user.username: user for user in user_account_list}
 
         if username not in user_accounts:
             log.debug(f"User '{interaction.user}' tried to change password for not owned account: '{username}'")

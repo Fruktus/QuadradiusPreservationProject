@@ -190,11 +190,11 @@ class RankingEntry:
 
 @dataclass
 class LobbyPlayer:
-    user_id: str = None
+    user_id: str | None = None
     is_guest: bool = True
     username: str = ''
     comment: str = ''
     score: int = 0
     awards: list[int] = field(default_factory=lambda: [0] * 10)
-    idx: int = None
-    joined_at: datetime = None
+    idx: int | None = None
+    joined_at: datetime | None = None

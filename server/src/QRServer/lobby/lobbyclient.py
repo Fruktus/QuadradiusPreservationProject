@@ -40,7 +40,7 @@ class LobbyClientHandler(ClientHandler):
         self.register_message_handler(NameTakenRequest, self._handle_name_taken)
         self.register_message_handler(ChangePasswordRequest, self._handle_change_password)
 
-    def get_joined_at(self) -> datetime:
+    def get_joined_at(self) -> datetime | None:
         return self.player.joined_at
 
     def get_player(self) -> LobbyPlayer:
@@ -98,7 +98,7 @@ class LobbyClientHandler(ClientHandler):
         await self.webhook.invoke_webhook_lobby_joined(username, total_players)
 
         if self.config.lobby_motd.get():
-            await self.send_msg(LobbyChatMessage.new('', self.config.lobby_motd.get()))
+            await self.send_msg(LobbyChatMessage.new(None, self.config.lobby_motd.get()))
 
     async def _handle_challenge(self, message: ChallengeMessage):
         challenger_idx = message.get_challenger_idx()

@@ -2,7 +2,7 @@ import abc
 import logging
 from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError, LimitOverrunError
 from datetime import datetime
-from typing import Callable, TypeVar, Type, AsyncIterable, Coroutine
+from typing import Any, Callable, TypeVar, Type, AsyncIterable, Coroutine
 
 from QRServer.common import messages, utils
 from QRServer.common.messages import ResponseMessage, RequestMessage, Message
@@ -22,7 +22,7 @@ class ClientHandler(abc.ABC):
     reader: StreamReader
     writer: StreamWriter
     handlers: dict[bytes, list[Callable[[list[bytes]], Coroutine]]]
-    message_handlers: dict[Type[RequestMessage], list[Callable[[RequestMessage], Coroutine]]]
+    message_handlers: dict[type, list[Callable[[Any], Coroutine]]]
     _username: str | None
 
     def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter):
@@ -36,7 +36,7 @@ class ClientHandler(abc.ABC):
         self._username = None
 
     @property
-    def username(self) -> str:
+    def username(self) -> str | None:
         return self._username
 
     async def _socket_read(self) -> AsyncIterable[bytes]:
@@ -54,8 +54,8 @@ class ClientHandler(abc.ABC):
                 yield b'<DISCONNECTED>'
                 return
             elif data[-1] == 0:
-                data = data.split(b'\x00')[:-1]
-                for i in data:
+                data_elements = data.split(b'\x00')[:-1]
+                for i in data_elements:
                     yield i
 
     def register_handler(self, prefix: bytes, handler):

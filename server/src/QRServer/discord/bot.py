@@ -318,8 +318,11 @@ class DiscordBot:
             return
 
         channel = self.client.get_channel(int(self.user_notifications_channel_id))
-        if channel:
+        allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
+        if isinstance(channel, allowed_channels):
             log.debug(f"Sending user notification: {repr(message)}")
             await channel.send(message)
         else:
-            log.warning(f'User notifications channel: {self.user_notifications_channel_id} not found')
+            log.warning(
+                'User notifications channel not found or not accepting messages: ' +
+                self.user_notifications_channel_id)

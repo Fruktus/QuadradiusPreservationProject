@@ -47,7 +47,7 @@ class MatchParty(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def username(self) -> str:
+    def username(self) -> str | None:
         pass
 
     @property

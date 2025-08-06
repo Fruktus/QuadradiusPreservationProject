@@ -1,7 +1,7 @@
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 import toml
 
@@ -15,7 +15,7 @@ class ConfigKey:
     description: str
     default_value: object
     cli_args: list[str] = field(default_factory=list)
-    onchange: Callable[['Config'], None] = None
+    onchange: Callable[['Config'], None] | None = None
 
     def get(self):
         return self.config.get(self.name)
@@ -214,7 +214,7 @@ class Config:
             return key.default_value
         return conf
 
-    def set(self, name: str, value: object):
+    def set(self, name: str, value: str | int):
         key = self.get_key(name)
         value_type = key.get_type()
 
@@ -271,7 +271,7 @@ class Config:
         for key in self.all_keys():
             value_type = key.get_type()
 
-            kwargs = {}
+            kwargs: dict[Any, Any] = {}
             if value_type == bool:
                 kwargs['action'] = 'store_true'
             elif value_type == int:

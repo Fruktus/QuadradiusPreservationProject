@@ -1,6 +1,7 @@
 import inspect
 import sys
 from datetime import datetime
+from typing import Sequence, Type
 
 from QRServer.common import powers
 from QRServer.common.classes import GameResultHistory, MatchStats, RankingEntry, LobbyPlayer
@@ -10,7 +11,7 @@ delim = '~'
 
 class Message:
     args: list[str]
-    prefix: list[str] | None = None
+    prefix: Sequence[str | None] | None = None
     argc: list[int] | None = None
 
     def __init__(self, args: list[str]) -> None:
@@ -65,7 +66,7 @@ class RequestMessage(Message):
 
 
 class DisconnectRequest(RequestMessage):
-    prefix = ['<DISCONNECTED>']
+    prefix: list[str] = ['<DISCONNECTED>']
     argc = [1]
 
     @classmethod
@@ -74,7 +75,7 @@ class DisconnectRequest(RequestMessage):
 
 
 class PolicyFileRequest(RequestMessage):
-    prefix = ['<policy-file-request/>']
+    prefix: list[str] = ['<policy-file-request/>']
     argc = [1]
 
     @classmethod
@@ -83,7 +84,7 @@ class PolicyFileRequest(RequestMessage):
 
 
 class HelloLobbyRequest(RequestMessage):
-    prefix = ['<QR_L>']
+    prefix: list[str] = ['<QR_L>']
     argc = [1]
 
     @classmethod
@@ -95,7 +96,7 @@ class HelloLobbyRequest(RequestMessage):
 
 
 class JoinLobbyRequest(RequestMessage):
-    prefix = ['<L>']
+    prefix: list[str] = ['<L>']
     argc = [3]
 
     @classmethod
@@ -110,7 +111,7 @@ class JoinLobbyRequest(RequestMessage):
 
 
 class HelloGameRequest(RequestMessage):
-    prefix = ['<QR_G>']
+    prefix: list[str] = ['<QR_G>']
     argc = [1]
 
     @classmethod
@@ -119,7 +120,7 @@ class HelloGameRequest(RequestMessage):
 
 
 class JoinGameRequest(RequestMessage):
-    prefix = ['<L>']
+    prefix: list[str] = ['<L>']
     argc = [6]
 
     @classmethod
@@ -143,7 +144,7 @@ class JoinGameRequest(RequestMessage):
 
 
 class ServerRecentRequest(RequestMessage):
-    prefix = ['<SERVER>', '<RECENT>']
+    prefix: list[str] = ['<SERVER>', '<RECENT>']
     argc = [2]
 
     @classmethod
@@ -152,7 +153,7 @@ class ServerRecentRequest(RequestMessage):
 
 
 class ServerRankingRequest(RequestMessage):
-    prefix = ['<SERVER>', '<RANKING>']
+    prefix: list[str] = ['<SERVER>', '<RANKING>']
     argc = [4]
 
     def __init__(self, args: list[str]) -> None:
@@ -172,7 +173,7 @@ class ServerRankingRequest(RequestMessage):
 
 
 class ServerAliveRequest(RequestMessage):
-    prefix = ['<SERVER>', '<ALIVE?>']
+    prefix: list[str] = ['<SERVER>', '<ALIVE?>']
     argc = [2]
 
     @classmethod
@@ -181,7 +182,7 @@ class ServerAliveRequest(RequestMessage):
 
 
 class ServerPingRequest(RequestMessage):
-    prefix = ['<SERVER>', '<PING>']
+    prefix: list[str] = ['<SERVER>', '<PING>']
     argc = [2]
 
     @classmethod
@@ -190,7 +191,7 @@ class ServerPingRequest(RequestMessage):
 
 
 class SetCommentRequest(RequestMessage):
-    prefix = ['<SERVER>', '<COMMENT>']
+    prefix: list[str] = ['<SERVER>', '<COMMENT>']
     argc = [4]
 
     @classmethod
@@ -205,8 +206,9 @@ class SetCommentRequest(RequestMessage):
 
 
 class AddStatsRequest(RequestMessage):
-    prefix = ['<SERVER>', '<STATS>']
+    prefix: list[str] = ['<SERVER>', '<STATS>']
     argc = [7]
+
     grid_sizes = ['small', 'medium', 'large (default)', 'maximum']
     squadron_sizes = ['small', 'medium', 'large (default)', 'maximum']
 
@@ -251,7 +253,7 @@ class AddStatsRequest(RequestMessage):
 
 
 class VoidScoreRequest(RequestMessage):
-    prefix = ['<SERVER>', '<VOID>']
+    prefix: list[str] = ['<SERVER>', '<VOID>']
     argc = [2]
 
     @classmethod
@@ -260,7 +262,7 @@ class VoidScoreRequest(RequestMessage):
 
 
 class NameTakenRequest(RequestMessage):
-    prefix = ['<SERVER>', '<NAME_TAKEN?>']
+    prefix: list[str] = ['<SERVER>', '<NAME_TAKEN?>']
     argc = [3]
 
     def __init__(self, args: list[str]) -> None:
@@ -276,7 +278,7 @@ class NameTakenRequest(RequestMessage):
 
 
 class ChangePasswordRequest(RequestMessage):
-    prefix = ['<SERVER>', '<CHPW>']
+    prefix: list[str] = ['<SERVER>', '<CHPW>']
     argc = [3]
 
     def __init__(self, args: list[str]) -> None:
@@ -300,7 +302,7 @@ class ResponseMessage(Message):
 
 
 class CrossDomainPolicyAllowAllResponse(ResponseMessage):
-    prefix = ['<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>']
+    prefix: list[str] = ['<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>']
     argc = [1]
 
     @classmethod
@@ -309,7 +311,7 @@ class CrossDomainPolicyAllowAllResponse(ResponseMessage):
 
 
 class PlayerCountResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<PLAYERS_COUNT>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<PLAYERS_COUNT>']
     argc = [4]
 
     @classmethod
@@ -318,7 +320,7 @@ class PlayerCountResponse(ResponseMessage):
 
 
 class BroadcastCommentResponse(ResponseMessage):
-    prefix = ['<B>', '<COMMENT>']
+    prefix: list[str] = ['<B>', '<COMMENT>']
     argc = [4]
 
     @classmethod
@@ -327,7 +329,7 @@ class BroadcastCommentResponse(ResponseMessage):
 
 
 class OldSwfResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<OLD_SWF>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<OLD_SWF>']
     argc = [3]
 
     @classmethod
@@ -336,7 +338,7 @@ class OldSwfResponse(ResponseMessage):
 
 
 class NameTakenResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<NAME_TAKEN>']
     argc = [4]
 
     @classmethod
@@ -345,7 +347,7 @@ class NameTakenResponse(ResponseMessage):
 
 
 class ServerAliveResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<ALIVE>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<ALIVE>']
     argc = [3]
 
     @classmethod
@@ -354,7 +356,7 @@ class ServerAliveResponse(ResponseMessage):
 
 
 class LobbyDuplicateResponse(ResponseMessage):
-    prefix = ['<L>', '<DUPLICATE>']
+    prefix: list[str] = ['<L>', '<DUPLICATE>']
     argc = [2]
 
     @classmethod
@@ -363,7 +365,7 @@ class LobbyDuplicateResponse(ResponseMessage):
 
 
 class LobbyBadMemberResponse(ResponseMessage):
-    prefix = ['<L>', '<BAD_MEMBER>']
+    prefix: list[str] = ['<L>', '<BAD_MEMBER>']
     argc = [2]
 
     @classmethod
@@ -372,7 +374,7 @@ class LobbyBadMemberResponse(ResponseMessage):
 
 
 class LastLoggedResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<LAST_LOGGED>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<LAST_LOGGED>']
     argc = [6]
 
     @classmethod
@@ -382,13 +384,13 @@ class LastLoggedResponse(ResponseMessage):
             player, str(cls.__last_logged_minutes(time)), motd])
 
     @staticmethod
-    def __last_logged_minutes(time: datetime):
+    def __last_logged_minutes(time: datetime) -> int:
         diff = datetime.now() - time
         return int(diff.total_seconds()) // 60
 
 
 class LastPlayedResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<LAST_PLAYED>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<LAST_PLAYED>']
     argc = [18]
 
     @classmethod
@@ -400,13 +402,13 @@ class LastPlayedResponse(ResponseMessage):
         if recent_games is None or len(recent_games) == 0:
             return ['No recent battles# # '] + [cls.__serialize_entry(None)] * 14
 
-        to_serialize: list[GameResultHistory | None] = recent_games[0:15]
+        to_serialize: list[GameResultHistory | None] = list(recent_games[0:15])
         while len(to_serialize) < 15:
             to_serialize.append(None)
         return [cls.__serialize_entry(e) for e in to_serialize]
 
     @classmethod
-    def __serialize_entry(cls, entry: GameResultHistory | None):
+    def __serialize_entry(cls, entry: GameResultHistory | None) -> str:
         if entry is None:
             return ' # # '
 
@@ -421,7 +423,7 @@ class LastPlayedResponse(ResponseMessage):
 
 
 class ServerRankingThisMonthResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<RANKING(thisMonth)>']
     argc = [-1]
 
     @classmethod
@@ -429,12 +431,12 @@ class ServerRankingThisMonthResponse(ResponseMessage):
         return cls([*cls.prefix, *cls.__serialize_entries(ranking)])
 
     @classmethod
-    def __serialize_entries(cls, entries: list[RankingEntry]):
+    def __serialize_entries(cls, entries: list[RankingEntry]) -> list[str]:
         to_serialize: list[RankingEntry] = entries[0:100]
         return [x for e in to_serialize for x in cls.__serialize_entry(e)]
 
     @classmethod
-    def __serialize_entry(cls, entry: RankingEntry):
+    def __serialize_entry(cls, entry: RankingEntry) -> list[str]:
         return [
             entry.username,
             str(entry.wins),
@@ -443,7 +445,7 @@ class ServerRankingThisMonthResponse(ResponseMessage):
 
 
 class LobbyStateResponse(ResponseMessage):
-    prefix = ['<L>']
+    prefix: list[str] = ['<L>']
     argc = [170]
 
     @classmethod
@@ -451,14 +453,14 @@ class LobbyStateResponse(ResponseMessage):
         return cls([*cls.prefix, *cls.__serialize_players(players)])
 
     @classmethod
-    def __serialize_players(cls, players: list[LobbyPlayer]):
-        to_serialize: list[LobbyPlayer | None] = players[0:13]
+    def __serialize_players(cls, players: list[LobbyPlayer]) -> list[str]:
+        to_serialize: list[LobbyPlayer | None] = list(players[0:13])
         while len(to_serialize) < 13:
             to_serialize.append(None)
         return [x for e in to_serialize for x in cls.__serialize_player(e)]
 
     @classmethod
-    def __serialize_player(cls, player: LobbyPlayer | None):
+    def __serialize_player(cls, player: LobbyPlayer | None) -> list[str]:
         if player is None:
             player = LobbyPlayer()
             player.username = '<EMPTY>'
@@ -471,7 +473,7 @@ class LobbyStateResponse(ResponseMessage):
 
 
 class OpponentDeadResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<OPPDEAD>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<OPPDEAD>']
     argc = [3]
 
     @classmethod
@@ -480,7 +482,7 @@ class OpponentDeadResponse(ResponseMessage):
 
 
 class VoidScoreResponse(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<VOID>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<VOID>']
     argc = [3]
 
     @classmethod
@@ -489,7 +491,7 @@ class VoidScoreResponse(ResponseMessage):
 
 
 class NameTakenResponseNo(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<NO>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<NO>']
     argc = [4]
 
     @classmethod
@@ -498,7 +500,7 @@ class NameTakenResponseNo(ResponseMessage):
 
 
 class NameTakenResponseYes(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<YES>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<NAME_TAKEN>', '<YES>']
     argc = [4]
 
     @classmethod
@@ -507,7 +509,7 @@ class NameTakenResponseYes(ResponseMessage):
 
 
 class ChangePasswordResponseOk(ResponseMessage):
-    prefix = ['<S>', '<SERVER>', '<CHPW>', '<OK>']
+    prefix: list[str] = ['<S>', '<SERVER>', '<CHPW>', '<OK>']
     argc = [4]
 
     @classmethod
@@ -520,7 +522,7 @@ class ChangePasswordResponseOk(ResponseMessage):
 ################################################################################
 
 class UsePowerMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<USE_POWER>']
+    prefix: list[str] = ['<S>', '<USE_POWER>']
     argc = [4, 5]
 
     def __init__(self, args) -> None:
@@ -533,13 +535,13 @@ class UsePowerMessage(RequestMessage, ResponseMessage):
     def new(cls, power_name: str, piece: int, arg: str | None = None):
         return cls([*cls.prefix, power_name, str(piece)] + ([arg] if arg is not None else []))
 
-    def get_power_name(self):
+    def get_power_name(self) -> str:
         return self.args[2]
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[3])
 
-    def get_power_arg(self):
+    def get_power_arg(self) -> str | None:
         try:
             return self.args[4]
         except IndexError:
@@ -547,82 +549,88 @@ class UsePowerMessage(RequestMessage, ResponseMessage):
 
 
 class GameChatMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<CHAT>']
+    prefix: list[str] = ['<S>', '<CHAT>']
     argc = [3]
 
     @classmethod
     def new(cls, text: str):
         return cls([*cls.prefix, text])
 
-    def get_text(self):
+    def get_text(self) -> str:
         return self.args[2]
 
 
 class LobbyChatMessage(RequestMessage, ResponseMessage):
-    prefix = ['<B>', '<CHAT>']
+    prefix: list[str] = ['<B>', '<CHAT>']
     argc = [4]
 
     @classmethod
-    def new(cls, idx: int, text: str):
-        return cls([*cls.prefix, str(idx), text])
+    def new(cls, idx: int | None, text: str):
+        if idx is None:
+            idx_str = ''
+        else:
+            idx_str = str(idx)
+        return cls([*cls.prefix, idx_str, text])
 
-    def get_idx(self):
+    def get_idx(self) -> int | None:
+        if not self.args[2]:
+            return None
         return int(self.args[2])
 
-    def get_text(self):
+    def get_text(self) -> str:
         return self.args[3]
 
 
 class GrabPieceMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<GRAB_PIECE>']
+    prefix: list[str] = ['<S>', '<GRAB_PIECE>']
     argc = [3]
 
     @classmethod
     def new(cls, piece: int):
         return cls([*cls.prefix, str(piece)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
 
 class ReleasePieceMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<RELEASE_PIECE>']
+    prefix: list[str] = ['<S>', '<RELEASE_PIECE>']
     argc = [3]
 
     @classmethod
     def new(cls, piece: int):
         return cls([*cls.prefix, str(piece)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
 
 class SwitchPlayerMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SWITCH_PLAYER>']
+    prefix: list[str] = ['<S>', '<SWITCH_PLAYER>']
     argc = [3]
 
     @classmethod
     def new(cls, piece: int):
         return cls([*cls.prefix, str(piece)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
 
 class RecursiveDoneMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<RECURSIVE_DONE>']
+    prefix: list[str] = ['<S>', '<RECURSIVE_DONE>']
     argc = [3]
 
     @classmethod
     def new(cls, piece: int):
         return cls([*cls.prefix, str(piece)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
 
 class SwitcherooMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SWITCHEROO>']
+    prefix: list[str] = ['<S>', '<SWITCHEROO>']
     argc = [6]
 
     def __init__(self, args) -> None:
@@ -638,7 +646,7 @@ class SwitcherooMessage(RequestMessage, ResponseMessage):
 
 
 class RemoveOneWayWallMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<REMOVE_ONEWAY_WALL>']
+    prefix: list[str] = ['<S>', '<REMOVE_ONEWAY_WALL>']
     argc = [4]
 
     def __init__(self, args) -> None:
@@ -654,7 +662,7 @@ class RemoveOneWayWallMessage(RequestMessage, ResponseMessage):
 
 
 class BankruptActionMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<BR_ANIMATION>']
+    prefix: list[str] = ['<S>', '<BR_ANIMATION>']
     argc = [3]
 
     def __init__(self, args) -> None:
@@ -670,31 +678,31 @@ class BankruptActionMessage(RequestMessage, ResponseMessage):
 
 
 class RemovePlayerMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<REMOVE_PLAYER>']
+    prefix: list[str] = ['<S>', '<REMOVE_PLAYER>']
     argc = [3]
 
     @classmethod
     def new(cls, piece: int):
         return cls([*cls.prefix, str(piece)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
 
 class PowerNoEffectMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<NO_EFFECT_OPP>']
+    prefix: list[str] = ['<S>', '<NO_EFFECT_OPP>']
     argc = [3]
 
     @classmethod
     def new(cls, power_id: int):
         return cls([*cls.prefix, str(power_id)])
 
-    def get_power_id(self):
+    def get_power_id(self) -> int:
         return int(self.args[2])
 
 
 class NukeMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<NUKE>']
+    prefix: list[str] = ['<S>', '<NUKE>']
     argc = [2]
 
     @classmethod
@@ -703,97 +711,97 @@ class NukeMessage(RequestMessage, ResponseMessage):
 
 
 class JumpOnPieceMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<JUMP_ON_PIECE_ANIMATION>']
+    prefix: list[str] = ['<S>', '<JUMP_ON_PIECE_ANIMATION>']
     argc = [4]
 
     @classmethod
     def new(cls, piece: int, target_piece: int):
         return cls([*cls.prefix, str(piece), str(target_piece)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
-    def get_target_piece(self):
+    def get_target_piece(self) -> int:
         return int(self.args[3])
 
 
 class GetPowerSquareMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<GET_POWER_SQUARE>']
+    prefix: list[str] = ['<S>', '<GET_POWER_SQUARE>']
     argc = [4]
 
     @classmethod
     def new(cls, square_piece: int, player_piece: int):
         return cls([*cls.prefix, str(square_piece), str(player_piece)])
 
-    def get_square_piece(self):
+    def get_square_piece(self) -> int:
         return int(self.args[2])
 
-    def get_player_piece(self):
+    def get_player_piece(self) -> int:
         return int(self.args[3])
 
 
 class SettingsLoadedMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<LOADED>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<LOADED>']
     argc = [4]
 
     @classmethod
     def new(cls, version: int):
         return cls([*cls.prefix, str(version)])
 
-    def get_version(self):
+    def get_version(self) -> int:
         return int(self.args[3])
 
 
 class AssignPowerSquareMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<ASSIGN_POWER_SQUARE>']
+    prefix: list[str] = ['<S>', '<ASSIGN_POWER_SQUARE>']
     argc = [4]
 
     @classmethod
     def new(cls, power_id: int, piece: int):
         return cls([*cls.prefix, str(power_id), str(piece)])
 
-    def get_power_id(self):
+    def get_power_id(self) -> int:
         return int(self.args[2])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[3])
 
 
 class AssignNextPowerCountMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<ASSIGN_NEXT_POWER_COUNT>']
+    prefix: list[str] = ['<S>', '<ASSIGN_NEXT_POWER_COUNT>']
     argc = [3]
 
     @classmethod
     def new(cls, count: int):
         return cls([*cls.prefix, str(count)])
 
-    def get_count(self):
+    def get_count(self) -> int:
         return int(self.args[2])
 
 
 class NewGridCoordMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<NEW_GRID_CORD>']
+    prefix: list[str] = ['<S>', '<NEW_GRID_CORD>']
     argc = [6]
 
     @classmethod
     def new(cls, piece: int, column: int, row: int, step: int):
         return cls([*cls.prefix, str(piece), str(column), str(row), str(step)])
 
-    def get_piece(self):
+    def get_piece(self) -> int:
         return int(self.args[2])
 
-    def get_column(self):
+    def get_column(self) -> int:
         return int(self.args[3])
 
-    def get_row(self):
+    def get_row(self) -> int:
         return int(self.args[4])
 
-    def get_step(self):
+    def get_step(self) -> int:
         return int(self.args[5])
 
 
 class ResignMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<RESIGN>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<RESIGN>']
     argc = [3]
 
     @classmethod
@@ -802,40 +810,40 @@ class ResignMessage(RequestMessage, ResponseMessage):
 
 
 class ChallengeMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', None, None, '<SHALLWEPLAYAGAME?>']
+    prefix: tuple[str, None, None, str] = ('<S>', None, None, '<SHALLWEPLAYAGAME?>')
     argc = [4]
 
     @classmethod
     def new(cls, challenged_idx: int, challenger_idx: int):
         return cls([cls.prefix[0], str(challenged_idx), str(challenger_idx), cls.prefix[3]])
 
-    def get_challenged_idx(self):
+    def get_challenged_idx(self) -> int:
         return int(self.args[1])
 
-    def get_challenger_idx(self):
+    def get_challenger_idx(self) -> int:
         return int(self.args[2])
 
 
 class ChallengeAuthMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', None, None, '<AUTHENTICATION>']
+    prefix: tuple[str, None, None, str] = ('<S>', None, None, '<AUTHENTICATION>')
     argc = [5]
 
     @classmethod
     def new(cls, challenged_idx: int, challenger_idx: int, auth: str):
         return cls([cls.prefix[0], str(challenged_idx), str(challenger_idx), cls.prefix[3], auth])
 
-    def get_challenged_idx(self):
+    def get_challenged_idx(self) -> int:
         return int(self.args[1])
 
-    def get_challenger_idx(self):
+    def get_challenger_idx(self) -> int:
         return int(self.args[2])
 
-    def get_auth(self):
+    def get_auth(self) -> str:
         return self.args[4]
 
 
 class SettingsReadyOffMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<READY_OFF>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<READY_OFF>']
     argc = [3]
 
     @classmethod
@@ -844,7 +852,7 @@ class SettingsReadyOffMessage(RequestMessage, ResponseMessage):
 
 
 class SettingsArenaSizeMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<ARENA_SIZE>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<ARENA_SIZE>']
     argc = [4]
 
     valid_sizes = ['small', 'medium', '9x9', 'large', 'extraLarge']
@@ -857,14 +865,14 @@ class SettingsArenaSizeMessage(RequestMessage, ResponseMessage):
 
     @classmethod
     def new(cls, size: str):
-        return cls([*cls.prefix, str(size)])
+        return cls([*cls.prefix, size])
 
-    def get_size(self):
+    def get_size(self) -> str:
         return self.args[3]
 
 
 class SettingsSquadronSizeMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<SQUADRON_SIZE>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<SQUADRON_SIZE>']
     argc = [4]
 
     valid_sizes = ['small', 'medium', 'large', 'extraLarge']
@@ -877,14 +885,14 @@ class SettingsSquadronSizeMessage(RequestMessage, ResponseMessage):
 
     @classmethod
     def new(cls, size: str):
-        return cls([*cls.prefix, str(size)])
+        return cls([*cls.prefix, size])
 
-    def get_size(self):
+    def get_size(self) -> str:
         return self.args[3]
 
 
 class SettingsTimerMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<TIMER>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<TIMER>']
     argc = [4]
 
     valid_times = [240000, 120000, 60000, 30000, 15000, 500000000]
@@ -899,60 +907,60 @@ class SettingsTimerMessage(RequestMessage, ResponseMessage):
     def new(cls, time: int):
         return cls([*cls.prefix, str(time)])
 
-    def get_time(self):
+    def get_time(self) -> int:
         return int(self.args[3])
 
 
 class SettingsTopBottomMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<TOP_BOTTOM>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<TOP_BOTTOM>']
     argc = [4]
 
     @classmethod
     def new(cls, is_top_bottom: bool):
         return cls([*cls.prefix, 'true' if is_top_bottom else 'false'])
 
-    def is_top_bottom(self):
+    def is_top_bottom(self) -> bool:
         return self.args[3] == 'true'
 
 
 class SettingsColorMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<COLOR>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<COLOR>']
     argc = [5]
 
     @classmethod
     def new(cls, decoration_color: int, text_color: str):
         return cls([*cls.prefix, str(decoration_color), text_color])
 
-    def get_decoration_color(self):
+    def get_decoration_color(self) -> int:
         return int(self.args[3])
 
-    def get_text_color(self):
+    def get_text_color(self) -> str:
         return self.args[4]
 
 
 class SettingsReadyOnMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<READY_ON>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<READY_ON>']
     argc = [7]
 
     @classmethod
     def new(cls, grid_size: int, player_size: int, decoration_color: int, text_color: str):
         return cls([*cls.prefix, str(grid_size), str(player_size), str(decoration_color), text_color])
 
-    def get_grid_size(self):
+    def get_grid_size(self) -> int:
         return int(self.args[3])
 
-    def get_player_size(self):
+    def get_player_size(self) -> int:
         return int(self.args[4])
 
-    def get_decoration_color(self):
+    def get_decoration_color(self) -> int:
         return int(self.args[5])
 
-    def get_text_color(self):
+    def get_text_color(self) -> str:
         return self.args[6]
 
 
 class SettingsReadyOnAgainMessage(RequestMessage, ResponseMessage):
-    prefix = ['<S>', '<SETTINGS>', '<READY_ON>']
+    prefix: list[str] = ['<S>', '<SETTINGS>', '<READY_ON>']
     argc = [3]
 
     @classmethod
@@ -964,11 +972,11 @@ class SettingsReadyOnAgainMessage(RequestMessage, ResponseMessage):
 # UTILS
 ################################################################################
 
-__message_classes = inspect.getmembers(
+__message_classes_full = inspect.getmembers(
     sys.modules[__name__],
     lambda o: inspect.isclass(o) and o.__module__ == __name__ and o.prefix,
 )
-__message_classes = list(map(lambda member: member[1], __message_classes))
+__message_classes: list[Type[Message]] = list(map(lambda member: member[1], __message_classes_full))
 
 
 def _parse_data(data: str) -> Message | None:
@@ -986,7 +994,10 @@ def _parse_args(args: list[str]) -> Message | None:
     return None
 
 
-def _valid(args: list[str], prefix: list[str], argc: list[int]):
+def _valid(args: list[str], prefix: Sequence[str | None] | None, argc: list[int] | None) -> bool:
+    if prefix is None or argc is None:
+        return False
+
     if len(args) not in argc and -1 not in argc:
         return False
 

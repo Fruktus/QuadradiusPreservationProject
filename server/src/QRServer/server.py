@@ -111,8 +111,8 @@ class QRServer:
     def stop_sync(self, *args):
         self.loop.create_task(self.stop())
 
-    def start_task(self, name: str, task: Coroutine):
-        task = self.loop.create_task(task, name=name)
+    def start_task(self, name: str, coroutine: Coroutine):
+        task = self.loop.create_task(coroutine, name=name)
         self._tasks.append(task)
 
         async def task_remover():

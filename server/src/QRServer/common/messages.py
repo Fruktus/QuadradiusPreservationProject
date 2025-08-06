@@ -27,7 +27,7 @@ class Message:
             raise AttributeError()
 
         if not _valid(args, prefix, argc):
-            raise ValueError(f"Invalid args for {__class__}: {args}")
+            raise ValueError(f"Invalid args for {self.__class__}: {args}")
 
     def to_data(self) -> bytes:
         return delim.join(self.args).encode('ascii', 'replace') + b'\x00'
@@ -448,7 +448,7 @@ class LobbyStateResponse(ResponseMessage):
 
     @classmethod
     def new(cls, players: list[LobbyPlayer]):
-        return __class__(['<L>', *cls.__serialize_players(players)])
+        return cls([*cls.prefix, *cls.__serialize_players(players)])
 
     @classmethod
     def __serialize_players(cls, players: list[LobbyPlayer]):

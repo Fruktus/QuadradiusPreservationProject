@@ -1,7 +1,6 @@
 import inspect
 import sys
 from datetime import datetime
-from typing import List, Optional
 
 from QRServer.common import powers
 from QRServer.common.classes import GameResultHistory, MatchStats, RankingEntry, LobbyPlayer
@@ -10,11 +9,11 @@ delim = '~'
 
 
 class Message:
-    args: List[str]
+    args: list[str]
     prefix = None
     argc = None
 
-    def __init__(self, args: List[str]) -> None:
+    def __init__(self, args: list[str]) -> None:
         self.args = args
 
         for arg in self.args:
@@ -45,7 +44,7 @@ class Message:
         return self.args == other.args
 
     @classmethod
-    def from_args(cls, args: List[str]):
+    def from_args(cls, args: list[str]):
         if cls.prefix:
             return cls(args)
 
@@ -156,7 +155,7 @@ class ServerRankingRequest(RequestMessage):
     prefix = ['<SERVER>', '<RANKING>']
     argc = [4]
 
-    def __init__(self, args: List[str]) -> None:
+    def __init__(self, args: list[str]) -> None:
         super().__init__(args)
         self._year = int(self.args[2])
         self._month = int(self.args[3])
@@ -211,7 +210,7 @@ class AddStatsRequest(RequestMessage):
     grid_sizes = ['small', 'medium', 'large (default)', 'maximum']
     squadron_sizes = ['small', 'medium', 'large (default)', 'maximum']
 
-    def __init__(self, args: List[str]) -> None:
+    def __init__(self, args: list[str]) -> None:
         super().__init__(args)
         self._owner_piece_count = int(self.args[2])
         self._opponent_piece_count = int(self.args[3])
@@ -264,7 +263,7 @@ class NameTakenRequest(RequestMessage):
     prefix = ['<SERVER>', '<NAME_TAKEN?>']
     argc = [3]
 
-    def __init__(self, args: List[str]) -> None:
+    def __init__(self, args: list[str]) -> None:
         super().__init__(args)
         self._name = self.args[2]
 
@@ -280,7 +279,7 @@ class ChangePasswordRequest(RequestMessage):
     prefix = ['<SERVER>', '<CHPW>']
     argc = [3]
 
-    def __init__(self, args: List[str]) -> None:
+    def __init__(self, args: list[str]) -> None:
         super().__init__(args)
         self._new_password = self.args[2]
 
@@ -288,7 +287,7 @@ class ChangePasswordRequest(RequestMessage):
     def new(cls, new_password: str):
         return cls([*cls.prefix, new_password])
 
-    def get_new_password(self) -> Optional[str]:
+    def get_new_password(self) -> str | None:
         return self._new_password or None
 
 
@@ -393,21 +392,21 @@ class LastPlayedResponse(ResponseMessage):
     argc = [18]
 
     @classmethod
-    def new(cls, recent_games: List[GameResultHistory]):
+    def new(cls, recent_games: list[GameResultHistory]):
         return cls([*cls.prefix, *reversed(cls.__serialize_entries(recent_games))])
 
     @classmethod
-    def __serialize_entries(cls, recent_games: List[GameResultHistory]):
+    def __serialize_entries(cls, recent_games: list[GameResultHistory]):
         if recent_games is None or len(recent_games) == 0:
             return ['No recent battles# # '] + [cls.__serialize_entry(None)] * 14
 
-        to_serialize: List[Optional[GameResultHistory]] = recent_games[0:15]
+        to_serialize: list[GameResultHistory | None] = recent_games[0:15]
         while len(to_serialize) < 15:
             to_serialize.append(None)
         return [cls.__serialize_entry(e) for e in to_serialize]
 
     @classmethod
-    def __serialize_entry(cls, entry: Optional[GameResultHistory]):
+    def __serialize_entry(cls, entry: GameResultHistory | None):
         if entry is None:
             return ' # # '
 
@@ -426,12 +425,12 @@ class ServerRankingThisMonthResponse(ResponseMessage):
     argc = [-1]
 
     @classmethod
-    def new(cls, ranking: List[RankingEntry]):
+    def new(cls, ranking: list[RankingEntry]):
         return cls([*cls.prefix, *cls.__serialize_entries(ranking)])
 
     @classmethod
-    def __serialize_entries(cls, entries: List[RankingEntry]):
-        to_serialize: List[Optional[RankingEntry]] = entries[0:100]
+    def __serialize_entries(cls, entries: list[RankingEntry]):
+        to_serialize: list[RankingEntry | None] = entries[0:100]
         return [x for e in to_serialize for x in cls.__serialize_entry(e)]
 
     @classmethod
@@ -448,12 +447,12 @@ class LobbyStateResponse(ResponseMessage):
     argc = [170]
 
     @classmethod
-    def new(cls, players: List[LobbyPlayer]):
+    def new(cls, players: list[LobbyPlayer]):
         return __class__(['<L>', *cls.__serialize_players(players)])
 
     @classmethod
-    def __serialize_players(cls, players: List[LobbyPlayer]):
-        to_serialize: List[Optional[LobbyPlayer]] = players[0:13]
+    def __serialize_players(cls, players: list[LobbyPlayer]):
+        to_serialize: list[LobbyPlayer | None] = players[0:13]
         while len(to_serialize) < 13:
             to_serialize.append(None)
         return [x for e in to_serialize for x in cls.__serialize_player(e)]
@@ -531,7 +530,7 @@ class UsePowerMessage(RequestMessage, ResponseMessage):
             raise ValueError('Invalid power: {power_name}')
 
     @classmethod
-    def new(cls, power_name: str, piece: int, arg: Optional[str] = None):
+    def new(cls, power_name: str, piece: int, arg: str | None = None):
         return cls([*cls.prefix, power_name, str(piece)] + ([arg] if arg is not None else []))
 
     def get_power_name(self):
@@ -630,7 +629,7 @@ class SwitcherooMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
     @classmethod
-    def from_args(cls, args: List[str]):
+    def from_args(cls, args: list[str]):
         return cls(args)
 
     @classmethod
@@ -646,7 +645,7 @@ class RemoveOneWayWallMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
     @classmethod
-    def from_args(cls, args: List[str]):
+    def from_args(cls, args: list[str]):
         return cls(args)
 
     @classmethod
@@ -662,7 +661,7 @@ class BankruptActionMessage(RequestMessage, ResponseMessage):
         super().__init__(args)
 
     @classmethod
-    def from_args(cls, args: List[str]):
+    def from_args(cls, args: list[str]):
         return cls(args)
 
     @classmethod
@@ -972,11 +971,11 @@ __message_classes = inspect.getmembers(
 __message_classes = list(map(lambda member: member[1], __message_classes))
 
 
-def _parse_data(data: str) -> Optional[Message]:
+def _parse_data(data: str) -> Message | None:
     return _parse_args(data.split(delim))
 
 
-def _parse_args(args: List[str]) -> Optional[Message]:
+def _parse_args(args: list[str]) -> Message | None:
     for clazz in __message_classes:
         if _valid(args, clazz.prefix, clazz.argc):
             try:
@@ -987,7 +986,7 @@ def _parse_args(args: List[str]) -> Optional[Message]:
     return None
 
 
-def _valid(args: List[str], prefix: List[str], argc: List[int]):
+def _valid(args: list[str], prefix: list[str], argc: list[int]):
     if len(args) not in argc and -1 not in argc:
         return False
 

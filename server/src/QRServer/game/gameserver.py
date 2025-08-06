@@ -1,5 +1,4 @@
 import logging
-from typing import Dict
 
 from QRServer.common.classes import MatchId, Match, MatchStats
 from QRServer.discord.webhook import Webhook
@@ -9,7 +8,7 @@ log = logging.getLogger('qr.game_server')
 
 
 class GameServer:
-    matches: Dict[MatchId, Match]
+    matches: dict[MatchId, Match]
 
     def __init__(self, config, connector):
         self.config = config

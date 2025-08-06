@@ -2,7 +2,7 @@ import asyncio
 import logging
 import signal
 from asyncio import Task, Server, StreamReader, StreamWriter, CancelledError
-from typing import Coroutine, Optional, List
+from typing import Coroutine
 
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.config import Config
@@ -19,8 +19,8 @@ log = logging.getLogger('qr.server')
 
 class QRServer:
     config: Config
-    connector: Optional[DbConnector]
-    _tasks: List[Task]
+    connector: DbConnector | None
+    _tasks: list[Task]
 
     # servers
     _lobby_sock_server: Server
@@ -34,7 +34,7 @@ class QRServer:
     _server_stopped: asyncio.Event
 
     # extensions
-    _discord_bot: Optional[DiscordBot]
+    _discord_bot: DiscordBot | None
 
     def __init__(self, config):
         self.config = config

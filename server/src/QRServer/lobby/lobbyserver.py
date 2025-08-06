@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from typing import Optional, List
 
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import ResponseMessage, LastLoggedResponse, LobbyStateResponse, ChallengeMessage, \
@@ -12,8 +11,8 @@ log = logging.getLogger('qr.lobby_server')
 
 class LobbyServer:
     __server_boot_time = datetime.now()
-    last_logged: Optional[LobbyClientHandler]
-    clients: List[Optional[LobbyClientHandler]]
+    last_logged: LobbyClientHandler | None
+    clients: list[LobbyClientHandler | None]
 
     def __init__(self):
         self.clients = [None] * 13  # The lobby allows only 13 people at once, last one is kicked
@@ -46,7 +45,7 @@ class LobbyServer:
                 return True
         return False
 
-    def get_players(self) -> List[LobbyPlayer]:
+    def get_players(self) -> list[LobbyPlayer]:
         players = []
         for c in self.clients:
             if c is None:

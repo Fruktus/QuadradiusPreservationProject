@@ -1,7 +1,7 @@
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
-from typing import List, Callable, Dict
+from typing import Callable
 
 import toml
 
@@ -14,7 +14,7 @@ class ConfigKey:
     name: str
     description: str
     default_value: object
-    cli_args: List[str] = field(default_factory=list)
+    cli_args: list[str] = field(default_factory=list)
     onchange: Callable[['Config'], None] = None
 
     def get(self):
@@ -252,11 +252,11 @@ class Config:
         if key.onchange is not None:
             key.onchange(self)
 
-    def all_keys(self) -> List[ConfigKey]:
+    def all_keys(self) -> list[ConfigKey]:
         keys = self.keys_by_name().values()
         return sorted(keys, key=lambda k: k.name)
 
-    def keys_by_name(self) -> Dict[str, ConfigKey]:
+    def keys_by_name(self) -> dict[str, ConfigKey]:
         keys = {}
         for name, value in vars(self).items():
             if isinstance(value, ConfigKey):

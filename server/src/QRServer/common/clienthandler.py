@@ -2,7 +2,7 @@ import abc
 import logging
 from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError, LimitOverrunError
 from datetime import datetime
-from typing import Callable, Dict, List, TypeVar, Type, AsyncIterable, Coroutine, Optional
+from typing import Callable, TypeVar, Type, AsyncIterable, Coroutine
 
 from QRServer.common import messages, utils
 from QRServer.common.messages import ResponseMessage, RequestMessage, Message
@@ -21,9 +21,9 @@ class ClientHandler(abc.ABC):
     connector: DbConnector
     reader: StreamReader
     writer: StreamWriter
-    handlers: Dict[bytes, List[Callable[[List[bytes]], Coroutine]]]
-    message_handlers: Dict[Type[RequestMessage], List[Callable[[RequestMessage], Coroutine]]]
-    _username: Optional[str]
+    handlers: dict[bytes, list[Callable[[list[bytes]], Coroutine]]]
+    message_handlers: dict[Type[RequestMessage], list[Callable[[RequestMessage], Coroutine]]]
+    _username: str | None
 
     def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter):
         self.connected_at = datetime.now()
@@ -122,7 +122,7 @@ class ClientHandler(abc.ABC):
         except ConnectionError:
             raise StopHandlerException()
 
-    async def authenticate_user(self, username, password) -> Optional[DbUser]:
+    async def authenticate_user(self, username, password) -> DbUser | None:
         is_guest = utils.is_guest(username, password)
         auth_disabled = self.config.auth_disable.get()
         auto_register = self.config.auto_register.get()

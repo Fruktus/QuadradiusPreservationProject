@@ -174,6 +174,10 @@ class LobbyClientHandler(ClientHandler):
             await self.send_msg(NameTakenResponseNo.new())
 
     async def _handle_change_password(self, message: ChangePasswordRequest):
+        if self.player.user_id is None:
+            log.warning('A non authenticated user tried to change their password')
+            return
+
         if self.player.is_guest:
             log.warning(f'A guest {self.player.username}:{self.player.user_id} has tried to change their password')
             return

@@ -124,6 +124,13 @@ class GameClientHandler(ClientHandler, MatchParty):
         self._is_guest = db_user.is_guest
 
         db_opponent = await self.connector.get_user_by_username(self.opponent_username)
+        if not db_opponent:
+            log.error(
+                f'Player {username} tried to connect to a game with a ' +
+                'non existing opponent {self.opponent_username}')
+            self.close_and_stop()
+            return
+
         self.opponent_id = db_opponent.user_id
 
         self.game_server.register_client(self)

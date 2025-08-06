@@ -21,6 +21,8 @@ setup(
             'wheel',
             'pytest',
             'flake8',
+            'mypy',
+            'types-toml',
         ],
     },
 )

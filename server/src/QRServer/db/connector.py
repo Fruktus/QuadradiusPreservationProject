@@ -457,7 +457,7 @@ class DbConnector:
                     )
                 )
             except aiosqlite.IntegrityError:
-                self.conn.rollback()
+                await self.conn.rollback()
                 raise UpdateCollisionError()
         else:
             await c.execute(
@@ -469,7 +469,7 @@ class DbConnector:
 
             row = await c.fetchone()
             if not row:
-                self.conn.rollback()
+                await self.conn.rollback()
                 raise UpdateCollisionError()
 
     async def close(self):

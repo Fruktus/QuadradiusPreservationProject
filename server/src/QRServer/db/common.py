@@ -15,7 +15,7 @@ def retry_on_update_collision(retries=3, delay=0.1):
                     return await func(*args, **kwargs)
                 except UpdateCollisionError:
                     if attempt < retries - 1:
-                        asyncio.sleep(delay)
+                        await asyncio.sleep(delay)
                         continue
                     else:
                         raise

@@ -424,13 +424,15 @@ class DbConnector:
     @retry_on_update_collision(retries=3)
     async def update_users_rating(self, winner_id: str, loser_id: str, month: int, year: int, on_before_update=None):
         winner = await self.get_user_rating(winner_id, month, year)
-        winner_exists = bool(winner)
-        if not winner_exists:
+        winner_exists = True
+        if winner is None:
+            winner_exists = False
             winner = UserRating(winner_id, month, year)
 
         loser = await self.get_user_rating(loser_id, month, year)
-        loser_exists = bool(loser)
-        if not loser_exists:
+        loser_exists = True
+        if loser is None:
+            loser_exists = False
             loser = UserRating(loser_id, month, year)
 
         new_winner_rating, new_loser_rating = utils.calculate_new_ratings(winner.rating, loser.rating)

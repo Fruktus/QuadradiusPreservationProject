@@ -59,9 +59,12 @@ class LobbyServer:
 
     def get_last_logged(self) -> LastLoggedResponse:
         if self.last_logged:
-            return LastLoggedResponse.new(self.last_logged.username, self.last_logged.get_joined_at(), '')
-        else:
-            return LastLoggedResponse.new('<>', datetime.now(), '')
+            username = self.last_logged.username
+            joined_at = self.last_logged.get_joined_at()
+            if username and joined_at:
+                return LastLoggedResponse.new(username, joined_at, '')
+
+        return LastLoggedResponse.new('<>', datetime.now(), '')
 
     async def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)

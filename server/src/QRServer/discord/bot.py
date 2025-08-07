@@ -118,7 +118,7 @@ class DiscordBot:
         await self.connector.create_member(
             username=username,
             password=md5(f'++{username.upper()}++{password}'.encode()).hexdigest().encode(),
-            discord_user_id=interaction.user.id,
+            discord_user_id=str(interaction.user.id),
         )
 
         await self._send_user_notification(
@@ -177,7 +177,7 @@ class DiscordBot:
         await self.connector.claim_member(
             user_id=user.user_id,
             password=md5(f'++{username.upper()}++{password}'.encode()).hexdigest().encode(),
-            discord_user_id=interaction.user.id,
+            discord_user_id=str(interaction.user.id),
         )
 
         await self._send_user_notification(
@@ -209,7 +209,7 @@ class DiscordBot:
         username = username.strip()
 
         # Get user's accounts
-        user_account_list = await self.connector.get_users_by_discord_id(interaction.user.id)
+        user_account_list = await self.connector.get_users_by_discord_id(str(interaction.user.id))
         user_accounts = {user.username: user for user in user_account_list}
 
         if username not in user_accounts:
@@ -306,7 +306,7 @@ class DiscordBot:
 
         # check if the client can register new username, otherwise send error with notif
         allowed_to_register, error_message = await self._is_allowed_to_register(
-            discord_user_id=discord_user_id)
+            discord_user_id=str(discord_user_id))
         if not allowed_to_register:
             return (False, error_message)
 

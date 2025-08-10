@@ -4,6 +4,7 @@ import signal
 from asyncio import Task, Server, StreamReader, StreamWriter, CancelledError
 from typing import Coroutine
 
+from QRServer.api.api import QrApi
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.config import Config
 from QRServer.db.connector import create_connector, DbConnector
@@ -133,6 +134,13 @@ class QRServer:
 
         self._game_server = GameServer(self.config, self.connector)
         self._lobby_server = LobbyServer()
+
+        if self.config.api_enabled.get():
+            self._api = QrApi(self.config, lobby_server=self._lobby_server, game_server=self._game_server)
+            self.start_task("QR API", self._api.run())
+        else:
+            log.info('QR API disabled')
+
         await self._game_listener_task(self.config, self.connector, self._game_server)
         await self._lobby_listener_task(self.config, self.connector, self._lobby_server)
 

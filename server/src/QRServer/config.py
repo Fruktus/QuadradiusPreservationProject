@@ -162,6 +162,7 @@ class Config:
             description='',
             default_value=5,
             onchange=config_handlers.refresh_logger_configuration)
+
         self.discord_bot_enabled = ConfigKey(
             config=self,
             name='discord.bot.enabled',
@@ -193,6 +194,25 @@ class Config:
             cli_args=[],
             description='Maximum number of aliases per user',
             default_value=1)
+
+        self.api_enabled = ConfigKey(
+            config=self,
+            name='api.enabled',
+            cli_args=[],
+            description='Whether to enable the REST API, which is used for replays and spectator mode.',
+            default_value=False)
+        self.api_host = ConfigKey(
+            config=self,
+            name='api.host',
+            cli_args=[],
+            description='Address used to serve API',
+            default_value="127.0.0.1")
+        self.api_port = ConfigKey(
+            config=self,
+            name='api.port',
+            cli_args=[],
+            description='Port used to serve API',
+            default_value=4000)
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

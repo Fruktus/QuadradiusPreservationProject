@@ -3,6 +3,7 @@ import os
 import uuid
 from datetime import datetime
 
+from QRServer.config import Config
 from QRServer.db.common import UpdateCollisionError, retry_on_update_collision
 import aiosqlite
 
@@ -18,7 +19,7 @@ log = logging.getLogger('qr.dbconnector')
 class DbConnector:
     conn: aiosqlite.Connection
 
-    def __init__(self, file, config):
+    def __init__(self, file, config: Config):
         self.file = file
         self.config = config
 

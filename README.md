@@ -7,7 +7,7 @@
 [![Discord](https://img.shields.io/discord/1197227968112627802?label=Discord&color=7289da&link=https%3A%2F%2Fdiscord.gg%2FPBSYnzZtDG)](https://discord.gg/cVkV8pah4d)
 
 <div align="center">
-  <a href="https://quadradius.ddns.net/">
+  <a href="https://quadradius.app/">
     <img src="https://img.shields.io/badge/Play%20Now-fca903" alt="Play Now" width="200">
   </a>
 </div>
@@ -23,7 +23,7 @@ The provided software does not represent the quality of the original,
 and the original authors should in no way be held accountable for any liabilities.
 
 ## Where to play
-You can play the current build at [quadradius.ddns.net](https://quadradius.ddns.net/).
+You can play the current build at [quadradius.app](https://quadradius.app/).
 You can register a member account on our Discord server.
 The game is and will be free to play.
 If you'd like to discuss anything with us (authors) or fellow players you can join our discord server linked at the top or use [this link](https://discord.gg/cVkV8pah4d).

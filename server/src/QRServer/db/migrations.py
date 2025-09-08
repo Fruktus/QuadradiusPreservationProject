@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 from QRServer.common import utils
 from QRServer.common.classes import RankingEntry
+from QRServer.config import Config
 
 
 async def setup_metadata(c):
@@ -11,7 +12,7 @@ async def setup_metadata(c):
         ")")
 
 
-async def execute_migrations(c, config, max_version=None):
+async def execute_migrations(c, config: Config, max_version=None):
     version = await _select_version(c)
     if version is None:
         await c.execute("insert into metadata (name, value) values ('version', '0')")

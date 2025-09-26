@@ -1,3 +1,4 @@
+import aiohttp
 import asyncio
 import unittest
 from asyncio import CancelledError, QueueEmpty, StreamWriter, StreamReader, IncompleteReadError
@@ -132,6 +133,7 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
     _config: Config | None
     _server: QRServer | None
     _clients: list[TestClientConnection]
+    _api_clients: list[aiohttp.ClientSession]
 
     def __init__(self, method_name='runTest'):
         super().__init__(method_name)
@@ -139,6 +141,7 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         self._config = None
         self._server = None
         self._clients = []
+        self._api_clients = []
 
     @property
     def server(self) -> QRServer:
@@ -164,6 +167,7 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         config.set('address', '127.0.0.1')
         config.set('port.lobby', 0)
         config.set('port.game', 0)
+        config.set('port.api', 0)
         config.set('data.dir', self._data_dir.name)
         await self.itSetUpConfig(config)
         self._config = config
@@ -177,6 +181,8 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         finally:
             for client in self._clients:
                 await client.close()
+            for client in self._api_clients:
+                await client.__aexit__(None, None, None)
             await self._server.stop()
             self._data_dir.cleanup()
 
@@ -195,3 +201,10 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
     async def _new_client(self, host, port) -> TestClientConnection:
         reader, writer = await asyncio.open_connection(host, port)
         return TestClientConnection(self.server, reader, writer)
+
+    async def new_api_client(self, version) -> aiohttp.ClientSession:
+        host, port, *_ = self._server.api_socks[0].getsockname()
+        client = aiohttp.ClientSession(f'http://{host}:{port}/api/{version}/')
+        await client.__aenter__()
+        self._api_clients.append(client)
+        return client

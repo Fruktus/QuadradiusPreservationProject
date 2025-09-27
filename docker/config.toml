@@ -1,4 +1,6 @@
 address = '0.0.0.0'
 port.lobby = 3000
 port.game = 3001
+port.api = 4000
+api.enabled = true
 data.dir = '/data'

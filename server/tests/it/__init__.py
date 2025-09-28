@@ -16,13 +16,16 @@ db_password._iterations = 100
 
 
 class TestClientConnection:
+    server: QRServer
     reader: StreamReader
     writer: StreamWriter
+    username: str | None
+    loop: asyncio.AbstractEventLoop
     messages: asyncio.Queue
     connection_closed: asyncio.Event
     is_lobby: bool
 
-    def __init__(self, server, reader, writer, is_lobby):
+    def __init__(self, server: QRServer, reader: StreamReader, writer: StreamWriter, is_lobby: bool):
         self.server = server
         self.reader = reader
         self.writer = writer
@@ -37,11 +40,11 @@ class TestClientConnection:
         self.writer.close()
         await self.writer.wait_closed()
 
-    async def send_data(self, data):
+    async def send_data(self, data: bytes):
         self.writer.write(data)
         await self.writer.drain()
 
-    async def send_message(self, message):
+    async def send_message(self, message: Message):
         await self.send_data(message.to_data())
 
     async def _receive_messages(self):
@@ -65,7 +68,7 @@ class TestClientConnection:
         except TimeoutError:
             raise AssertionError('Did not receive a message')
 
-    async def assert_received_message(self, message):
+    async def assert_received_message(self, message: Message):
         received = await self.receive_message()
         if message != received:
             raise AssertionError(
@@ -73,7 +76,7 @@ class TestClientConnection:
                 f'  Expected: {message}\n'
                 f'  Received: {received}')
 
-    async def assert_received_message_type(self, type):
+    async def assert_received_message_type(self, type: type):
         received = await self.receive_message()
         if type != received.__class__:
             raise AssertionError(
@@ -94,13 +97,13 @@ class TestClientConnection:
         except TimeoutError:
             raise AssertionError('Connection was not closed')
 
-    async def join_lobby_guest(self, username):
+    async def join_lobby_guest(self, username: str):
         username += ' GUEST'
         self.username = username
         await self.send_message(JoinLobbyRequest.new(username, '24f380279d84e2e715f80ed14b1db063'))
         await self.assert_received_message_type(LobbyStateResponse)
 
-    async def join_lobby(self, username, password):
+    async def join_lobby(self, username: str, password: str):
         self.username = username
         await self.send_message(JoinLobbyRequest.new(username, password))
         await self.assert_received_message_type(LobbyStateResponse)
@@ -175,10 +178,14 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
 
     @property
     def server(self) -> QRServer:
+        if not self._server:
+            raise AssertionError('Server not set up')
         return self._server
 
     @property
     def config(self) -> Config:
+        if not self._config:
+            raise AssertionError('Config not set up')
         return self._config
 
     async def itSetUpConfig(self, config):
@@ -217,13 +224,13 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
             self._data_dir.cleanup()
 
     async def new_lobby_client(self) -> TestClientConnection:
-        host, port, *_ = self._server.lobby_socks[0].getsockname()
+        host, port, *_ = self.server.lobby_socks[0].getsockname()
         client = await self._new_client(host, port, True)
         self._clients.append(client)
         return client
 
     async def new_game_client(self) -> TestClientConnection:
-        host, port, *_ = self._server.game_socks[0].getsockname()
+        host, port, *_ = self.server.game_socks[0].getsockname()
         client = await self._new_client(host, port, False)
         self._clients.append(client)
         return client
@@ -233,7 +240,7 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         return TestClientConnection(self.server, reader, writer, is_lobby)
 
     async def new_api_client(self, version) -> aiohttp.ClientSession:
-        host, port, *_ = self._server.api_socks[0].getsockname()
+        host, port, *_ = self.server.api_socks[0].getsockname()
         client = aiohttp.ClientSession(f'http://{host}:{port}/api/{version}/')
         await client.__aenter__()
         self._api_clients.append(client)

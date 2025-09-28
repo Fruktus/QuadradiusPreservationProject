@@ -57,9 +57,16 @@ class ApiServer:
 
     def _add_routes(self):
         self.app.add_routes([
+            web.get('/api/v1/game/stats', self._v1_game_stats),
             web.get('/api/v1/health', self._v1_health),
             web.get('/api/v1/lobby/stats', self._v1_lobby_stats),
         ])
+
+    async def _v1_game_stats(self, _request: web.Request):
+        player_count = self.game_server.get_player_count()
+        return web.json_response({
+            'player_count': player_count,
+        })
 
     async def _v1_health(self, _request: web.Request):
         return web.json_response({})

@@ -5,7 +5,8 @@ from asyncio import CancelledError, QueueEmpty, StreamWriter, StreamReader, Inco
 from tempfile import TemporaryDirectory
 
 from QRServer.__main__ import QRServer
-from QRServer.common.messages import Message, JoinLobbyRequest, LobbyStateResponse, DisconnectRequest
+from QRServer.common.messages import Message, JoinLobbyRequest, LobbyStateResponse, DisconnectRequest, \
+    JoinGameRequest, PlayerCountResponse, HelloGameRequest
 from QRServer.config import Config
 from QRServer.db import password as db_password
 
@@ -19,8 +20,9 @@ class TestClientConnection:
     writer: StreamWriter
     messages: asyncio.Queue
     connection_closed: asyncio.Event
+    is_lobby: bool
 
-    def __init__(self, server, reader, writer):
+    def __init__(self, server, reader, writer, is_lobby):
         self.server = server
         self.reader = reader
         self.writer = writer
@@ -29,6 +31,7 @@ class TestClientConnection:
         self.loop.create_task(self._receive_messages())
         self.messages = asyncio.Queue()
         self.connection_closed = asyncio.Event()
+        self.is_lobby = is_lobby
 
     async def close(self):
         self.writer.close()
@@ -102,12 +105,21 @@ class TestClientConnection:
         await self.send_message(JoinLobbyRequest.new(username, password))
         await self.assert_received_message_type(LobbyStateResponse)
 
+    async def join_game(self, username: str, auth: str, opponent_username: str, opponent_auth: str, password: str):
+        self.username = username
+        await self.send_message(HelloGameRequest.new())
+        await self.send_message(JoinGameRequest.new(
+            username, auth,
+            opponent_username, opponent_auth,
+            password))
+        await self.assert_received_message_type(PlayerCountResponse)
+
     async def disconnect(self):
         await self.send_message(DisconnectRequest.new())
         await self.close()
 
     async def wait_for_disconnect(self):
-        async def run():
+        async def wait_lobby():
             while True:
                 clients = self.server.lobby_server.clients
                 exists = False
@@ -121,7 +133,25 @@ class TestClientConnection:
                 else:
                     await asyncio.sleep(0.01)
 
-        await asyncio.wait_for(run(), 1)
+        async def wait_game():
+            while True:
+                matches = self.server.game_server.matches.values()
+                exists = False
+                for match in matches:
+                    for party in match.parties:
+                        if party.username == self.username:
+                            exists = True
+                            break
+
+                if not exists:
+                    return
+                else:
+                    await asyncio.sleep(0.01)
+
+        if self.is_lobby:
+            await asyncio.wait_for(wait_lobby(), 1)
+        else:
+            await asyncio.wait_for(wait_game(), 1)
 
     async def disconnect_and_wait(self):
         await self.disconnect()
@@ -188,19 +218,19 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def new_lobby_client(self) -> TestClientConnection:
         host, port, *_ = self._server.lobby_socks[0].getsockname()
-        client = await self._new_client(host, port)
+        client = await self._new_client(host, port, True)
         self._clients.append(client)
         return client
 
     async def new_game_client(self) -> TestClientConnection:
         host, port, *_ = self._server.game_socks[0].getsockname()
-        client = await self._new_client(host, port)
+        client = await self._new_client(host, port, False)
         self._clients.append(client)
         return client
 
-    async def _new_client(self, host, port) -> TestClientConnection:
+    async def _new_client(self, host, port, is_lobby: bool) -> TestClientConnection:
         reader, writer = await asyncio.open_connection(host, port)
-        return TestClientConnection(self.server, reader, writer)
+        return TestClientConnection(self.server, reader, writer, is_lobby)
 
     async def new_api_client(self, version) -> aiohttp.ClientSession:
         host, port, *_ = self._server.api_socks[0].getsockname()

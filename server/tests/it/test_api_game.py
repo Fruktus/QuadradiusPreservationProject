@@ -1,5 +1,3 @@
-from QRServer.common.messages import JoinGameRequest, PlayerCountResponse, \
-    HelloGameRequest
 from . import QuadradiusIntegrationTestCase
 
 
@@ -31,12 +29,10 @@ class ApiGameIT(QuadradiusIntegrationTestCase):
             })
 
         client1 = await self.new_game_client()
-        await client1.send_message(HelloGameRequest.new())
-        await client1.send_message(JoinGameRequest.new(
+        await client1.join_game(
             'PlayerA', '1234',
             'PlayerB', '4321',
-            'ff585d509bf09ce1d2ff5d4226b7dacb'))
-        await client1.assert_received_message_type(PlayerCountResponse)
+            'ff585d509bf09ce1d2ff5d4226b7dacb')
 
         async with api_client.get('game/stats') as r:
             self.assertEqual(r.status, 200)
@@ -45,12 +41,10 @@ class ApiGameIT(QuadradiusIntegrationTestCase):
             })
 
         client2 = await self.new_game_client()
-        await client2.send_message(HelloGameRequest.new())
-        await client2.send_message(JoinGameRequest.new(
+        await client2.join_game(
             'PlayerB', '4321',
             'PlayerA', '1234',
-            'ff585d509bf09ce1d2ff5d4226b7dacb'))
-        await client2.assert_received_message_type(PlayerCountResponse)
+            'ff585d509bf09ce1d2ff5d4226b7dacb')
 
         async with api_client.get('game/stats') as r:
             self.assertEqual(r.status, 200)
@@ -59,12 +53,10 @@ class ApiGameIT(QuadradiusIntegrationTestCase):
             })
 
         client3 = await self.new_game_client()
-        await client3.send_message(HelloGameRequest.new())
-        await client3.send_message(JoinGameRequest.new(
+        await client3.join_game(
             'PlayerC', '2345',
             'PlayerD', '5432',
-            'ff585d509bf09ce1d2ff5d4226b7dacb'))
-        await client3.assert_received_message_type(PlayerCountResponse)
+            'ff585d509bf09ce1d2ff5d4226b7dacb')
 
         async with api_client.get('game/stats') as r:
             self.assertEqual(r.status, 200)
@@ -73,15 +65,21 @@ class ApiGameIT(QuadradiusIntegrationTestCase):
             })
 
         client4 = await self.new_game_client()
-        await client4.send_message(HelloGameRequest.new())
-        await client4.send_message(JoinGameRequest.new(
+        await client4.join_game(
             'PlayerE', '6789',
             'PlayerF', '9876',
-            'ff585d509bf09ce1d2ff5d4226b7dacb'))
-        await client4.assert_received_message_type(PlayerCountResponse)
+            'ff585d509bf09ce1d2ff5d4226b7dacb')
 
         async with api_client.get('game/stats') as r:
             self.assertEqual(r.status, 200)
             self.assertEqual(await r.json(), {
                 'player_count': 6,
+            })
+
+        await client4.disconnect_and_wait()
+
+        async with api_client.get('game/stats') as r:
+            self.assertEqual(r.status, 200)
+            self.assertEqual(await r.json(), {
+                'player_count': 4,
             })

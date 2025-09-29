@@ -1,11 +1,12 @@
 import unittest
 from datetime import datetime
 from unittest.mock import patch
+import uuid
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.common import UpdateCollisionError
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport
+from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant
 from QRServer.common.classes import RankingEntry
 from QRServer.common import utils
 from QRServer.config import Config
@@ -624,3 +625,265 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[2][:3], (2, 'month', 'INTEGER'))
         self.assertEqual(table_info[3][:3], (3, 'revision', 'INTEGER'))
         self.assertEqual(table_info[4][:3], (4, 'rating', 'INTEGER'))
+
+    async def test_migration_v8(self):
+        await migrations.execute_migrations(self.c, self.dbconn.config, 7)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('tournaments', table_names)
+        self.assertNotIn('tournament_participants', table_names)
+        self.assertNotIn('tournament_duels', table_names)
+        self.assertNotIn('tournament_matches', table_names)
+
+        await migrations.execute_migrations(self.c, self.dbconn.config, 8)
+
+        table_names = await self.get_table_names()
+        self.assertIn('tournaments', table_names)
+        self.assertIn('tournament_participants', table_names)
+        self.assertIn('tournament_duels', table_names)
+        self.assertIn('tournament_matches', table_names)
+
+        table_info = await self.get_table_info('tournaments')
+        self.assertEqual(len(table_info), 8)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'name', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'created_by_dc_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'tournament_msg_dc_id', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'required_matches_per_duel', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'created_at', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'started_at', 'INTEGER'))
+        self.assertEqual(table_info[7][:3], (7, 'finished_at', 'INTEGER'))
+
+        table_info = await self.get_table_info('tournament_participants')
+        self.assertEqual(len(table_info), 2)
+        self.assertEqual(table_info[0][:3], (0, 'tournament_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'user_id', 'varchar'))
+
+        table_info = await self.get_table_info('tournament_duels')
+        self.assertEqual(len(table_info), 5)
+        self.assertEqual(table_info[0][:3], (0, 'tournament_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'duel_idx', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'active_until', 'INTEGER'))
+        self.assertEqual(table_info[3][:3], (3, 'user1_id', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'user2_id', 'varchar'))
+
+        table_info = await self.get_table_info('tournament_matches')
+        self.assertEqual(len(table_info), 3)
+        self.assertEqual(table_info[0][:3], (0, 'tournament_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'duel_idx', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'match_id', 'varchar'))
+
+
+class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        import aiosqlite
+
+        self.dbconn = DbConnector(':memory:', Config())
+        # manually initialize the dbconn to avoid executing migrations
+        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=False)
+        c = await self.dbconn.conn.cursor()
+        await migrations.setup_metadata(c)
+
+        self.c = await self.dbconn.conn.cursor()
+        await migrations.execute_migrations(self.c, self.dbconn.config, 8)  # TODO either 8 or len(migrations)
+        await self.dbconn.conn.commit()
+
+    async def asyncTearDown(self):
+        await self.dbconn.conn.close()
+
+    async def test_create_tournament(self):
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0)
+
+            tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+        expected_tournament = Tournament(
+            tournament_id=tournament_id,
+            name='test_tournament',
+            created_by_dc_id='123',
+            tournament_msg_dc_id='456',
+            required_matches_per_duel=3,
+            created_at=datetime(2020, 1, 1, 12, 0, 0),
+            started_at=None,
+            finished_at=None
+        )
+        tournament = await self.dbconn.get_tournament(tournament_id)
+        self.assertEqual(tournament, expected_tournament)
+
+        # Test create tournament with the same name
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0)
+
+            tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+            self.assertEqual(tournament_id, None)
+
+    async def test_add_participants(self):
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+        # Create member and add as participant
+        member_id = await self.dbconn.create_member('user_0', 'password_0'.encode())
+        await self.dbconn.add_participant(tournament_id, member_id)
+
+        participants = await self.dbconn.list_participants(tournament_id)
+
+        self.assertEqual(len(participants), 1)
+        self.assertIn(TournamentParticipant(tournament_id, member_id), participants)
+
+        # Test add participant after tournament was started
+        result = await self.dbconn.start_tournament(tournament_id)
+        self.assertTrue(result)
+
+        id_ = str(uuid.uuid4())
+        result = await self.dbconn.add_participant(tournament_id, id_)
+        self.assertFalse(result)
+
+        participant_ids = await self.dbconn.list_participants(tournament_id)
+        self.assertNotIn(id_, participant_ids)
+
+    async def test_remove_participant(self):
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+        # Create member, add as participant and try to remove (should remove)
+        member_id = await self.dbconn.create_member('user_0', 'password_0'.encode())
+        await self.dbconn.add_participant(tournament_id, member_id)
+
+        participant_ids = await self.dbconn.list_participants(tournament_id)
+        participant_ids = [p.user_id for p in participant_ids]
+
+        self.assertEqual(participant_ids, [member_id])
+
+        result = await self.dbconn.remove_participant(tournament_id, member_id)
+        self.assertTrue(result)
+
+        participant_ids = await self.dbconn.list_participants(tournament_id)
+
+        self.assertEqual(participant_ids, [])
+
+        # Re-add the participant, start the tournament and try to remove participant (should not remove)
+        await self.dbconn.add_participant(tournament_id, member_id)
+        participant_ids = await self.dbconn.list_participants(tournament_id)
+        participant_ids = [p.user_id for p in participant_ids]
+
+        self.assertEqual(participant_ids, [member_id])
+
+        await self.dbconn.start_tournament(tournament_id)
+
+        result = await self.dbconn.remove_participant(tournament_id, member_id)
+        self.assertFalse(result)
+
+        participant_ids = await self.dbconn.list_participants(tournament_id)
+        participant_ids = [p.user_id for p in participant_ids]
+        self.assertEqual(participant_ids, [member_id])
+
+        # Test remove nonexistent participant
+        result = await self.dbconn.remove_participant(tournament_id, str(uuid.uuid4()))
+        self.assertFalse(result)
+
+        participant_ids = await self.dbconn.list_participants(tournament_id)
+        participant_ids = [p.user_id for p in participant_ids]
+        self.assertEqual(participant_ids, [member_id])
+
+    async def test_start_tournament(self):
+        # Test start existing tournament
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 2, 12, 0, 0)
+
+            result = await self.dbconn.start_tournament(tournament_id)
+
+        self.assertTrue(result)
+
+        tournament = await self.dbconn.get_tournament(tournament_id)
+        self.assertEqual(tournament.started_at, datetime(2020, 1, 2, 12, 0, 0))
+
+        # Test start non-existent tournament
+        result = await self.dbconn.start_tournament(str(uuid.uuid4()))
+
+        self.assertFalse(result)
+
+    async def test_duels(self):
+        participants_count = 4
+        active_until = datetime(2020, 1, 5, 12, 0, 0)
+
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+        member_ids = []
+        for i in range(participants_count):
+            member_id = await self.dbconn.create_member(f'user_{i}', f'password_{i}'.encode())
+            member_ids.append(member_id)
+            await self.dbconn.add_participant(tournament_id, member_id)
+
+        await self.dbconn.add_duel(tournament_id, 0, active_until, member_ids[0], member_ids[1])
+        await self.dbconn.add_duel(tournament_id, 1, active_until, member_ids[2], member_ids[3])
+
+        # Test listing duels
+        duels = await self.dbconn.list_duels(tournament_id)
+        self.assertEqual(len(duels), 2)
+
+        # Test specific duels
+        duel_0 = await self.dbconn.get_duel(tournament_id, 0)
+        duel_1 = await self.dbconn.get_duel(tournament_id, 1)
+
+        self.assertEqual(duels[0], duel_0)
+        self.assertEqual(duels[1], duel_1)
+
+        # Test add existing duel idx
+        result = await self.dbconn.add_duel(tournament_id, 0, active_until, member_ids[0], member_ids[1])
+        self.assertFalse(result)
+
+        # Test add duel with same users
+        result = await self.dbconn.add_duel(tournament_id, 2, active_until, member_ids[0], member_ids[2])
+        self.assertTrue(result)
+
+        duels = await self.dbconn.list_duels(tournament_id)
+        self.assertEqual(len(duels), 3)
+
+    async def test_add_duel_matches(self):
+        participants_count = 2
+        active_until = datetime(2020, 1, 5, 12, 0, 0)
+
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+
+        member_ids = []
+        for i in range(participants_count):
+            member_id = await self.dbconn.create_member(f'user_{i}', f'password_{i}'.encode())
+            member_ids.append(member_id)
+            await self.dbconn.add_participant(tournament_id, member_id)
+
+        await self.dbconn.start_tournament(tournament_id)
+
+        result = await self.dbconn.add_duel(tournament_id, 0, active_until, member_ids[0], member_ids[1])
+        self.assertTrue(result)
+
+        duel = await self.dbconn.get_duel(tournament_id, 0)
+
+        match = DbMatchReport(
+            winner_id=duel.user1_id,
+            loser_id=duel.user2_id,
+            winner_pieces_left=10,
+            loser_pieces_left=0,
+            move_counter=255,
+            grid_size='standard',
+            squadron_size='standard',
+            started_at=datetime(2020, 1, 5, 12, 0, 0),
+            finished_at=datetime(2020, 1, 5, 13, 0, 0),
+            is_ranked=True,
+            is_void=False,
+        )
+        await self.dbconn.add_match_result(match)
+        result = await self.dbconn.add_duel_match(tournament_id, 0, match.match_id)
+
+        self.assertTrue(result)
+
+        duel_matches = await self.dbconn.get_duel_matches(tournament_id, 0)
+        self.assertEqual(len(duel_matches), 1)
+
+        match.match_id = str(uuid.uuid4())
+
+        await self.dbconn.add_match_result(match)
+        await self.dbconn.add_duel_match(tournament_id, 0, match.match_id)
+
+        duel_matches = await self.dbconn.get_duel_matches(tournament_id, 0)
+        self.assertEqual(len(duel_matches), 2)

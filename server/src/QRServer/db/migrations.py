@@ -26,6 +26,7 @@ async def execute_migrations(c, config: Config, max_version=None):
         _migration_upgrade_to_v5,
         _migration_upgrade_to_v6,
         _migration_upgrade_to_v7,
+        _migration_upgrade_to_v8,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -201,3 +202,63 @@ async def _migration_upgrade_to_v7(c, config):
         ")"
     )
     await _set_version(c, 7)
+
+
+async def _migration_upgrade_to_v8(c, _config):
+    await c.execute(
+        "create table tournaments ("
+        " id varchar primary key,"
+        " name varchar,"
+        " created_by_dc_id varchar"
+        " tournament_msg_dc_id varchar,"
+        " creation_timestamp integer,"
+        " start_timestamp integer,"
+        " end_timestamp integer,"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_participants ("
+        " tournament_id varchar,"
+        " user_id varchar,"
+        " primary key (tournament_id, user_id),"
+        " foreign key(tournament_id) references tournaments (id),"
+        " foreign key(user_id) references users (id),"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_rounds ("
+        " id varchar primary key,"
+        " tournament_id varchar,"
+        " round: int,"  # autoincrement?
+        " active_until_timestamp integer,"
+        " is_active bool,"
+        " foreign key(tournament_id) references tournaments (id),"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_pairings ("
+        " id integer,"
+        " round_id varchar,"
+        " user1_id varchar,"
+        " user2_id varchar,"
+        " primary key (id, round_id),"
+        " foreign key(round_id) references tournament_rounds (id),"
+        " foreign key(user1_id) references users (id),"
+        " foreign key(user2_id) references users (id),"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_matches ("
+        " pairing_id varchar,"
+        " match_id varchar,"
+        " primary key (pairing_id, match_id),"
+        " foreign key(pairing_id) references tournament_pairings (id),"
+        " foreign key(match_id) references matches (id),"
+        ")"
+    )
+
+    await _set_version(c, 8)

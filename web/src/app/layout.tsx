@@ -9,8 +9,8 @@ import config from "../../configurations/config.json";
 const tabs = [
   { label: "Game Play", href: "/gameplay" },
   { label: "Interface", href: "/interface" },
-  { label: "Advanced Training", href: "/advanced" },
   { label: "Basic Training", href: "/basic" },
+  { label: "Advanced Training", href: "/advanced" },
   { label: "Orbs", href: "/orbs" },
   { label: "Members", href: "/members" },
 ];

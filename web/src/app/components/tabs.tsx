@@ -23,7 +23,7 @@ export default function Tabs({ tabs }: TabProps) {
             <Link
               key={tab.href}
               href={tab.href}
-              className={`px-3 py-2 text-sm font-medium rounded-t-lg pixel-text w-32 text-center ${
+              className={`px-3 py-1 text-md font-medium rounded-t-lg pixel-text w-32 leading-tight text-center ${
                 isActive
                   ? "bg-[var(--red-dark)] text-[var(--red-light)] border-b-2 border-[var(--primary)]"
                   : "text-[var(--text-primary)] hover:text-[var(--button-text)] hover:bg-[var(--red-medium)]"

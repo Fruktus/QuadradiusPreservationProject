@@ -26,6 +26,7 @@ async def execute_migrations(c, config: Config, max_version=None):
         _migration_upgrade_to_v5,
         _migration_upgrade_to_v6,
         _migration_upgrade_to_v7,
+        _migration_upgrade_to_v8,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -107,7 +108,7 @@ async def _migration_upgrade_to_v6(c, config):
         "  user_id varchar,"
         "  wins integer,"
         "  total_games integer,"
-        "  primary key (year, month, position),"
+        "  primary key(year, month, position),"
         "  foreign key(user_id) references users (id)"
         ")"
     )
@@ -196,8 +197,61 @@ async def _migration_upgrade_to_v7(c, config):
         " month integer,"
         " revision integer,"
         " rating integer,"
-        " primary key (user_id, year, month),"
+        " primary key(user_id, year, month),"
         " foreign key(user_id) references users (id)"
         ")"
     )
     await _set_version(c, 7)
+
+
+async def _migration_upgrade_to_v8(c, _config):
+    await c.execute(
+        "create table tournaments ("
+        " id varchar primary key,"
+        " name varchar unique not null,"
+        " created_by_dc_id varchar,"
+        " tournament_msg_dc_id varchar,"
+        " required_matches_per_duel integer,"
+        " created_at integer,"
+        " started_at integer,"
+        " finished_at integer"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_participants ("
+        " tournament_id varchar,"
+        " user_id varchar,"
+        " primary key(tournament_id, user_id),"
+        " foreign key(tournament_id) references tournaments (id),"
+        " foreign key(user_id) references users (id)"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_duels ("
+        " tournament_id varchar,"
+        " duel_idx integer,"
+        " active_until integer,"
+        " user1_id varchar,"
+        " user2_id varchar,"
+        " primary key(tournament_id, duel_idx),"
+        " foreign key(user1_id) references users (id),"
+        " foreign key(user2_id) references users (id),"
+        " foreign key(tournament_id) references tournaments (id)"
+        ")"
+    )
+
+    await c.execute(
+        "create table tournament_matches ("
+        " tournament_id varchar,"
+        " duel_idx integer,"
+        " match_id varchar,"
+        " primary key(tournament_id, duel_idx, match_id),"
+        " foreign key(tournament_id) references tournaments (id)"
+        " foreign key(duel_idx) references tournament_duels (duel_idx)"
+        " foreign key(match_id) references matches (id)"
+        ")"
+    )
+
+    await _set_version(c, 8)

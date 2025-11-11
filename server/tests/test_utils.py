@@ -2,6 +2,8 @@ import unittest
 from datetime import datetime as dt
 import random as rnd
 from QRServer.common import utils
+from QRServer.common.full_binary_tree_indexer import FullBinaryTreeIndexer
+import pytest
 
 
 class MakeMonthDatesTest(unittest.TestCase):
@@ -151,3 +153,68 @@ class CalculateNewRatingsTest(unittest.TestCase):
 
         self.assertEqual(round(rating_ratio_10, 2), 0.49)
         self.assertEqual(round(rating_ratio_100, 2), 0.44)
+
+
+class FullBinaryTreeIndexerTest(unittest.TestCase):
+    def test_get_levels(self):
+        with pytest.raises(ValueError):
+            FullBinaryTreeIndexer(0)
+
+        tree1 = FullBinaryTreeIndexer(1)
+        self.assertEqual(tree1.levels, 1)
+
+        tree4 = FullBinaryTreeIndexer(4)
+        self.assertEqual(tree4.levels, 3)
+
+        tree5 = FullBinaryTreeIndexer(5)
+        self.assertEqual(tree5.levels, 4)
+
+        tree8 = FullBinaryTreeIndexer(8)
+        self.assertEqual(tree8.levels, 4)
+
+        tree9 = FullBinaryTreeIndexer(9)
+        self.assertEqual(tree9.levels, 5)
+
+    def test_get_node_count(self):
+        with pytest.raises(ValueError):
+            FullBinaryTreeIndexer(0)
+
+        tree1 = FullBinaryTreeIndexer(1)
+        self.assertEqual(tree1.get_node_count(), 1)
+
+        tree4 = FullBinaryTreeIndexer(4)
+        self.assertEqual(tree4.get_node_count(), 7)
+
+        tree5 = FullBinaryTreeIndexer(5)
+        self.assertEqual(tree5.get_node_count(), 15)
+
+        tree8 = FullBinaryTreeIndexer(8)
+        self.assertEqual(tree8.get_node_count(), 15)
+
+        tree9 = FullBinaryTreeIndexer(9)
+        self.assertEqual(tree9.get_node_count(), 31)
+
+    def test_get_nodes_at_level(self):
+        tree7 = FullBinaryTreeIndexer(7)
+        self.assertEqual(tree7.get_nodes_at_level(3), [i for i in range(7, 15)])
+        self.assertEqual(tree7.get_nodes_at_level(2), [i for i in range(3, 7)])
+        self.assertEqual(tree7.get_nodes_at_level(1), [i for i in range(1, 3)])
+        self.assertEqual(tree7.get_nodes_at_level(0), [0])
+
+    def test_get_node_parent(self):
+        tree7 = FullBinaryTreeIndexer(7)
+        self.assertEqual(tree7.get_node_parent(1), 0)
+        self.assertEqual(tree7.get_node_parent(2), 0)
+        self.assertEqual(tree7.get_node_parent(3), 1)
+        self.assertEqual(tree7.get_node_parent(4), 1)
+        self.assertEqual(tree7.get_node_parent(5), 2)
+        self.assertEqual(tree7.get_node_parent(6), 2)
+
+        with pytest.raises(ValueError):
+            tree7.get_node_parent(17)
+
+        with pytest.raises(ValueError):
+            tree7.get_node_parent(0)
+
+        with pytest.raises(ValueError):
+            tree7.get_node_parent(-1)

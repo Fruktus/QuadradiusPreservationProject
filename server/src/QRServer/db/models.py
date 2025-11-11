@@ -42,3 +42,30 @@ class UserRating:
     year: int
     rating: int = field(default=500)
     revision: int = field(default=0)
+
+
+@dataclass
+class Tournament:
+    tournament_id: str
+    name: str
+    created_by_dc_id: str
+    tournament_msg_dc_id: str
+    required_matches_per_duel: int
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+
+
+@dataclass
+class TournamentParticipant:
+    tournament_id: str
+    user_id: str
+
+
+@dataclass
+class TournamentDuel:
+    tournament_id: str
+    duel_idx: str
+    active_until: datetime
+    user1_id: str
+    user2_id: str

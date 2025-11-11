@@ -10,7 +10,7 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common import utils
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, UserRating
+from QRServer.db.models import DbUser, DbMatchReport, TournamentDuel, TournamentParticipant, Tournament, UserRating
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -29,6 +29,9 @@ class DbConnector:
         await migrations.setup_metadata(c)
         await migrations.execute_migrations(c, self.config)
         await self.conn.commit()
+
+    async def close(self):
+        await self.conn.close()
 
     async def get_user(self, user_id: str) -> DbUser | None:
         c = await self.conn.cursor()
@@ -87,19 +90,21 @@ class DbConnector:
             )
         return result
 
-    async def create_member(self, username: str, password: bytes, discord_user_id: str | None = None) -> None:
+    async def create_member(self, username: str, password: bytes, discord_user_id: str | None = None) -> str:
+        id_ = str(uuid.uuid4())
         c = await self.conn.cursor()
         await c.execute(
             "insert into users("
             "  id, username, password, created_at, discord_user_id"
             ") values (?, ?, ?, ?, ?)", (
-                str(uuid.uuid4()),
+                id_,
                 username,
                 password_hash(password) if password else None,
                 datetime.now().timestamp(),
                 discord_user_id,
             ))
         await self.conn.commit()
+        return id_
 
     async def authenticate_user(self, username: str, password: bytes | None, auto_create=False,
                                 verify_password=True) -> DbUser | None:
@@ -270,7 +275,7 @@ class DbConnector:
             moves=row[6],
         )
 
-    async def get_recent_matches(self, count=15):
+    async def get_recent_matches(self, count=15) -> list[GameResultHistory]:
         c = await self.conn.cursor()
 
         # Gets all recent matches, minus void ones
@@ -473,8 +478,246 @@ class DbConnector:
                 await self.conn.rollback()
                 raise UpdateCollisionError()
 
-    async def close(self):
-        await self.conn.close()
+    async def create_tournament(self, tournament_name: str, created_by_dc_id: str, tournament_msg_dc_id: str,
+                                required_matches_per_duel: int) -> str | None:
+        """
+        Returns:
+            str: Id of the created tournament
+        """
+        id_ = str(uuid.uuid4())
+        c = await self.conn.cursor()
+        await c.execute(
+            "insert or ignore into tournaments ("
+            " id,"
+            " name,"
+            " created_by_dc_id,"
+            " tournament_msg_dc_id,"
+            " created_at,"
+            " required_matches_per_duel"
+            ")"
+            " values (?, ?, ?, ?, ?, ?)", (
+                id_,
+                tournament_name,
+                created_by_dc_id,
+                tournament_msg_dc_id,
+                int(datetime.now().timestamp()),
+                required_matches_per_duel,
+            )
+        )
+        await self.conn.commit()
+        if bool(c.rowcount):
+            return id_
+        return None
+
+    async def get_tournament(self, tournament_id: str) -> Tournament | None:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select id, name, created_by_dc_id, tournament_msg_dc_id,"
+            " required_matches_per_duel, created_at,"
+            " started_at, finished_at"
+            " from tournaments"
+            " where id = ?",
+            (tournament_id,)
+        )
+
+        row = await c.fetchone()
+        if row is None:
+            return None
+        return Tournament(
+            tournament_id=row[0],
+            name=row[1],
+            created_by_dc_id=row[2],
+            tournament_msg_dc_id=row[3],
+            required_matches_per_duel=row[4],
+            created_at=datetime.fromtimestamp(row[5]),
+            started_at=datetime.fromtimestamp(row[6]) if row[6] else None,
+            finished_at=datetime.fromtimestamp(row[7]) if row[7] else None,
+        )
+
+    async def start_tournament(self, tournament_id: str) -> bool:
+        """
+        Returns:
+            bool: True if succesfully started the tournament
+        """
+        c = await self.conn.cursor()
+        now_ts = int(datetime.now().timestamp())  # current datetime as integer timestamp
+        await c.execute(
+            "update tournaments"
+            " set started_at = ?"
+            " where id = ? and started_at is null",
+            (now_ts, tournament_id)
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def add_participant(self, tournament_id: str, user_id: str) -> bool:
+        """
+        Returns:
+            bool: True if successfully added the participant
+        """
+        c = await self.conn.cursor()
+        await c.execute(
+            "insert into tournament_participants (tournament_id, user_id)"
+            "select ?, ?"
+            "where exists ("
+            "    select 1 from tournaments"
+            "    where id = ? and started_at is null"
+            ")",
+            (tournament_id, user_id, tournament_id)
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def list_participants(self, tournament_id: str) -> list[TournamentParticipant]:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select tournament_id, user_id from tournament_participants where tournament_id = ?",
+            (tournament_id,)
+        )
+        rows = await c.fetchall()
+        if not rows:
+            return []
+        return [TournamentParticipant(row[0], row[1]) for row in rows]
+
+    async def remove_participant(self, tournament_id, user_id) -> bool:
+        """
+        Returns:
+            bool: True if row deleted, False if tournament or user id does not exist or tournament already began.
+        """
+        c = await self.conn.cursor()
+        await c.execute(
+            "delete from tournament_participants"
+            " where tournament_id = ? and user_id = ? and exists ("
+            "    select 1 from tournaments"
+            "    where id = tournament_participants.tournament_id"
+            "    and started_at is null"
+            ")",
+            (tournament_id, user_id)
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def add_duel(self, tournament_id: str, duel_idx: int, active_until: datetime,
+                       user1_id: str | None, user2_id: str | None) -> bool:
+        """
+        Returns:
+            bool: True if succesfully added the duel
+        """
+        c = await self.conn.cursor()
+        await c.execute(
+            "insert or ignore into tournament_duels ("
+            " tournament_id,"
+            " duel_idx,"
+            " active_until,"
+            " user1_id,"
+            " user2_id"
+            ")"
+            " values (?, ?, ?, ?, ?)",
+            (
+                tournament_id,
+                duel_idx,
+                int(active_until.timestamp()),
+                user1_id,
+                user2_id,
+            )
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def list_duels(self, tournament_id: str) -> list[TournamentDuel]:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select tournament_id, duel_idx, active_until, user1_id, user2_id"
+            " from tournament_duels where tournament_id = ? order by duel_idx",
+            (tournament_id,)
+        )
+        rows = await c.fetchall()
+        if not rows:
+            return []
+        return [TournamentDuel(
+                    tournament_id=row[0],
+                    duel_idx=row[1],
+                    active_until=datetime.fromtimestamp(row[2]),
+                    user1_id=row[3],
+                    user2_id=row[4],
+                ) for row in rows]
+
+    async def get_duel(self, tournament_id: str, duel_idx: int) -> TournamentDuel | None:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select tournament_id, duel_idx, active_until, user1_id, user2_id"
+            " from tournament_duels where tournament_id = ? and duel_idx = ?",
+            (tournament_id, duel_idx)
+        )
+        row = await c.fetchone()
+        if not row:
+            return None
+        return TournamentDuel(
+            tournament_id=row[0],
+            duel_idx=row[1],
+            active_until=datetime.fromtimestamp(row[2]),
+            user1_id=row[3],
+            user2_id=row[4],
+        )
+
+    async def get_duel_matches(self, tournament_id: str, duel_idx: int) -> list[DbMatchReport]:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select id, winner_id, loser_id, winner_pieces_left,"
+            " loser_pieces_left, move_counter, grid_size,"
+            " squadron_size, started_at, finished_at, is_ranked,"
+            " is_void"
+            " from matches"
+            " right join tournament_matches"
+            " on matches.id = tournament_matches.match_id"
+            " where tournament_matches.tournament_id = ? and tournament_matches.duel_idx = ?",
+            (
+                tournament_id,
+                duel_idx,
+            ))
+        rows = await c.fetchall()
+        if rows is None:
+            return None
+
+        result = []
+        for row in rows:
+            result.append(DbMatchReport(
+                match_id=row[0],
+                winner_id=row[1],
+                loser_id=row[2],
+                winner_pieces_left=row[3],
+                loser_pieces_left=row[4],
+                move_counter=row[5],
+                grid_size=row[6],
+                squadron_size=row[7],
+                started_at=datetime.fromtimestamp(row[8]),
+                finished_at=datetime.fromtimestamp(row[9]),
+                is_ranked=row[10],
+                is_void=row[11],
+            ))
+        return result
+
+    async def add_duel_match(self, tournament_id: str, duel_idx: int, match_id: str) -> bool:
+        """
+        Returns:
+            bool: True if succesfully added the match to duel
+        """
+        c = await self.conn.cursor()
+        await c.execute(
+            "insert or ignore into tournament_matches ("
+            " tournament_id,"
+            " duel_idx,"
+            " match_id"
+            ")"
+            "values (?, ?, ?)",
+            (
+                tournament_id,
+                duel_idx,
+                match_id,
+            )
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
 
 
 async def create_connector(config) -> DbConnector:

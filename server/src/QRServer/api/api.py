@@ -3,8 +3,10 @@ from enum import Enum
 import logging
 
 from QRServer.config import Config
+from QRServer.db.connector import DbConnector
 from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyserver import LobbyServer
+from QRServer.api.api_v1 import create_v1_app
 from aiohttp import web
 
 log = logging.getLogger('qr.api')
@@ -19,14 +21,16 @@ class HttpMethod(str, Enum):
 
 class ApiServer:
     app: web.Application
+    connector: DbConnector
     runner: web.AppRunner
     site: web.TCPSite
     config: Config
     lobby_server: LobbyServer
     game_server: GameServer
 
-    def __init__(self, config: Config, lobby_server: LobbyServer, game_server: GameServer):
+    def __init__(self, config: Config, connector: DbConnector, lobby_server: LobbyServer, game_server: GameServer):
         self.config = config
+        self.connector = connector
         self.app = web.Application()
         self.lobby_server = lobby_server
         self.game_server = game_server
@@ -56,23 +60,4 @@ class ApiServer:
             await self.runner.cleanup()
 
     def _add_routes(self):
-        self.app.add_routes([
-            web.get('/api/v1/game/stats', self._v1_game_stats),
-            web.get('/api/v1/health', self._v1_health),
-            web.get('/api/v1/lobby/stats', self._v1_lobby_stats),
-        ])
-
-    async def _v1_game_stats(self, _request: web.Request):
-        player_count = self.game_server.get_player_count()
-        return web.json_response({
-            'player_count': player_count,
-        })
-
-    async def _v1_health(self, _request: web.Request):
-        return web.json_response({})
-
-    async def _v1_lobby_stats(self, _request: web.Request):
-        player_count = self.lobby_server.get_player_count()
-        return web.json_response({
-            'player_count': player_count,
-        })
+        self.app.add_subapp('/api/v1', create_v1_app(self.game_server, self.lobby_server))

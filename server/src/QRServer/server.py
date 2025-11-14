@@ -145,7 +145,12 @@ class QRServer:
         self._lobby_server = LobbyServer()
 
         if self.config.api_enabled.get():
-            self._api_server = ApiServer(self.config, lobby_server=self._lobby_server, game_server=self._game_server)
+            self._api_server = ApiServer(
+                config=self.config,
+                connector=self.connector,
+                lobby_server=self._lobby_server,
+                game_server=self._game_server
+            )
             self.start_task("QR API", self._api_server.run())
         else:
             log.info('QR API disabled')

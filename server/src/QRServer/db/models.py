@@ -65,7 +65,13 @@ class TournamentParticipant:
 @dataclass
 class TournamentDuel:
     tournament_id: str
-    duel_idx: str
+    duel_idx: int
     active_until: datetime
     user1_id: str
     user2_id: str
+
+
+@dataclass
+class TournamentMatch:
+    duel_idx: int
+    match: DbMatchReport

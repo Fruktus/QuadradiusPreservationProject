@@ -9,6 +9,7 @@ from QRServer.common.messages import Message, JoinLobbyRequest, LobbyStateRespon
     JoinGameRequest, PlayerCountResponse, HelloGameRequest
 from QRServer.config import Config
 from QRServer.db import password as db_password
+from QRServer.db.connector import DbConnector
 
 # this significantly improves performance
 # we do not need to worry about security
@@ -181,6 +182,15 @@ class QuadradiusIntegrationTestCase(unittest.IsolatedAsyncioTestCase):
         if not self._server:
             raise AssertionError('Server not set up')
         return self._server
+
+    @property
+    def connector(self) -> DbConnector:
+        if not self._server:
+            raise AssertionError('Server not set up')
+        if not self._server.connector:
+            raise AssertionError('Connector not set up')
+
+        return self._server.connector
 
     @property
     def config(self) -> Config:

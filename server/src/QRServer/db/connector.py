@@ -10,7 +10,8 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common import utils
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, TournamentDuel, TournamentParticipant, Tournament, UserRating
+from QRServer.db.models import DbUser, DbMatchReport, TournamentDuel, TournamentMatch, TournamentParticipant, \
+    Tournament, UserRating
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -534,6 +535,39 @@ class DbConnector:
             finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
         )
 
+    async def list_tournament_users(self, tournament_id: str) -> list[DbUser] | None:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select users.id, username, password, users.created_at, discord_user_id"
+            " from tournaments"
+            " left join tournament_participants"
+            " on tournaments.id = tournament_participants.tournament_id"
+            " left join users"
+            " on users.id = tournament_participants.user_id"
+            " where tournaments.id = ?",
+            (tournament_id,)
+        )
+
+        rows = list(await c.fetchall())
+        if not rows:
+            # Tournament does not exist
+            return None
+
+        if rows[0][0] is None:
+            # tournament exists but no participants
+            return []
+
+        result = []
+        for row in rows:
+            result.append(DbUser(
+                user_id=row[0],
+                username=row[1],
+                password=row[2],
+                created_at=row[3],
+                discord_user_id=row[4],
+            ))
+        return result
+
     async def start_tournament(self, tournament_id: str) -> bool:
         """
         Returns:
@@ -624,16 +658,26 @@ class DbConnector:
         await self.conn.commit()
         return bool(c.rowcount)
 
-    async def list_duels(self, tournament_id: str) -> list[TournamentDuel]:
+    async def list_duels(self, tournament_id: str) -> list[TournamentDuel] | None:
         c = await self.conn.cursor()
         await c.execute(
             "select tournament_id, duel_idx, active_until, user1_id, user2_id"
-            " from tournament_duels where tournament_id = ? order by duel_idx",
+            " from tournaments"
+            " left join tournament_duels"
+            " on tournaments.id = tournament_duels.tournament_id"
+            " where tournaments.id = ? order by duel_idx",
             (tournament_id,)
         )
-        rows = await c.fetchall()
+
+        rows = list(await c.fetchall())
         if not rows:
+            # Tournament does not exist
+            return None
+
+        if rows[0][0] is None:
+            # tournament exists but no participants
             return []
+
         return [TournamentDuel(
                     tournament_id=row[0],
                     duel_idx=row[1],
@@ -652,6 +696,7 @@ class DbConnector:
         row = await c.fetchone()
         if not row:
             return None
+
         return TournamentDuel(
             tournament_id=row[0],
             duel_idx=row[1],
@@ -695,6 +740,52 @@ class DbConnector:
                 is_ranked=bool(row[10]),
                 is_void=bool(row[11]),
             ))
+        return result
+
+    async def list_tournament_matches(self, tournament_id: str) -> list[TournamentMatch] | None:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select matches.id, winner_id, loser_id, winner_pieces_left,"
+            " loser_pieces_left, move_counter, grid_size,"
+            " squadron_size, matches.started_at, matches.finished_at, is_ranked,"
+            " is_void, duel_idx"
+            " from tournaments"
+            " left join tournament_matches"
+            " on tournaments.id = tournament_matches.tournament_id"
+            " left join matches"
+            " on matches.id = tournament_matches.match_id"
+            " where tournaments.id = ?",
+            (tournament_id,)
+        )
+        rows = list(await c.fetchall())
+        if not rows:
+            # Tournament does not exist
+            return None
+
+        if rows[0][0] is None:
+            # Tournament exists, matches do not (row full of Nones)
+            return []
+
+        result = []
+        for row in rows:
+            tournament_match = TournamentMatch(
+                match=DbMatchReport(
+                    match_id=row[0],
+                    winner_id=row[1],
+                    loser_id=row[2],
+                    winner_pieces_left=row[3],
+                    loser_pieces_left=row[4],
+                    move_counter=row[5],
+                    grid_size=row[6],
+                    squadron_size=row[7],
+                    started_at=datetime.fromtimestamp(row[8], tz=timezone.utc),
+                    finished_at=datetime.fromtimestamp(row[9], tz=timezone.utc),
+                    is_ranked=bool(row[10]),
+                    is_void=bool(row[11]),
+                ),
+                duel_idx=row[12]
+            )
+            result.append(tournament_match)
         return result
 
     async def add_duel_match(self, tournament_id: str, duel_idx: int, match_id: str) -> bool:

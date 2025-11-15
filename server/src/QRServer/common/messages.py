@@ -1,6 +1,6 @@
 import inspect
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Sequence, Type
 
 from QRServer.common import powers
@@ -385,7 +385,7 @@ class LastLoggedResponse(ResponseMessage):
 
     @staticmethod
     def __last_logged_minutes(time: datetime) -> int:
-        diff = datetime.now() - time
+        diff = datetime.now(timezone.utc) - time
         return int(diff.total_seconds()) // 60
 
 

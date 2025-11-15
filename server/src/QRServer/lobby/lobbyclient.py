@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from QRServer.common import utils
 from QRServer.common.classes import LobbyPlayer
@@ -85,7 +85,7 @@ class LobbyClientHandler(ClientHandler):
         # user authenticated successfully, register with lobbyserver
         self.player.user_id = db_user.user_id
         self.player.username = username
-        self.player.joined_at = datetime.now()
+        self.player.joined_at = datetime.now(timezone.utc)
         self.player.idx = await self.lobby_server.add_client(self)
         await self.send_msg(LobbyStateResponse.new(self.lobby_server.get_players()))
 

@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from QRServer.config import Config
 from QRServer.db.common import UpdateCollisionError, retry_on_update_collision
@@ -100,7 +100,7 @@ class DbConnector:
                 id_,
                 username,
                 password_hash(password) if password else None,
-                datetime.now().timestamp(),
+                datetime.now(timezone.utc).timestamp(),
                 discord_user_id,
             ))
         await self.conn.commit()
@@ -117,7 +117,7 @@ class DbConnector:
                     str(uuid.uuid4()),
                     username,
                     password_hash(password) if password else None,
-                    datetime.now().timestamp(),
+                    datetime.now(timezone.utc).timestamp(),
                     None
                 )
             )
@@ -239,8 +239,8 @@ class DbConnector:
             move_counter=row[5],
             grid_size=row[6],
             squadron_size=row[7],
-            started_at=datetime.fromtimestamp(row[8]),
-            finished_at=datetime.fromtimestamp(row[9]),
+            started_at=datetime.fromtimestamp(row[8], tz=timezone.utc),
+            finished_at=datetime.fromtimestamp(row[9], tz=timezone.utc),
             is_ranked=row[10],
             is_void=row[11],
         )
@@ -270,8 +270,8 @@ class DbConnector:
             player_lost=row[1],
             won_score=row[2],
             lost_score=row[3],
-            start=datetime.fromtimestamp(row[4]),
-            finish=datetime.fromtimestamp(row[5]),
+            start=datetime.fromtimestamp(row[4], tz=timezone.utc),
+            finish=datetime.fromtimestamp(row[5], tz=timezone.utc),
             moves=row[6],
         )
 
@@ -302,8 +302,8 @@ class DbConnector:
                 player_lost=row[1],
                 won_score=row[2],
                 lost_score=row[3],
-                start=datetime.fromtimestamp(row[4]),
-                finish=datetime.fromtimestamp(row[5]),
+                start=datetime.fromtimestamp(row[4], tz=timezone.utc),
+                finish=datetime.fromtimestamp(row[5], tz=timezone.utc),
                 moves=row[6],
             ))
         return recent_matches
@@ -500,7 +500,7 @@ class DbConnector:
                 tournament_name,
                 created_by_dc_id,
                 tournament_msg_dc_id,
-                int(datetime.now().timestamp()),
+                int(datetime.now(timezone.utc).timestamp()),
                 required_matches_per_duel,
             )
         )
@@ -529,9 +529,9 @@ class DbConnector:
             created_by_dc_id=row[2],
             tournament_msg_dc_id=row[3],
             required_matches_per_duel=row[4],
-            created_at=datetime.fromtimestamp(row[5]),
-            started_at=datetime.fromtimestamp(row[6]) if row[6] else None,
-            finished_at=datetime.fromtimestamp(row[7]) if row[7] else None,
+            created_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
+            started_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
+            finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
         )
 
     async def start_tournament(self, tournament_id: str) -> bool:
@@ -540,7 +540,7 @@ class DbConnector:
             bool: True if succesfully started the tournament
         """
         c = await self.conn.cursor()
-        now_ts = int(datetime.now().timestamp())  # current datetime as integer timestamp
+        now_ts = int(datetime.now(timezone.utc).timestamp())  # current datetime as integer timestamp
         await c.execute(
             "update tournaments"
             " set started_at = ?"
@@ -637,7 +637,7 @@ class DbConnector:
         return [TournamentDuel(
                     tournament_id=row[0],
                     duel_idx=row[1],
-                    active_until=datetime.fromtimestamp(row[2]),
+                    active_until=datetime.fromtimestamp(row[2], tz=timezone.utc),
                     user1_id=row[3],
                     user2_id=row[4],
                 ) for row in rows]
@@ -655,7 +655,7 @@ class DbConnector:
         return TournamentDuel(
             tournament_id=row[0],
             duel_idx=row[1],
-            active_until=datetime.fromtimestamp(row[2]),
+            active_until=datetime.fromtimestamp(row[2], tz=timezone.utc),
             user1_id=row[3],
             user2_id=row[4],
         )
@@ -690,8 +690,8 @@ class DbConnector:
                 move_counter=row[5],
                 grid_size=row[6],
                 squadron_size=row[7],
-                started_at=datetime.fromtimestamp(row[8]),
-                finished_at=datetime.fromtimestamp(row[9]),
+                started_at=datetime.fromtimestamp(row[8], tz=timezone.utc),
+                finished_at=datetime.fromtimestamp(row[9], tz=timezone.utc),
                 is_ranked=row[10],
                 is_void=row[11],
             ))

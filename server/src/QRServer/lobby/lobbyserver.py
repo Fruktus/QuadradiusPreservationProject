@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import ResponseMessage, LastLoggedResponse, LobbyStateResponse, ChallengeMessage, \
@@ -10,7 +10,7 @@ log = logging.getLogger('qr.lobby_server')
 
 
 class LobbyServer:
-    __server_boot_time = datetime.now()
+    __server_boot_time = datetime.now(timezone.utc)
     last_logged: LobbyClientHandler | None
     clients: list[LobbyClientHandler | None]
 
@@ -64,7 +64,7 @@ class LobbyServer:
             if username and joined_at:
                 return LastLoggedResponse.new(username, joined_at, '')
 
-        return LastLoggedResponse.new('<>', datetime.now(), '')
+        return LastLoggedResponse.new('<>', datetime.now(timezone.utc), '')
 
     async def broadcast_lobby_state(self, excluded_idx):
         # send the current lobby state to all the connected clients (forces refresh) (i hope it does...)

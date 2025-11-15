@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 import secrets
 import string
 
@@ -13,8 +13,8 @@ def make_month_dates(month: int, year: int) -> tuple[datetime, datetime]:
     # Returns tuple consisting of the first day of the given month and year and
     # the first day of the next month (incrementing year if needed)
     return \
-        datetime(year, month, 1), \
-        datetime(year + month // 12, (month % 12) + 1, 1)
+        datetime(year, month, 1, tzinfo=timezone.utc), \
+        datetime(year + month // 12, (month % 12) + 1, 1, tzinfo=timezone.utc)
 
 
 def generate_random_password(length: int) -> str:
@@ -35,7 +35,7 @@ def make_month_dates_range(start_date: datetime, end_date: datetime) -> list[dat
     res = []
 
     while True:
-        res.append(datetime(year=current_year, month=current_month, day=1))
+        res.append(datetime(year=current_year, month=current_month, day=1, tzinfo=timezone.utc))
 
         if current_month >= end_month and current_year >= end_year:
             return res

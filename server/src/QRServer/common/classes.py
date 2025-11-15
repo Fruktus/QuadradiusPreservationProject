@@ -1,5 +1,5 @@
 import abc
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from QRServer.db.models import DbMatchReport
 
@@ -82,7 +82,7 @@ class Match:
         self.parties = []
         self.match_stats = {}
         self.user_ids = set()
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(timezone.utc)
 
     def empty(self):
         return len(self.parties) == 0
@@ -150,7 +150,7 @@ class Match:
             grid_size=winner_stats.grid_size,
             squadron_size=winner_stats.squadron_size,
             started_at=self.start_time,
-            finished_at=datetime.now(),
+            finished_at=datetime.now(timezone.utc),
             is_ranked=self.ranked,
             is_void=self.is_void()
         )

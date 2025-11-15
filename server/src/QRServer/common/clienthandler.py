@@ -1,7 +1,7 @@
 import abc
 import logging
 from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadError, LimitOverrunError
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, TypeVar, Type, AsyncIterable, Coroutine
 
 from QRServer.common import messages, utils
@@ -26,7 +26,7 @@ class ClientHandler(abc.ABC):
     _username: str | None
 
     def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter):
-        self.connected_at = datetime.now()
+        self.connected_at = datetime.now(timezone.utc)
         self.config = config
         self.connector = connector
         self.handlers = {}

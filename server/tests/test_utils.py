@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime as dt
+from datetime import datetime, timezone
 import random as rnd
 from QRServer.common import utils
 from QRServer.common.full_binary_tree_indexer import FullBinaryTreeIndexer
@@ -10,15 +10,15 @@ class MakeMonthDatesTest(unittest.TestCase):
     def test_make_month_dates(self):
         self.assertEqual(
             utils.make_month_dates(1, 2020),
-            (dt(2020, 1, 1), dt(2020, 2, 1))
+            (datetime(2020, 1, 1, tzinfo=timezone.utc), datetime(2020, 2, 1, tzinfo=timezone.utc))
         )
         self.assertEqual(
             utils.make_month_dates(12, 2020),
-            (dt(2020, 12, 1), dt(2021, 1, 1))
+            (datetime(2020, 12, 1, tzinfo=timezone.utc), datetime(2021, 1, 1, tzinfo=timezone.utc))
         )
 
 
-class GenerateRandomPasswordTest(unittest.TestCase):
+class GenerateRandomPasswordatetimeest(unittest.TestCase):
     def test_generate_random_password(self):
         for i in range(0, 100, 10):
             self.assertEqual(len(utils.generate_random_password(i)), i)
@@ -28,27 +28,27 @@ class MakeMonthDatesRange(unittest.TestCase):
     def test_month_dates_range_basic(self):
         self.assertEqual(
             utils.make_month_dates_range(
-                dt(2020, 1, 1), dt(2020, 1, 31)
+                datetime(2020, 1, 1, tzinfo=timezone.utc), datetime(2020, 1, 31, tzinfo=timezone.utc)
             ),
             [
-                dt(2020, 1, 1),
+                datetime(2020, 1, 1, tzinfo=timezone.utc),
             ]
         )
 
     def test_month_dates_range_random_days_same_month(self):
         self.assertEqual(
             utils.make_month_dates_range(
-                dt(2020, 1, 4), dt(2020, 1, 9)
+                datetime(2020, 1, 4, tzinfo=timezone.utc), datetime(2020, 1, 9, tzinfo=timezone.utc)
             ),
             [
-                dt(2020, 1, 1),
+                datetime(2020, 1, 1, tzinfo=timezone.utc),
             ]
         )
 
     def test_month_dates_range_start_after_end(self):
         self.assertEqual(
             utils.make_month_dates_range(
-                dt(2020, 2, 4), dt(2020, 1, 9)
+                datetime(2020, 2, 4, tzinfo=timezone.utc), datetime(2020, 1, 9, tzinfo=timezone.utc)
             ),
             [
             ]
@@ -57,34 +57,34 @@ class MakeMonthDatesRange(unittest.TestCase):
     def test_month_dates_range_year(self):
         self.assertEqual(
             utils.make_month_dates_range(
-                dt(2020, 1, 12), dt(2020, 12, 12)
+                datetime(2020, 1, 12, tzinfo=timezone.utc), datetime(2020, 12, 12, tzinfo=timezone.utc)
             ),
             [
-                dt(2020, 1, 1),
-                dt(2020, 2, 1),
-                dt(2020, 3, 1),
-                dt(2020, 4, 1),
-                dt(2020, 5, 1),
-                dt(2020, 6, 1),
-                dt(2020, 7, 1),
-                dt(2020, 8, 1),
-                dt(2020, 9, 1),
-                dt(2020, 10, 1),
-                dt(2020, 11, 1),
-                dt(2020, 12, 1),
+                datetime(2020, 1, 1, tzinfo=timezone.utc),
+                datetime(2020, 2, 1, tzinfo=timezone.utc),
+                datetime(2020, 3, 1, tzinfo=timezone.utc),
+                datetime(2020, 4, 1, tzinfo=timezone.utc),
+                datetime(2020, 5, 1, tzinfo=timezone.utc),
+                datetime(2020, 6, 1, tzinfo=timezone.utc),
+                datetime(2020, 7, 1, tzinfo=timezone.utc),
+                datetime(2020, 8, 1, tzinfo=timezone.utc),
+                datetime(2020, 9, 1, tzinfo=timezone.utc),
+                datetime(2020, 10, 1, tzinfo=timezone.utc),
+                datetime(2020, 11, 1, tzinfo=timezone.utc),
+                datetime(2020, 12, 1, tzinfo=timezone.utc),
             ]
         )
 
     def test_month_dates_range_across_year(self):
         self.assertEqual(
             utils.make_month_dates_range(
-                dt(2020, 11, 12), dt(2021, 2, 15)
+                datetime(2020, 11, 12, tzinfo=timezone.utc), datetime(2021, 2, 15, tzinfo=timezone.utc)
             ),
             [
-                dt(2020, 11, 1),
-                dt(2020, 12, 1),
-                dt(2021, 1, 1),
-                dt(2021, 2, 1),
+                datetime(2020, 11, 1, tzinfo=timezone.utc),
+                datetime(2020, 12, 1, tzinfo=timezone.utc),
+                datetime(2021, 1, 1, tzinfo=timezone.utc),
+                datetime(2021, 2, 1, tzinfo=timezone.utc),
             ]
         )
 

@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import patch
 import uuid
 from QRServer.common.classes import GameResultHistory
@@ -28,13 +28,13 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         with patch('uuid.uuid4') as mock_uuid, \
              patch('QRServer.db.connector.datetime') as mock_datetime:
             mock_uuid.return_value = '1234'
-            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0)
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
             await self.conn.authenticate_user(username='test GUEST', password=None, auto_create=True)
             user = await self.conn.get_user_by_username('test GUEST')
             self.assertEqual(user.user_id, '1234')
             self.assertEqual(user.username, 'test GUEST')
-            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
+            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp())
             self.assertTrue(user.is_guest)
 
     async def test_add_match_results(self):
@@ -54,8 +54,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 move_counter=20,
                 grid_size='small',
                 squadron_size='medium',
-                started_at=datetime(2020, 1, 1, 0, 0, 0),
-                finished_at=datetime(2020, 1, 1, 1, 0, 0),
+                started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
                 is_ranked=True,
                 is_void=False,
             )
@@ -71,8 +71,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(match.move_counter, 20)
             self.assertEqual(match.grid_size, 'small')
             self.assertEqual(match.squadron_size, 'medium')
-            self.assertEqual(match.started_at, datetime(2020, 1, 1, 0, 0, 0))
-            self.assertEqual(match.finished_at, datetime(2020, 1, 1, 1, 0, 0))
+            self.assertEqual(match.started_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+            self.assertEqual(match.finished_at, datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc))
             self.assertTrue(match.is_ranked)
             self.assertFalse(match.is_void)
 
@@ -85,8 +85,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(loser.username, 'test_user_2')
 
             ranking = await self.conn.get_ranking(
-                start_date=datetime(2020, 1, 1, 0, 0, 0),
-                end_date=datetime(2020, 1, 2, 0, 0, 0))
+                start_date=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                end_date=datetime(2020, 1, 2, 0, 0, 0, tzinfo=timezone.utc))
             self.assertEqual(len(ranking), 2)
             self.assertEqual(ranking[0].username, 'test_user_1')
             self.assertEqual(ranking[0].user_id, '1')
@@ -120,8 +120,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -133,8 +133,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                         player_lost=f'test_user_{i*100}',
                         won_score=i,
                         lost_score=20-i,
-                        start=datetime(2020, 1, 1, i, 0, 0),
-                        finish=datetime(2020, 1, 1, i+1, 0, 0),
+                        start=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                        finish=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                         moves=20,
                     )
                 )
@@ -175,8 +175,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -194,8 +194,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -213,8 +213,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -232,8 +232,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 2, 1, i, 0, 0),
-                    finished_at=datetime(2020, 2, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 2, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 2, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -251,8 +251,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=False,
                     is_void=False,
                 )
@@ -270,8 +270,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=True,
                 )
@@ -316,8 +316,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -335,8 +335,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -354,8 +354,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     move_counter=20,
                     grid_size='small',
                     squadron_size='medium',
-                    started_at=datetime(2020, 1, 1, i, 0, 0),
-                    finished_at=datetime(2020, 1, 1, i+1, 0, 0),
+                    started_at=datetime(2020, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+                    finished_at=datetime(2020, 1, 1, i+1, 0, 0, tzinfo=timezone.utc),
                     is_ranked=True,
                     is_void=False,
                 )
@@ -381,14 +381,14 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         with patch('uuid.uuid4') as mock_uuid, \
              patch('QRServer.db.connector.datetime') as mock_datetime:
             mock_uuid.return_value = '1234'
-            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0)
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
             await self.conn.create_member('test_user', b'password', '11111111111')
             user = await self.conn.get_user('1234')
 
             self.assertEqual(user.user_id, '1234')
             self.assertEqual(user.username, 'test_user')
-            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0).timestamp())
+            self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp())
             self.assertEqual(user.discord_user_id, '11111111111')
             self.assertFalse(user.is_guest)
 
@@ -548,8 +548,8 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
                 move_counter=20,
                 grid_size='small',
                 squadron_size='medium',
-                started_at=datetime(2020, 1, 1, 0, 0, 0),
-                finished_at=datetime(2020, 1, 1, 1, 0, 0),
+                started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
                 is_ranked=True,
                 is_void=False,
             )
@@ -693,7 +693,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_create_tournament(self):
         with patch('QRServer.db.connector.datetime') as mock_datetime:
-            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0)
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
             tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
 
@@ -703,7 +703,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
             created_by_dc_id='123',
             tournament_msg_dc_id='456',
             required_matches_per_duel=3,
-            created_at=datetime(2020, 1, 1, 12, 0, 0),
+            created_at=datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             started_at=None,
             finished_at=None
         )
@@ -712,7 +712,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
         # Test create tournament with the same name
         with patch('QRServer.db.connector.datetime') as mock_datetime:
-            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0)
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
             tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
 
@@ -789,14 +789,14 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
         tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
 
         with patch('QRServer.db.connector.datetime') as mock_datetime:
-            mock_datetime.now.return_value = datetime(2020, 1, 2, 12, 0, 0)
+            mock_datetime.now.return_value = datetime(2020, 1, 2, 12, 0, 0, tzinfo=timezone.utc)
 
             result = await self.dbconn.start_tournament(tournament_id)
 
         self.assertTrue(result)
 
         tournament = await self.dbconn.get_tournament(tournament_id)
-        self.assertEqual(tournament.started_at, datetime(2020, 1, 2, 12, 0, 0))
+        self.assertEqual(tournament.started_at, datetime(2020, 1, 2, 12, 0, 0, tzinfo=timezone.utc))
 
         # Test start non-existent tournament
         result = await self.dbconn.start_tournament(str(uuid.uuid4()))
@@ -805,7 +805,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_duels(self):
         participants_count = 4
-        active_until = datetime(2020, 1, 5, 12, 0, 0)
+        active_until = datetime(2020, 1, 5, 12, 0, 0, tzinfo=timezone.utc)
 
         tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
 
@@ -842,7 +842,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_add_duel_matches(self):
         participants_count = 2
-        active_until = datetime(2020, 1, 5, 12, 0, 0)
+        active_until = datetime(2020, 1, 5, 12, 0, 0, tzinfo=timezone.utc)
 
         tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
 
@@ -867,8 +867,8 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
             move_counter=255,
             grid_size='standard',
             squadron_size='standard',
-            started_at=datetime(2020, 1, 5, 12, 0, 0),
-            finished_at=datetime(2020, 1, 5, 13, 0, 0),
+            started_at=datetime(2020, 1, 5, 12, 0, 0, tzinfo=timezone.utc),
+            finished_at=datetime(2020, 1, 5, 13, 0, 0, tzinfo=timezone.utc),
             is_ranked=True,
             is_void=False,
         )

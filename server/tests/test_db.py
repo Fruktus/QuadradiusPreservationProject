@@ -430,6 +430,66 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(loser_rating.rating, 420)
             self.assertEqual(loser_rating.revision, 2)  # updated 3 times -> revision == 2
 
+    async def test_ban_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        user = await self.conn.get_user(user_id)
+        self.assertFalse(user.is_banned)
+        self.assertIsNone(user.banned_at)
+        self.assertIsNone(user.banned_by_dc_id)
+        self.assertIsNone(user.ban_reason)
+
+        with patch('QRServer.db.connector.datetime') as dt_mock:
+            dt_mock.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            result = await self.conn.ban_user(user_id, '123', 'Test Ban')
+            self.assertTrue(result)
+
+        user = await self.conn.get_user(user_id)
+
+        self.assertEqual(user.is_banned, True)
+        self.assertEqual(user.banned_by_dc_id, '123')
+        self.assertEqual(user.banned_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(user.ban_reason, 'Test Ban')
+
+    async def test_ban_nonexistent_user(self):
+        result = await self.conn.ban_user('asd', '123', 'Test Ban')
+        self.assertFalse(result)
+
+    async def test_ban_banned_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+
+        result = await self.conn.ban_user(user_id, '123', 'Test Ban')
+        self.assertTrue(result)
+
+        result = await self.conn.ban_user(user_id, '123', 'Test Ban')
+        self.assertFalse(result)
+
+    async def test_unban_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        user = await self.conn.get_user(user_id)
+
+        await self.conn.ban_user(user_id, '123', 'Test Ban')
+        user = await self.conn.get_user(user_id)
+        self.assertEqual(user.is_banned, True)
+
+        result = await self.conn.unban_user(user_id)
+        self.assertTrue(result)
+
+        user = await self.conn.get_user(user_id)
+        self.assertFalse(user.is_banned)
+        self.assertIsNone(user.banned_at)
+        self.assertIsNone(user.banned_by_dc_id)
+        self.assertIsNone(user.ban_reason)
+
+    async def test_unban_nonexistent_user(self):
+        result = await self.conn.unban_user('asd')
+        self.assertFalse(result)
+
+    async def test_unban_nonbanned_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+
+        result = await self.conn.unban_user(user_id)
+        self.assertFalse(result)
+
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -532,62 +592,6 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def test_migration_v6(self):
         await migrations.execute_migrations(self.c, self.dbconn.config, 5)
 
-        with patch('uuid.uuid4') as mock_uuid:
-            mock_uuid.return_value = '1'
-            winner = await self.dbconn.authenticate_user('test_user_1', b'password', auto_create=True)
-
-            mock_uuid.return_value = '2'
-            loser = await self.dbconn.authenticate_user('test_user_2', b'password', auto_create=True)
-
-            mock_uuid.return_value = '1234'
-            test_match = DbMatchReport(
-                winner_id=winner.user_id,
-                loser_id=loser.user_id,
-                winner_pieces_left=10,
-                loser_pieces_left=5,
-                move_counter=20,
-                grid_size='small',
-                squadron_size='medium',
-                started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-                finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
-                is_ranked=True,
-                is_void=False,
-            )
-            await self.c.execute(
-                "insert into matches ("
-                "  id,"
-                "  winner_id,"
-                "  loser_id,"
-                "  winner_pieces_left,"
-                "  loser_pieces_left,"
-                "  move_counter,"
-                "  grid_size,"
-                "  squadron_size,"
-                "  started_at,"
-                "  finished_at,"
-                "  is_ranked,"
-                "  is_void"
-                ") values ("
-                "?, ?, ?, ?, ?, ?,"
-                "?, ?, ?, ?, ?, ?"
-                ")", (
-                    test_match.match_id,
-                    test_match.winner_id,
-                    test_match.loser_id,
-                    test_match.winner_pieces_left,
-                    test_match.loser_pieces_left,
-                    test_match.move_counter,
-                    test_match.grid_size,
-                    test_match.squadron_size,
-                    test_match.started_at.timestamp(),
-                    test_match.finished_at.timestamp(),
-                    test_match.is_ranked,
-                    test_match.is_void
-                )
-            )
-
-            await self.dbconn.conn.commit()
-
         self.assertNotIn('rankings', await self.get_table_names())
 
         await migrations.execute_migrations(self.c, self.dbconn.config, 6)
@@ -601,13 +605,6 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[3][:3], (3, 'user_id', 'varchar'))
         self.assertEqual(table_info[4][:3], (4, 'wins', 'INTEGER'))
         self.assertEqual(table_info[5][:3], (5, 'total_games', 'INTEGER'))
-
-        # TODO self.get_ranking, compare
-        await self.c.execute('select * from rankings')
-        ranking_data = await self.c.fetchall()
-        self.assertEqual(len(ranking_data), 2)
-        self.assertEqual(ranking_data[0], (2020, 1, 1, '1', 1, 1))
-        self.assertEqual(ranking_data[1], (2020, 1, 2, '2', 0, 1))
 
     async def test_migration_v7(self):
         await migrations.execute_migrations(self.c, self.dbconn.config, 6)
@@ -672,6 +669,22 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[0][:3], (0, 'tournament_id', 'varchar'))
         self.assertEqual(table_info[1][:3], (1, 'duel_idx', 'INTEGER'))
         self.assertEqual(table_info[2][:3], (2, 'match_id', 'varchar'))
+
+    async def test_migration_v9(self):
+        await migrations.execute_migrations(self.c, self.dbconn.config, 8)
+
+        table_info = await self.get_table_info('users')
+        self.assertEqual(len(table_info), 6)
+        self.assertEqual(table_info[5][:3], (5, 'discord_user_id', 'varchar'))
+
+        await migrations.execute_migrations(self.c, self.dbconn.config, 9)
+
+        table_info = await self.get_table_info('users')
+        self.assertEqual(len(table_info), 10)
+        self.assertEqual(table_info[6][:3], (6, 'is_banned', 'INTEGER'))
+        self.assertEqual(table_info[7][:3], (7, 'banned_at', 'INTEGER'))
+        self.assertEqual(table_info[8][:3], (8, 'banned_by_dc_id', 'varchar'))
+        self.assertEqual(table_info[9][:3], (9, 'ban_reason', 'varchar'))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

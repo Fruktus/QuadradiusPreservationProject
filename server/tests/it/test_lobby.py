@@ -2,9 +2,9 @@ import asyncio
 from unittest.mock import patch
 
 from QRServer.common.classes import LobbyPlayer
-from QRServer.common.messages import JoinLobbyRequest, LobbyStateResponse, LobbyDuplicateResponse, SetCommentRequest, \
-    BroadcastCommentResponse, NameTakenRequest, NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, \
-    ChangePasswordResponseOk, LobbyBadMemberResponse
+from QRServer.common.messages import JoinLobbyRequest, LobbyChatMessage, LobbyStateResponse, LobbyDuplicateResponse, \
+    SetCommentRequest, BroadcastCommentResponse, NameTakenRequest, NameTakenResponseYes, NameTakenResponseNo, \
+    ChangePasswordRequest, ChangePasswordResponseOk, LobbyBadMemberResponse
 from . import QuadradiusIntegrationTestCase
 
 
@@ -282,3 +282,15 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         client = await self.new_lobby_client()
         await client.send_message(ChangePasswordRequest.new('912ec803b2ce49e4a541068d495ab570'))
         await client.assert_no_more_messages()
+
+    async def test_lobby_user_banned(self):
+        client = await self.new_lobby_client()
+        await client.join_lobby('Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await client.close()
+
+        user = await self.server.connector.get_user_by_username('Player')
+        await self.server.connector.ban_user(user.user_id, '123', 'Test banned')
+
+        client = await self.new_lobby_client()
+        await client.join_lobby('Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await client.assert_received_message(LobbyChatMessage.new(None, 'You have been banned. Reason: Test banned'))

@@ -82,6 +82,12 @@ class LobbyClientHandler(ClientHandler):
             self.close_and_stop()  # FIXME it seems that the connection shouldnt be completely closed
             return
 
+        if db_user.is_banned:
+            await self.send_msg(LobbyStateResponse.new([]))
+            await self.send_msg(LobbyChatMessage.new(None, f"You have been banned. Reason: {db_user.ban_reason}"))
+            self.close_and_stop()
+            return
+
         # user authenticated successfully, register with lobbyserver
         self.player.user_id = db_user.user_id
         self.player.username = username

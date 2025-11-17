@@ -27,6 +27,7 @@ async def execute_migrations(c, config: Config, max_version=None):
         _migration_upgrade_to_v6,
         _migration_upgrade_to_v7,
         _migration_upgrade_to_v8,
+        _migration_upgrade_to_v9,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -255,3 +256,23 @@ async def _migration_upgrade_to_v8(c, _config):
     )
 
     await _set_version(c, 8)
+
+
+async def _migration_upgrade_to_v9(c, config):
+    await c.execute(
+        "alter table users"
+        " add column is_banned integer"
+    )
+    await c.execute(
+        "alter table users"
+        " add column banned_at integer"
+    )
+    await c.execute(
+        "alter table users"
+        " add column banned_by_dc_id varchar"
+    )
+    await c.execute(
+        "alter table users"
+        " add column ban_reason varchar"
+    )
+    await _set_version(c, 9)

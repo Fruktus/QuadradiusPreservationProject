@@ -22,6 +22,7 @@ class DiscordBot:
         self.token = self.config.discord_bot_token.get()
         self.guild_id = self.config.guild_id.get()
         self.user_notifications_channel_id = self.config.discord_bot_channel_user_notifications_id.get()
+        self.ban_notifications_channel_id = self.config.discord_bot_channel_ban_notifications_id.get()
         self.max_aliases = self.config.discord_bot_max_aliases.get()
 
         self.username_regex = re.compile(r'^[a-zA-Z0-9.\-_][a-zA-Z0-9.\-_\s]{,14}$')
@@ -60,6 +61,19 @@ class DiscordBot:
         @discord.app_commands.describe(username="The username to reset the password for")
         async def reset_password(interaction, username: str):
             await self._reset_password(interaction, username)
+
+        @self.tree.command(name="banuser", description="Ban specified user", guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(username="The username to ban", reason="Ban reason")
+        async def ban_user(interaction, username: str, reason: str):
+            await self._ban_user(interaction, username, reason)
+        # This makes the command unavailable to anyone unless overriden by admin
+        ban_user.default_permissions = discord.Permissions(permissions=0)
+
+        @self.tree.command(name="unbanuser", description="Unban specified user", guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(username="The username to unban")
+        async def unban_user(interaction, username: str):
+            await self._unban_user(interaction, username)
+        unban_user.default_permissions = discord.Permissions(permissions=0)
 
         @self.client.event
         async def on_ready():
@@ -123,10 +137,12 @@ class DiscordBot:
             discord_user_id=str(interaction.user.id),
         )
 
-        await self._send_user_notification(
+        await self._send_notification(
             "### Account registered\n"
             f"- Owner: <@{interaction.user.id}>\n"
-            f"- Username: `{username}`")
+            f"- Username: `{username}`",
+            self.user_notifications_channel_id,
+        )
 
         # Respond to interaction so it doesn't show as command fail
         # and send credentials via DM
@@ -182,10 +198,12 @@ class DiscordBot:
             discord_user_id=str(interaction.user.id),
         )
 
-        await self._send_user_notification(
+        await self._send_notification(
             "### Account claimed\n"
             f"- Owner: <@{interaction.user.id}>\n"
-            f"- Username: `{username}`")
+            f"- Username: `{username}`",
+            self.user_notifications_channel_id,
+            )
 
         # Respond to interaction so it doesn't show as command fail
         # and send credentials via DM
@@ -246,6 +264,104 @@ class DiscordBot:
             await interaction.response.send_message(
                 f"Password for account was reset: `{username}`, failed to send credentials - check privacy settings.",
                 ephemeral=True)
+
+    async def _ban_user(self, interaction: discord.Interaction, username: str, reason: str) -> None:
+        log.debug(f"banuser command received from '{interaction.user}'")
+        username = username.strip()
+
+        # Get user's accounts
+        user = await self.connector.get_user_by_username(username)
+        if not user:
+            await interaction.response.send_message(
+                f'User with username "{username}" has not been found',
+                ephemeral=True,
+            )
+            return
+
+        if user.is_banned:
+            await interaction.response.send_message(
+                f"This user was already banned by  <@{user.banned_by_dc_id}>,"
+                f" at: `{user.banned_at}`,"
+                f" for reason: `{user.ban_reason}`",
+                ephemeral=True,
+            )
+            return
+
+        if not user.discord_user_id:
+            await interaction.response.send_message(
+                "This user has no Discord ID",
+                ephemeral=True,
+            )
+            return
+
+        result = await self.connector.ban_user(user.user_id, str(interaction.user.id), reason)
+        if not result:
+            warn = f'Something went wrong while banning user. Username: {username}, user_id: {user.user_id}'
+            log.warning(warn)
+            await interaction.response.send_message(warn, ephemeral=True)
+            return
+
+        discord_user = await self.client.fetch_user(int(user.discord_user_id))
+        await discord_user.send(
+            f"### Ban\n"
+            f"- Your account: `{username}` has been banned.\n"
+            f"- Reason: *{reason}*\n"
+        )
+
+        await self._send_notification(
+            "### Account banned\n"
+            f"- Banned user: `{username}`\n"
+            f"- Banned by: <@{interaction.user.id}>\n"
+            f"- Banned for: *{reason}*\n",
+            self.ban_notifications_channel_id,
+        )
+
+    async def _unban_user(self, interaction: discord.Interaction, username: str):
+        log.debug(f"banuser command received from '{interaction.user}'")
+        username = username.strip()
+
+        # Get user's accounts
+        user = await self.connector.get_user_by_username(username)
+        if not user:
+            await interaction.response.send_message(
+                f'User with username "{username}" has not been found',
+                ephemeral=True,
+            )
+            return
+
+        if not user.is_banned:
+            await interaction.response.send_message(
+                "This user is not currently banned",
+                ephemeral=True,
+            )
+            return
+
+        if not user.discord_user_id:
+            await interaction.response.send_message(
+                "This user has no Discord ID",
+                ephemeral=True,
+            )
+            return
+
+        result = await self.connector.unban_user(user.user_id)
+        if not result:
+            warn = f'Something went wrong while unbanning user. Username: {username}, user_id: {user.user_id}'
+            log.warning(warn)
+            await interaction.response.send_message(warn, ephemeral=True)
+            return
+
+        discord_user = await self.client.fetch_user(int(user.discord_user_id))
+        await discord_user.send(
+            f"### Unban\n"
+            f"- Your account: `{username}` has been unbanned.\n"
+        )
+
+        await self._send_notification(
+            "### Account unbanned\n"
+            f"- Unbanned user: `{username}`\n"
+            f"- Unbanned by: <@{interaction.user.id}>\n",
+            self.ban_notifications_channel_id
+        )
 
     def _validate_username(self, username: str) -> tuple[bool, str]:
         # Checks if the username is of correct length and format
@@ -314,17 +430,16 @@ class DiscordBot:
 
         return (True, "")
 
-    async def _send_user_notification(self, message: str) -> None:
-        # Send a message to the user notifications channel
-        if not self.user_notifications_channel_id:
+    async def _send_notification(self, message: str, channel: str) -> None:
+        if not self.ban_notifications_channel_id:
             return
 
-        channel = self.client.get_channel(int(self.user_notifications_channel_id))
+        discord_channel = self.client.get_channel(int(channel))
         allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
         if isinstance(channel, allowed_channels):
-            log.debug(f"Sending user notification: {repr(message)}")
-            await channel.send(message)
+            log.debug(f"Sending ban notification: {repr(message)}")
+            await discord_channel.send(message)
         else:
             log.warning(
-                'User notifications channel not found or not accepting messages: ' +
-                self.user_notifications_channel_id)
+                'notifications channel not found or not accepting messages: ' +
+                str(discord_channel))

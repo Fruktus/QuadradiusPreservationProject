@@ -197,7 +197,7 @@ class Config:
             config=self,
             name='discord.bot.channel_user_notifications.id',
             cli_args=[],
-            description='Discord Channel ID for user notifications such as registration, claiming of account or bans',
+            description='Discord Channel ID for user notifications such as registration or claiming of account',
             default_value='')
         self.discord_bot_max_aliases = ConfigKey(
             config=self,
@@ -205,6 +205,12 @@ class Config:
             cli_args=[],
             description='Maximum number of aliases per user',
             default_value=1)
+        self.discord_bot_channel_ban_notifications_id = ConfigKey(
+            config=self,
+            name='discord.bot.channel_ban_notifications.id',
+            cli_args=[],
+            description='Discord Channel ID for sending notifications about user bans/unbans',
+            default_value='')
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

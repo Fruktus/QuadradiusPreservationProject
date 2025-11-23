@@ -36,7 +36,8 @@ class DbConnector:
     async def get_user(self, user_id: str) -> DbUser | None:
         c = await self.conn.cursor()
         await c.execute(
-            "select id, username, password, created_at, discord_user_id from users where id = ?", (
+            "select id, username, password, created_at, discord_user_id,"
+            " is_banned, banned_at, banned_by_dc_id, ban_reason from users where id = ?", (
                 user_id,
             ))
         row = await c.fetchone()
@@ -48,12 +49,17 @@ class DbConnector:
             password=row[2],
             created_at=row[3],
             discord_user_id=row[4],
+            is_banned=bool(row[5]),
+            banned_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
+            banned_by_dc_id=row[7],
+            ban_reason=row[8],
         )
 
     async def get_user_by_username(self, username) -> DbUser | None:
         c = await self.conn.cursor()
         await c.execute(
-            "select id, username, password, created_at, discord_user_id from users where username = ?", (
+            "select id, username, password, created_at, discord_user_id,"
+            " is_banned, banned_at, banned_by_dc_id, ban_reason from users where username = ?", (
                 username,
             ))
         row = await c.fetchone()
@@ -65,12 +71,17 @@ class DbConnector:
             password=row[2],
             created_at=row[3],
             discord_user_id=row[4],
+            is_banned=bool(row[5]),
+            banned_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
+            banned_by_dc_id=row[7],
+            ban_reason=row[8],
         )
 
     async def get_users_by_discord_id(self, discord_user_id: str) -> list[DbUser]:
         c = await self.conn.cursor()
         await c.execute(
-            "select id, username, password, created_at, discord_user_id from users where discord_user_id = ?", (
+            "select id, username, password, created_at, discord_user_id,"
+            "is_banned, banned_at, banned_by_dc_id, ban_reason from users where discord_user_id = ?", (
                 discord_user_id,
             ))
         rows = await c.fetchall()
@@ -85,7 +96,11 @@ class DbConnector:
                     username=row[1],
                     password=row[2],
                     created_at=row[3],
-                    discord_user_id=row[4]
+                    discord_user_id=row[4],
+                    is_banned=bool(row[5]),
+                    banned_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
+                    banned_by_dc_id=row[7],
+                    ban_reason=row[8],
                 )
             )
         return result
@@ -123,8 +138,10 @@ class DbConnector:
             )
             await self.conn.commit()
 
-        await c.execute("select id, username, password, created_at, discord_user_id from users where username = ?",
-                        (username,))
+        await c.execute(
+            "select id, username, password, created_at, discord_user_id,"
+            "is_banned, banned_at, banned_by_dc_id, ban_reason from users where username = ?",
+            (username,))
 
         row = await c.fetchone()
         if row is None:
@@ -136,6 +153,10 @@ class DbConnector:
             password=row[2],
             created_at=row[3],
             discord_user_id=row[4],
+            is_banned=bool(row[5]),
+            banned_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
+            banned_by_dc_id=row[7],
+            ban_reason=row[8],
         )
 
         if not db_user.is_guest and verify_password and not password_verify(password, db_user.password):
@@ -143,7 +164,11 @@ class DbConnector:
 
         return db_user
 
-    async def change_user_password(self, user_id: str, password: bytes | None):
+    async def change_user_password(self, user_id: str, password: bytes | None) -> bool:
+        """
+        Returns:
+            bool: True if successfully changed password
+        """
         c = await self.conn.cursor()
         await c.execute(
             "update users set password = ? where id = ?", (
@@ -151,6 +176,7 @@ class DbConnector:
                 user_id
             ))
         await self.conn.commit()
+        return bool(c.rowcount)
 
     async def claim_member(self, user_id: str, password: bytes | None, discord_user_id: str):
         c = await self.conn.cursor()
@@ -715,6 +741,50 @@ class DbConnector:
                 duel_idx,
                 match_id,
             )
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def ban_user(self, user_id: str, banned_by_dc_id: str, ban_reason: str) -> bool:
+        """
+        Returns:
+            bool: True if succesfully banned
+        """
+
+        c = await self.conn.cursor()
+        await c.execute(
+            "update users"
+            " set is_banned = ?,"
+            " banned_at = ?,"
+            " banned_by_dc_id = ?,"
+            " ban_reason = ?"
+            " where id = ? and is_banned is null",
+            (
+                True,
+                int(datetime.now(timezone.utc).timestamp()),
+                banned_by_dc_id,
+                ban_reason,
+                user_id,
+            )
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def unban_user(self, user_id: str) -> bool:
+        """
+        Returns:
+            bool: True if succesfully unbanned
+        """
+
+        c = await self.conn.cursor()
+        await c.execute(
+            "update users"
+            " set is_banned = null,"
+            " banned_at = null,"
+            " banned_by_dc_id = null,"
+            " ban_reason = null"
+            " where id = ? and is_banned is not null",
+            (user_id, )
         )
         await self.conn.commit()
         return bool(c.rowcount)

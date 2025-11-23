@@ -13,6 +13,10 @@ class DbUser:
     password: str
     created_at: str
     discord_user_id: str
+    is_banned: bool
+    banned_at: datetime | None
+    banned_by_dc_id: str | None
+    ban_reason: str | None
 
     @property
     def is_guest(self):

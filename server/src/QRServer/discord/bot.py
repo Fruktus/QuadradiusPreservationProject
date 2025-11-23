@@ -44,17 +44,19 @@ class DiscordBot:
         self.tree = discord.app_commands.CommandTree(self.client)
 
     async def run_bot(self):
-        @self.tree.command(name="register", description="Register a new member")
+        @self.tree.command(name="register", description="Register a new member", guild=discord.Object(id=self.guild_id))
         @discord.app_commands.describe(username="The username to register")
         async def register(interaction, username: str):
             await self._register(interaction, username)
 
-        @self.tree.command(name="claim", description="Claim autoregistered member")
+        @self.tree.command(name="claim", description="Claim autoregistered member",
+                           guild=discord.Object(id=self.guild_id))
         @discord.app_commands.describe(username="The username to claim")
         async def claim(interaction, username: str):
             await self._claim(interaction, username)
 
-        @self.tree.command(name="resetpassword", description="Reset password for a member")
+        @self.tree.command(name="resetpassword", description="Reset password for a member",
+                           guild=discord.Object(id=self.guild_id))
         @discord.app_commands.describe(username="The username to reset the password for")
         async def reset_password(interaction, username: str):
             await self._reset_password(interaction, username)

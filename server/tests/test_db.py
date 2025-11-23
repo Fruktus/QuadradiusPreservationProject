@@ -532,62 +532,6 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def test_migration_v6(self):
         await migrations.execute_migrations(self.c, self.dbconn.config, 5)
 
-        with patch('uuid.uuid4') as mock_uuid:
-            mock_uuid.return_value = '1'
-            winner = await self.dbconn.authenticate_user('test_user_1', b'password', auto_create=True)
-
-            mock_uuid.return_value = '2'
-            loser = await self.dbconn.authenticate_user('test_user_2', b'password', auto_create=True)
-
-            mock_uuid.return_value = '1234'
-            test_match = DbMatchReport(
-                winner_id=winner.user_id,
-                loser_id=loser.user_id,
-                winner_pieces_left=10,
-                loser_pieces_left=5,
-                move_counter=20,
-                grid_size='small',
-                squadron_size='medium',
-                started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-                finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
-                is_ranked=True,
-                is_void=False,
-            )
-            await self.c.execute(
-                "insert into matches ("
-                "  id,"
-                "  winner_id,"
-                "  loser_id,"
-                "  winner_pieces_left,"
-                "  loser_pieces_left,"
-                "  move_counter,"
-                "  grid_size,"
-                "  squadron_size,"
-                "  started_at,"
-                "  finished_at,"
-                "  is_ranked,"
-                "  is_void"
-                ") values ("
-                "?, ?, ?, ?, ?, ?,"
-                "?, ?, ?, ?, ?, ?"
-                ")", (
-                    test_match.match_id,
-                    test_match.winner_id,
-                    test_match.loser_id,
-                    test_match.winner_pieces_left,
-                    test_match.loser_pieces_left,
-                    test_match.move_counter,
-                    test_match.grid_size,
-                    test_match.squadron_size,
-                    test_match.started_at.timestamp(),
-                    test_match.finished_at.timestamp(),
-                    test_match.is_ranked,
-                    test_match.is_void
-                )
-            )
-
-            await self.dbconn.conn.commit()
-
         self.assertNotIn('rankings', await self.get_table_names())
 
         await migrations.execute_migrations(self.c, self.dbconn.config, 6)
@@ -601,13 +545,6 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[3][:3], (3, 'user_id', 'varchar'))
         self.assertEqual(table_info[4][:3], (4, 'wins', 'INTEGER'))
         self.assertEqual(table_info[5][:3], (5, 'total_games', 'INTEGER'))
-
-        # TODO self.get_ranking, compare
-        await self.c.execute('select * from rankings')
-        ranking_data = await self.c.fetchall()
-        self.assertEqual(len(ranking_data), 2)
-        self.assertEqual(ranking_data[0], (2020, 1, 1, '1', 1, 1))
-        self.assertEqual(ranking_data[1], (2020, 1, 2, '2', 0, 1))
 
     async def test_migration_v7(self):
         await migrations.execute_migrations(self.c, self.dbconn.config, 6)

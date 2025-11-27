@@ -74,7 +74,9 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(match.started_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
             self.assertEqual(match.finished_at, datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc))
             self.assertTrue(match.is_ranked)
+            self.assertEqual(type(match.is_ranked), bool)
             self.assertFalse(match.is_void)
+            self.assertEqual(type(match.is_void), bool)
 
             winner = await self.conn.get_user(winner.user_id)
             self.assertEqual(winner.user_id, winner.user_id)
@@ -879,6 +881,9 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
         duel_matches = await self.dbconn.get_duel_matches(tournament_id, 0)
         self.assertEqual(len(duel_matches), 1)
+        self.assertEqual(duel_matches[0], match)
+        self.assertEqual(type(duel_matches[0].is_ranked), bool)
+        self.assertEqual(type(duel_matches[0].is_void), bool)
 
         match.match_id = str(uuid.uuid4())
 

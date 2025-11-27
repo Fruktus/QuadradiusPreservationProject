@@ -241,8 +241,8 @@ class DbConnector:
             squadron_size=row[7],
             started_at=datetime.fromtimestamp(row[8], tz=timezone.utc),
             finished_at=datetime.fromtimestamp(row[9], tz=timezone.utc),
-            is_ranked=row[10],
-            is_void=row[11],
+            is_ranked=bool(row[10]),
+            is_void=bool(row[11]),
         )
 
     async def get_match2(self, match_id: str):
@@ -692,8 +692,8 @@ class DbConnector:
                 squadron_size=row[7],
                 started_at=datetime.fromtimestamp(row[8], tz=timezone.utc),
                 finished_at=datetime.fromtimestamp(row[9], tz=timezone.utc),
-                is_ranked=row[10],
-                is_void=row[11],
+                is_ranked=bool(row[10]),
+                is_void=bool(row[11]),
             ))
         return result
 

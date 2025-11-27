@@ -10,6 +10,7 @@ from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant
 from QRServer.common.classes import RankingEntry
 from QRServer.common import utils
 from QRServer.config import Config
+from QRServer.db.password import password_hash
 
 
 class DbTest(unittest.IsolatedAsyncioTestCase):
@@ -532,61 +533,64 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def test_migration_v6(self):
         await migrations.execute_migrations(self.c, self.dbconn.config, 5)
 
-        with patch('uuid.uuid4') as mock_uuid:
-            mock_uuid.return_value = '1'
-            winner = await self.dbconn.authenticate_user('test_user_1', b'password', auto_create=True)
-
-            mock_uuid.return_value = '2'
-            loser = await self.dbconn.authenticate_user('test_user_2', b'password', auto_create=True)
-
-            mock_uuid.return_value = '1234'
-            test_match = DbMatchReport(
-                winner_id=winner.user_id,
-                loser_id=loser.user_id,
-                winner_pieces_left=10,
-                loser_pieces_left=5,
-                move_counter=20,
-                grid_size='small',
-                squadron_size='medium',
-                started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-                finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
-                is_ranked=True,
-                is_void=False,
-            )
+        async def make_user(id_: str, username: str):
             await self.c.execute(
-                "insert into matches ("
-                "  id,"
-                "  winner_id,"
-                "  loser_id,"
-                "  winner_pieces_left,"
-                "  loser_pieces_left,"
-                "  move_counter,"
-                "  grid_size,"
-                "  squadron_size,"
-                "  started_at,"
-                "  finished_at,"
-                "  is_ranked,"
-                "  is_void"
-                ") values ("
-                "?, ?, ?, ?, ?, ?,"
-                "?, ?, ?, ?, ?, ?"
-                ")", (
-                    test_match.match_id,
-                    test_match.winner_id,
-                    test_match.loser_id,
-                    test_match.winner_pieces_left,
-                    test_match.loser_pieces_left,
-                    test_match.move_counter,
-                    test_match.grid_size,
-                    test_match.squadron_size,
-                    test_match.started_at.timestamp(),
-                    test_match.finished_at.timestamp(),
-                    test_match.is_ranked,
-                    test_match.is_void
-                )
+                "insert or ignore into users(id, username, password, created_at, discord_user_id"
+                ") values (?, ?, ?, ?, ?)",
+                (id_, username, password_hash(b'password'), datetime.now(timezone.utc).timestamp(), None)
             )
 
-            await self.dbconn.conn.commit()
+        await make_user('1', 'test_user_1')
+        await make_user('2', 'test_user_2')
+
+        test_match = DbMatchReport(
+            winner_id='1',
+            loser_id='2',
+            winner_pieces_left=10,
+            loser_pieces_left=5,
+            move_counter=20,
+            grid_size='small',
+            squadron_size='medium',
+            started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
+            is_ranked=True,
+            is_void=False,
+            match_id='1234',
+        )
+        await self.c.execute(
+            "insert into matches ("
+            "  id,"
+            "  winner_id,"
+            "  loser_id,"
+            "  winner_pieces_left,"
+            "  loser_pieces_left,"
+            "  move_counter,"
+            "  grid_size,"
+            "  squadron_size,"
+            "  started_at,"
+            "  finished_at,"
+            "  is_ranked,"
+            "  is_void"
+            ") values ("
+            "?, ?, ?, ?, ?, ?,"
+            "?, ?, ?, ?, ?, ?"
+            ")", (
+                test_match.match_id,
+                test_match.winner_id,
+                test_match.loser_id,
+                test_match.winner_pieces_left,
+                test_match.loser_pieces_left,
+                test_match.move_counter,
+                test_match.grid_size,
+                test_match.squadron_size,
+                test_match.started_at.timestamp(),
+                test_match.finished_at.timestamp(),
+                test_match.is_ranked,
+                test_match.is_void
+            )
+        )
+
+        await self.dbconn.conn.commit()
 
         self.assertNotIn('rankings', await self.get_table_names())
 

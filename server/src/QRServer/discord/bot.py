@@ -44,7 +44,8 @@ class DiscordBot:
         self.tree = discord.app_commands.CommandTree(self.client)
 
     async def run_bot(self):
-        @self.tree.command(name="register", description="Register a new member", guild=discord.Object(id=self.guild_id))
+        @self.tree.command(name="register", description="Register a new member",
+                           guild=discord.Object(id=self.guild_id))
         @discord.app_commands.describe(username="The username to register")
         async def register(interaction, username: str):
             await self._register(interaction, username)
@@ -55,11 +56,44 @@ class DiscordBot:
         async def claim(interaction, username: str):
             await self._claim(interaction, username)
 
-        @self.tree.command(name="resetpassword", description="Reset password for a member",
+        @self.tree.command(name="reset_password", description="Reset password for a member",
                            guild=discord.Object(id=self.guild_id))
         @discord.app_commands.describe(username="The username to reset the password for")
         async def reset_password(interaction, username: str):
             await self._reset_password(interaction, username)
+
+        @self.tree.command(name="join_tournament", description="Join tournament with specified account",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(tournament_name="Name of the tournament to join", username="The username to add as participant")
+        async def join_tournament(interaction, tournament_name: str, username: str):
+            await self._join_tournament(interaction, tournament_name, username)
+        
+        @self.tree.command(name="leave_tournament", description="Leave tournament with specified account",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(tournament_name="Name of the tournament to leave", username="The username to add as participant")
+        async def leave_tournament(interaction, tournament_name: str, username: str):
+            await self._leave_tournament(interaction, tournament_name, username)
+        
+        @self.tree.command(name="create_tournament", description="Create tournament",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(tournament_name="Name of the tournament", dc_msg_id="Tournament registration message", required_matches_per_duel="The amount of matches that are needed to qualify for round")
+        async def create_tournament(interaction, tournament_name: str, dc_msg_id: str, required_matches_per_duel):
+            await self._create_tournament(interaction, tournament_name, dc_msg_id)
+        create_tournament.default_permissions = discord.Permissions(permissions=0)
+        
+        @self.tree.command(name="start_tournament", description="Start tournament",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(tournament_name="Name of the tournament")
+        async def start_tournament(interaction, tournament_name: str):
+            await self._start_tournament(interaction, tournament_name)
+        start_tournament.default_permissions = discord.Permissions(permissions=0)
+        
+        @self.tree.command(name="start_tournament_round", description="Start tournament's next round",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(tournament_name="Name of the tournament", active_until="Date until which matches are accepted in the isoformat. Ex: 2021-07-27T16:02:08.070557")
+        async def start_tournament_round(interaction, tournament_name: str, active_until: str):
+            await self._start_tournament_round(interaction, tournament_name)
+        start_tournament_round.default_permissions = discord.Permissions(permissions=0)
 
         @self.client.event
         async def on_ready():

@@ -59,6 +59,34 @@ class DiscordBot:
         async def reset_password(interaction, username: str):
             await self._reset_password(interaction, username)
 
+        @self.tree.command(name="create_tournament", description="Create tournament")
+        @discord.app_commands.describe(tournament_name="Name of the tournament", dc_msg_id="Tournament registration message", required_matches_per_duel="The amount of matches that are needed to qualify for round")
+        async def create_tournament(interaction, tournament_name: str, dc_msg_id: str, required_matches_per_duel):
+            await self._create_tournament(interaction, tournament_name, dc_msg_id)
+        create_tournament.default_permissions = discord.Permissions(permissions=0)
+
+        @self.tree.command(name="join_tournament", description="Join tournament with specified account")
+        @discord.app_commands.describe(tournament_name="Name of the tournament to join", username="The username to add as participant", required_matches_per_duel="Total valid matches that are needed to proceed in tournament")
+        async def join_tournament(interaction, tournament_name: str, username: str, required_matches_per_duel: int):
+            await self._join_tournament(interaction, tournament_name, username)
+        
+        @self.tree.command(name="leave_tournament", description="Leave tournament with specified account")
+        @discord.app_commands.describe(tournament_name="Name of the tournament to leave", username="The username to add as participant")
+        async def leave_tournament(interaction, tournament_name: str, username: str):
+            await self._leave_tournament(interaction, tournament_name, username)
+
+        @self.tree.command(name="start_tournament", description="Start tournament")
+        @discord.app_commands.describe(tournament_name="Name of the tournament")
+        async def start_tournament(interaction, tournament_name: str):
+            await self._start_tournament(interaction, tournament_name)
+        start_tournament.default_permissions = discord.Permissions(permissions=0)
+        
+        @self.tree.command(name="start_tournament_round", description="Start tournament's next round")
+        @discord.app_commands.describe(tournament_name="Name of the tournament", active_until="Date until which matches are accepted in the isoformat. Ex: 2021-07-27T16:02:08.070557")
+        async def start_tournament_round(interaction, tournament_name: str, active_until: str):
+            await self._start_tournament_round(interaction, tournament_name, active_until)
+        start_tournament_round.default_permissions = discord.Permissions(permissions=0)
+
         @self.client.event
         async def on_ready():
             await self._on_ready()
@@ -326,3 +354,122 @@ class DiscordBot:
             log.warning(
                 'User notifications channel not found or not accepting messages: ' +
                 self.user_notifications_channel_id)
+
+    async def _create_tournament(self, interaction, tournament_name: str, tournament_msg_dc_id: str, required_matches_per_duel: int) -> None:
+        """
+            Creates an empty tournament tied to specific owner and registration message.
+            The message can be used for interactions registration, but is not at the moment.
+
+            The command may fail if the tournament_name is already in use.
+        """
+        result = await self.connector.create_tournament(tournament_name, tournament_msg_dc_id, required_matches_per_duel)
+        if not result:
+            await interaction.response.send_message(
+                f"Tournament creation failed. Ensure that the tournament name is unique.",
+                ephemeral=True)
+            return
+        else:
+            await interaction.response.send_message(
+                f"Tournament created. ID: {result}",
+                ephemeral=True)
+        # TODO should we send tournament_created notification?
+
+    
+    async def _join_tournament(self, interaction, tournament_name: str, username: str) -> None:
+        """
+            Allows discord user with a valid QR account to join the tournament (if it did not already start).
+            The username is Quadradius account username, since one Discord user may have many QR usernames.
+
+            The command may fail if the tournamend_name is invalid, the username does not belong to the callee (or is banned/invalid),
+            if it was already registered, or the tournament has already began.
+        """
+        user = await self.connector.get_user_by_username(username)
+        # TODO include bans here as well
+        if not user or user.discord_user_id != interaction.user.id:  # Do not disclose whether account exists or not
+            await interaction.response.send_message(
+                f"Failed to authorize the user account - The username is invalid (incorrect or banned)",
+                ephemeral=True)
+            return
+        
+        tournament = await self.connector.get_tournament_by_name(tournament_name)
+        if not tournament:
+            await interaction.response.send_message(
+                "Failed to join the tournament - tournament does not exist",
+                ephemeral=True)
+            return
+        
+        result = await self.connector.add_participant(tournament_id=tournament.tournament_id, user_id=user.user_id)
+        if not result:
+            await interaction.response.send_message(
+                "Failed to join the tournament - Already Joined",
+                ephemeral=True)
+            return
+        await interaction.response.send_message(
+                f"Joined the tournament: {tournament.name}. Await the tournament start.",
+                ephemeral=True)
+
+    async def _leave_tournament(self, interaction, tournament_name: str, username: str) -> None:
+        """
+            Allows discord user with a valid QR account to leave the tournament (if it did not already start).
+            The username is Quadradius account username, since one Discord user may have many QR usernames.
+
+            The command may fail if the tournamend_name is invalid, the username does not belong to the callee (or is banned/invalid),
+            if it was not registered, or the tournament has already began.
+        """
+        user = await self.connector.get_user_by_username(username)
+        # TODO include bans here as well
+        if not user or user.discord_user_id != interaction.user.id:  # Do not disclose whether account exists or not
+            await interaction.response.send_message(
+                f"Failed to authorize the user account - The username is invalid (incorrect or banned)",
+                ephemeral=True)
+            return
+        
+        tournament = await self.connector.get_tournament_by_name(tournament_name)
+        if not tournament:
+            await interaction.response.send_message(
+                "Failed to leave the tournament - tournament does not exist",
+                ephemeral=True)
+            return
+        
+        result = await self.connector.remove_participant(tournament_id=tournament.tournament_id, user_id=user.user_id)
+        if not result:
+            await interaction.response.send_message(
+                "Failed to leave the tournament - Already not present",
+                ephemeral=True)
+            return
+        await interaction.response.send_message(
+                f"Left the tournament: {tournament.name}.",
+                ephemeral=True)
+
+    async def _start_tournament(self, interaction, tournament_name: str, active_until: str) -> None:
+        """
+            Allows the creator of the tournament to start it, which automatically creates random duels between the participants.
+            Afterwards, no changes in participants are allowed.
+        """
+        tournament = await self.connector.get_tournament_by_name(tournament_name)
+        if not tournament or tournament.created_by_dc_id != interaction.user.id:
+            await interaction.response.send_message(
+                "Failed to start the tournament - tournament with given ID is not valid for given user",
+                ephemeral=True)
+            return
+        
+        result = await self.connector.start_tournament(tournament_id=tournament.tournament_id)
+        if not result:
+            await interaction.response.send_message(
+                "Failed to start the tournament - Already started",
+                ephemeral=True)
+            return
+        
+        # TODO generate initial duels active until active_until
+        # await interaction.response.send_message(
+        #         f"Left the tournament: {tournament.name}.",
+        #         ephemeral=True)
+
+    async def _start_tournament_round(self, interaction, tournament_name: str, active_until: str) -> None:
+        """
+            After the tournament is started, initially the first round of duels is pre-generated.
+            This command allows the owner (or admins) to start the next round with the given deadline.
+
+            This command **will close any pending rounds and start a new one** even if the previous round is still pending.    
+        """
+        pass

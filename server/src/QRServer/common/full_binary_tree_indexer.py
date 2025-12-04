@@ -2,7 +2,7 @@ import math
 
 
 class FullBinaryTreeIndexer:
-    levels: int
+    levels: int  # Tree levels are indexed from 0
 
     def __init__(self, min_leaves: int):
         if min_leaves < 1:

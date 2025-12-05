@@ -535,6 +535,33 @@ class DbConnector:
             finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
         )
 
+    async def list_tournaments(self) -> list[Tournament]:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select id, name, created_by_dc_id, tournament_msg_dc_id,"
+            " required_matches_per_duel, created_at,"
+            " started_at, finished_at"
+            " from tournaments"
+        )
+
+        rows = await c.fetchall()
+        if rows is None:
+            return None
+
+        result: list[Tournament] = []
+        for row in rows:
+            result.append(Tournament(
+                tournament_id=row[0],
+                name=row[1],
+                created_by_dc_id=row[2],
+                tournament_msg_dc_id=row[3],
+                required_matches_per_duel=row[4],
+                created_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
+                started_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
+                finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
+            ))
+        return result
+
     async def list_tournament_users(self, tournament_id: str) -> list[DbUser] | None:
         c = await self.conn.cursor()
         await c.execute(

@@ -724,6 +724,30 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(tournament_id, None)
 
+    async def test_list_tournaments(self):
+        self.assertEqual(await self.dbconn.list_tournaments(), [])
+
+        expected_tournaments = []
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            for i in range(3):
+                mock_datetime.now.return_value = datetime(2020, 1, 1, 12, i, 0, tzinfo=timezone.utc)
+                tournament_id = await self.dbconn.create_tournament(f'test_tournament_{i}', '123', '456', 3)
+
+                expected_tournaments.append(Tournament(
+                    tournament_id=tournament_id,
+                    name=f'test_tournament_{i}',
+                    created_by_dc_id='123',
+                    tournament_msg_dc_id='456',
+                    required_matches_per_duel=3,
+                    created_at=datetime(2020, 1, 1, 12, i, 0, tzinfo=timezone.utc),
+                    started_at=None,
+                    finished_at=None
+                ))
+
+        tournaments = await self.dbconn.list_tournaments()
+        self.assertEqual(tournaments, expected_tournaments)
+
     async def test_add_participants(self):
         tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
 

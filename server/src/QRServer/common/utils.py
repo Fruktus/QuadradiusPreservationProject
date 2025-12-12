@@ -4,25 +4,41 @@ import secrets
 import string
 
 
-def is_guest(username: str, password: str):
+def is_guest(username: str, password: str) -> bool:
+    """
+    Determines whether the pair of username and password belongs to a guest.
+
+    Returns:
+        True if credentials belong to a guest
+    """
     return username.endswith(' GUEST') and \
-           password == hashlib.md5(b'<NOPASS>').hexdigest()
+        password == hashlib.md5(b'<NOPASS>').hexdigest()
 
 
 def make_month_dates(month: int, year: int) -> tuple[datetime, datetime]:
-    # Returns tuple consisting of the first day of the given month and year and
-    # the first day of the next month (incrementing year if needed)
+    """
+        Returns:
+            a tuple consisting of the first day of the given month and year, and \
+            the first day of the next month (incrementing year if needed)
+    """
     return \
         datetime(year, month, 1, tzinfo=timezone.utc), \
         datetime(year + month // 12, (month % 12) + 1, 1, tzinfo=timezone.utc)
 
 
 def generate_random_password(length: int) -> str:
+    """
+    Returns:
+        Cryptographically-strong string of given length made up from ASCII letters and digits
+    """
     return ''.join([secrets.choice(string.ascii_letters + string.digits) for _ in range(length)])
 
 
 def make_month_dates_range(start_date: datetime, end_date: datetime) -> list[datetime]:
-    # Returns a list of datetimes between the start_date and end_date (end inclusive)
+    """
+        Returns:
+            a list of datetimes for each month (with day = 1) between the start_date and end_date (both inclusive)
+    """
     if start_date > end_date:
         return []
 
@@ -46,8 +62,13 @@ def make_month_dates_range(start_date: datetime, end_date: datetime) -> list[dat
 
 def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int = 64
                           ) -> tuple[int, int]:
-    """Calculates new ratings according to ELO equation. The default values are meant for case when
-    the first player is a winner of a binary game (victory - score 1, lose - score 0)"""
+    """
+    Calculates new ratings according to ELO equation. The default values are meant for case when
+    the first player is a winner of a binary game (victory - score 1, lose - score 0)
+
+    Returns:
+        a tuple consisting of new ratings for winner and loser in this order
+    """
     expected_score_1 = 1 / (1 + pow(10, (loser_rating - winner_rating) / 400))
     expected_score_2 = 1 / (1 + pow(10, (winner_rating - loser_rating) / 400))
 

@@ -1,8 +1,15 @@
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import secrets
 import string
+from itertools import zip_longest
 
+def dt_aoe() -> timezone:
+    """
+        Returns:
+            'Anywhere on Earth' timezone
+    """
+    return timezone(timedelta(hours=-12), name='AOE')
 
 def is_guest(username: str, password: str) -> bool:
     """
@@ -76,3 +83,7 @@ def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int =
     new_loser_rating = loser_rating + k_factor * (0 - expected_score_2)
 
     return (round(new_winner_rating), round(new_loser_rating))
+
+
+def pairwise(seq):
+    return list(zip_longest(seq[::2], seq[1::2]))

@@ -19,8 +19,8 @@ log = logging.getLogger('qr.lobby_client_handler')
 class LobbyClientHandler(ClientHandler):
     player: LobbyPlayer
 
-    def __init__(self, config, connector, reader, writer, lobby_server):
-        super().__init__(config, connector, reader, writer)
+    def __init__(self, config, connector, reader, writer, lobby_server, addr):
+        super().__init__(config, connector, reader, writer, addr)
         self.webhook = Webhook(config)
         self.lobby_server = lobby_server
 

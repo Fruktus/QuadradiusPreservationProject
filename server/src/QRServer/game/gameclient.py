@@ -20,8 +20,8 @@ log = logging.getLogger('qr.game_client_handler')
 class GameClientHandler(ClientHandler, MatchParty):
     opponent_handler: Optional['GameClientHandler']
 
-    def __init__(self, config, connector, reader, writer, game_server):
-        super().__init__(config, connector, reader, writer)
+    def __init__(self, config, connector, reader, writer, game_server, addr):
+        super().__init__(config, connector, reader, writer, addr)
         self.webhook = Webhook(config)
         self.opponent_handler = None
         self.game_server = game_server

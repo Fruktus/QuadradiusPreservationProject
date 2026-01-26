@@ -159,8 +159,8 @@ class QRServer:
         await self._lobby_listener_task(self.config, self.connector, self._lobby_server)
 
     async def _lobby_listener_task(self, config, connector, lobby_server):
-        def handler_factory(reader, writer):
-            return LobbyClientHandler(config, connector, reader, writer, lobby_server)
+        def handler_factory(reader, writer, addr):
+            return LobbyClientHandler(config, connector, reader, writer, lobby_server, addr)
 
         try:
             await self._listen_for_connections(config.lobby_port.get(), handler_factory, True)
@@ -169,8 +169,8 @@ class QRServer:
             await self.stop()
 
     async def _game_listener_task(self, config, connector, game_server):
-        def handler_factory(reader, writer):
-            return GameClientHandler(config, connector, reader, writer, game_server)
+        def handler_factory(reader, writer, addr):
+            return GameClientHandler(config, connector, reader, writer, game_server, addr)
 
         try:
             await self._listen_for_connections(config.game_port.get(), handler_factory, False)
@@ -180,15 +180,30 @@ class QRServer:
 
     async def _listen_for_connections(self, conn_port, handler_factory, is_lobby):
         conn_host = self.config.address.get()
+        use_proxy = self.config.use_proxy_protocol.get()
 
         if is_lobby:
             log.info(f'Lobby starting on {conn_host}:{conn_port}')
         else:
             log.info(f'Game starting on {conn_host}:{conn_port}')
 
-        def handle_client(reader: StreamReader, writer: StreamWriter):
-            handler: ClientHandler = handler_factory(reader, writer)
+        async def handle_client(reader: StreamReader, writer: StreamWriter):
             addr = writer.get_extra_info('peername')
+
+            if use_proxy:
+                try:
+                    from proxyprotocol.detect import ProxyProtocolDetect
+                    
+                    pp_detect = ProxyProtocolDetect(reader)
+                    pp_info = await pp_detect.detect()
+                    
+                    if pp_info and pp_info.source:
+                        addr = (pp_info.source.host, pp_info.source.port)
+                        reader = pp_info.reader  # Use unwrapped reader
+                except Exception as e:
+                    log.warning(f'Failed to parse PROXY protocol: {e}, using {addr}')
+
+            handler: ClientHandler = handler_factory(reader, writer, addr)
             name = f'Lobby client {addr}' if is_lobby else f'Game client {addr}'
             self.start_task(name, handler.run())
 

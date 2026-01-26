@@ -15,6 +15,7 @@ setup(
         'aiosqlite',
         'aiohttp',
         'discord.py',
+        'proxy-protocol',
     ],
     extras_require={
         'dev': [

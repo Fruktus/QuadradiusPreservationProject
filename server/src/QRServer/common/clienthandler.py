@@ -24,8 +24,9 @@ class ClientHandler(abc.ABC):
     handlers: dict[bytes, list[Callable[[list[bytes]], Coroutine]]]
     message_handlers: dict[type, list[Callable[[Any], Coroutine]]]
     _username: str | None
+    addr: tuple[str, int]
 
-    def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter):
+    def __init__(self, config, connector, reader: StreamReader, writer: StreamWriter, addr: tuple[str, int]):
         self.connected_at = datetime.now(timezone.utc)
         self.config = config
         self.connector = connector
@@ -34,6 +35,7 @@ class ClientHandler(abc.ABC):
         self.reader = reader
         self.writer = writer
         self._username = None
+        self.addr = addr
 
     @property
     def username(self) -> str | None:
@@ -133,6 +135,7 @@ class ClientHandler(abc.ABC):
             verify_password=(not auth_disabled))
         if db_user:
             self._username = username
+            log.info(f'Authenticated user: "{username}"@{self.addr[0]}:{self.addr[1]}')
         return db_user
 
     def close(self):

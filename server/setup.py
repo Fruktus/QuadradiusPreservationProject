@@ -16,6 +16,7 @@ setup(
         'aiohttp',
         'discord.py',
         'pyjwt',
+        'proxy-protocol',
     ],
     extras_require={
         'dev': [

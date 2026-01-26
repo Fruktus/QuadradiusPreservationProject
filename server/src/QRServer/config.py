@@ -67,6 +67,12 @@ class Config:
             description='directory to store data',
             default_value='data',
             onchange=config_handlers.create_data_dir)
+        self.use_proxy_protocol = ConfigKey(
+            config=self,
+            name='server.use_proxy_protocol',
+            cli_args=['--use-proxy-protocol'],
+            description='Whether to use proxy protocol (when server is behind a proxy)',
+            default_value=False)
 
         self.log_long = ConfigKey(
             config=self,

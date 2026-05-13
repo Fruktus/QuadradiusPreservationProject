@@ -34,7 +34,7 @@ class LobbyServer:
         await self.remove_client(to_kick_idx)
         return to_kick_idx
 
-    async def remove_client(self, idx):
+    async def remove_client(self, idx, excluded_idx=None):
         if self.clients[idx] is None:
             log.warning(f'Not removing client {idx} as it\'s already gone')
             return
@@ -42,7 +42,10 @@ class LobbyServer:
         self.last_logged = self.clients[idx]
         self.clients[idx].close()
         self.clients[idx] = None
-        await self.broadcast_lobby_state(idx)
+
+        if excluded_idx is None:
+            excluded_idx = idx
+        await self.broadcast_lobby_state(excluded_idx)
 
     def username_exists(self, username):
         for i in self.clients:
@@ -77,9 +80,16 @@ class LobbyServer:
         for i in range(13):
             if i == excluded_idx:
                 continue
-            if self.clients[i]:
-                await self.clients[i].send_msg(message)
-        pass
+            try:
+                if self.clients[i]:
+                    await self.clients[i].send_msg(message)
+            except SendMessageException as e:
+                log.warning(f'Failed to send lobby state to {e.username} ({i}), kicking them')
+                # Removing client will rebroadcast lobby state. Just make sure
+                # the original idx is excluded in order not to send spurious
+                # messages.
+                await self.remove_client(i, excluded_idx)
+                return
 
     async def challenge_user(self, challenger_idx, challenged_idx) -> bool:
         """

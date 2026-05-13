@@ -103,6 +103,12 @@ class ClientHandler(abc.ABC):
             except StopHandlerException:
                 log.debug('Stopping handler')
                 return
+            except SendMessageException as e:
+                if e.username == self.username:
+                    log.debug(f'Failed to send a message to {self.username}, stopping handler')
+                else:
+                    log.exception(f'Unhandled send message exception to {e.username} in {self.username}\'s handler')
+                return
             except Exception:
                 log.exception(f'Error when processing message: {message}')
                 return
@@ -119,8 +125,8 @@ class ClientHandler(abc.ABC):
         try:
             self.writer.write(message.to_data())
             await self.writer.drain()
-        except ConnectionError:
-            raise StopHandlerException()
+        except ConnectionError as e:
+            raise SendMessageException(self.username) from e
 
     async def authenticate_user(self, username, password) -> DbUser | None:
         is_guest = utils.is_guest(username, password)
@@ -141,6 +147,14 @@ class ClientHandler(abc.ABC):
     def close_and_stop(self):
         self.close()
         raise StopHandlerException()
+
+
+class SendMessageException(Exception):
+    username: str | None
+
+    def __init__(self, username: str | None):
+        super().__init__(f'Failed to send message to {username}')
+        self.username = username
 
 
 class StopHandlerException(Exception):

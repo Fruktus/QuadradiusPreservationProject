@@ -41,6 +41,24 @@ class TestClientConnection:
         self.writer.close()
         await self.writer.wait_closed()
 
+    async def drop(self):
+        server_client = self._find_server_lobby_client()
+        if server_client is None:
+            return
+
+        async def broken_drain():
+            raise ConnectionResetError('Connection dropped')
+
+        # Patch the drain() method to simulate a situation where the connection
+        # is abruptly interrupted when sending the message.
+        server_client.writer.drain = broken_drain
+
+    def _find_server_lobby_client(self):
+        for client in self.server.lobby_server.clients:
+            if client and client.username == self.username:
+                return client
+        return None
+
     async def send_data(self, data: bytes):
         self.writer.write(data)
         await self.writer.drain()

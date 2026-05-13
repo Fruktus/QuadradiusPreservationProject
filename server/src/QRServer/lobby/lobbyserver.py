@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 from QRServer.common.classes import LobbyPlayer
+from QRServer.common.clienthandler import SendMessageException
 from QRServer.common.messages import ResponseMessage, LastLoggedResponse, LobbyStateResponse, ChallengeMessage, \
     ChallengeAuthMessage
 from QRServer.lobby.lobbyclient import LobbyClientHandler
@@ -34,6 +35,10 @@ class LobbyServer:
         return to_kick_idx
 
     async def remove_client(self, idx):
+        if self.clients[idx] is None:
+            log.warning(f'Not removing client {idx} as it\'s already gone')
+            return
+
         self.last_logged = self.clients[idx]
         self.clients[idx].close()
         self.clients[idx] = None
@@ -76,9 +81,21 @@ class LobbyServer:
                 await self.clients[i].send_msg(message)
         pass
 
-    async def challenge_user(self, challenger_idx, challenged_idx):
-        if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            await self.clients[challenged_idx].send_msg(ChallengeMessage.new(challenged_idx, challenger_idx))
+    async def challenge_user(self, challenger_idx, challenged_idx) -> bool:
+        """
+        Returns True when the user has been challenged successfully, False otherwise.
+        """
+
+        message = ChallengeMessage.new(challenged_idx, challenger_idx)
+        try:
+            if self.clients[challenger_idx] and self.clients[challenged_idx]:
+                await self.clients[challenged_idx].send_msg(message)
+                return True
+        except SendMessageException as e:
+            log.warning(f'Failed to send {message} to {e.username}, kicking them')
+            await self.remove_client(challenged_idx)
+
+        return False
 
     async def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
         if self.clients[challenger_idx] and self.clients[challenged_idx]:

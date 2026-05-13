@@ -104,7 +104,10 @@ class LobbyClientHandler(ClientHandler):
         challenger_idx = message.get_challenger_idx()
         challenged_idx = message.get_challenged_idx()
         log.debug('Challenge issued')
-        await self.lobby_server.challenge_user(challenger_idx, challenged_idx)
+        success = await self.lobby_server.challenge_user(challenger_idx, challenged_idx)
+        if not success:
+            log.warning(f'Failed to challenge {challenged_idx} by {challenger_idx}')
+            await self.send_msg(LobbyChatMessage.new(None, 'Could not challenge the user'))
 
     async def _handle_challenge_auth(self, message: ChallengeAuthMessage):
         challenger_idx = message.get_challenger_idx()

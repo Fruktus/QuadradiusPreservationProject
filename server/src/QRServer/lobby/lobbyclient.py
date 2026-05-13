@@ -113,7 +113,13 @@ class LobbyClientHandler(ClientHandler):
         challenger_idx = message.get_challenger_idx()
         challenged_idx = message.get_challenged_idx()
         challenger_auth = message.get_auth()
-        await self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
+        success = await self.lobby_server.setup_challenge(challenger_idx, challenged_idx, challenger_auth)
+        if not success:
+            log.warning(f'Failed to respond to challenge {challenged_idx} by {challenger_idx}')
+            await self.send_msg(LobbyChatMessage.new(None, 'Could not respond to the challenge'))
+
+            # It's best to close the connection here, as otherwise the client is not usable.
+            self.close_and_stop()
 
     async def _handle_server_recent(self, _: ServerRecentRequest):
         recent_matches = await self.connector.get_recent_matches()

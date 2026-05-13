@@ -1,32 +1,34 @@
 import asyncio
 from asyncio import CancelledError
-from logging import Handler
+from logging import Handler, LogRecord
 from threading import Lock
+from typing import Generator, Coroutine
 
+from QRServer.config import Config
 from QRServer.discord.webhook import Webhook
 
 _messages_lock = Lock()
-_messages_buffer = []
+_messages_buffer: list[str] = []
 
 
 class DiscordWebhookHandler(Handler):
     terminator = '\n'
 
-    def __init__(self, config):
+    def __init__(self, config: Config):
         Handler.__init__(self)
         self.setLevel(config.discord_webhook_logger_level.get())
 
-    def emit(self, record):
+    def emit(self, record: LogRecord) -> None:
         msg = self.format(record)
         with _messages_lock:
             _messages_buffer.append(msg)
 
 
-def get_daemon_task(config):
+def get_daemon_task(config: Config) -> Coroutine:
     return _flush_messages_periodically(config)
 
 
-async def _flush_messages_periodically(config):
+async def _flush_messages_periodically(config: Config) -> None:
     webhook = Webhook(config)
     delay_s = config.discord_webhook_logger_flush_delay_s.get()
     try:
@@ -41,7 +43,7 @@ async def _flush_messages_periodically(config):
         await _flush_messages(webhook)
 
 
-async def _flush_messages(webhook):
+async def _flush_messages(webhook: Webhook) -> None:
     global _messages_buffer  # noqa: F824
     with _messages_lock:
         if not _messages_buffer:
@@ -55,7 +57,7 @@ async def _flush_messages(webhook):
             await webhook.invoke_webhook_logger(data)
 
 
-def package_messages(messages, limit):
+def package_messages(messages: list[str], limit: int) -> Generator[str, None, None]:
     buffer = ''
     for message in messages:
         if buffer and len(buffer) + len(message) + 1 > limit:

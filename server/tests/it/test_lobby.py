@@ -337,3 +337,43 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         await first_client.assert_received_message(LobbyChatMessage.new(None, 'Could not respond to the challenge'))
         await first_client.assert_no_more_messages()
         await second_client.wait_for_disconnect()
+
+    async def test_lobby_lobby_state_send_error(self):
+        first_client = await self.new_lobby_client()
+        await first_client.join_lobby('First Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        second_client = await self.new_lobby_client()
+        await second_client.join_lobby('Second Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        await first_client.assert_received_message_type(LobbyStateResponse)
+
+        await second_client.drop()
+
+        third_client = await self.new_lobby_client()
+        await third_client.send_message(JoinLobbyRequest.new('Third Player', 'cf585d509bf09ce1d2ff5d4226b7dacb'))
+
+        # Now sending the message to first_client should succeed.
+
+        await first_client.assert_received_message(LobbyStateResponse.new([
+            LobbyPlayer(username='First Player'),
+            LobbyPlayer(username='Second Player'),
+            LobbyPlayer(username='Third Player'),
+        ]))
+
+        # Sending the message to the second client should fail, it should be
+        # removed, and we should send updated messages to all of them.
+
+        await first_client.assert_received_message(LobbyStateResponse.new([
+            LobbyPlayer(username='First Player'),
+            None,
+            LobbyPlayer(username='Third Player'),
+        ]))
+        await second_client.wait_for_disconnect()
+        await third_client.assert_received_message(LobbyStateResponse.new([
+            LobbyPlayer(username='First Player'),
+            None,
+            LobbyPlayer(username='Third Player'),
+        ]))
+
+        await first_client.assert_no_more_messages()
+        await third_client.assert_no_more_messages()

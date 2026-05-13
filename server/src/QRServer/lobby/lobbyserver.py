@@ -97,10 +97,21 @@ class LobbyServer:
 
         return False
 
-    async def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth):
-        if self.clients[challenger_idx] and self.clients[challenged_idx]:
-            msg = ChallengeAuthMessage.new(challenged_idx, challenger_idx, challenger_auth)
-            await self.clients[challenged_idx].send_msg(msg)
+    async def setup_challenge(self, challenger_idx, challenged_idx, challenger_auth) -> bool:
+        """
+        Returns True when the user has been challenged successfully, False otherwise.
+        """
+
+        message = ChallengeAuthMessage.new(challenged_idx, challenger_idx, challenger_auth)
+        try:
+            if self.clients[challenger_idx] and self.clients[challenged_idx]:
+                await self.clients[challenged_idx].send_msg(message)
+                return True
+        except SendMessageException as e:
+            log.warning(f'Failed to send {message} to {e.username}, kicking them')
+            await self.remove_client(challenged_idx)
+
+        return False
 
     async def broadcast_msg(self, message: ResponseMessage):
         log.debug(f'Broadcasting {message}')

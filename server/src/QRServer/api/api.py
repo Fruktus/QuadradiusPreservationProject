@@ -75,6 +75,7 @@ class ApiServer:
             web.get('/api/v1/tournaments/{id}/duels', self._v1_tournament_duels),
             web.get('/api/v1/tournaments/{id}/matches', self._v1_tournament_matches),
             web.get('/api/v1/tournaments/{id}/users', self._v1_tournament_users),
+            web.post('/api/v1/challenges/{id}', self._v1_join_match_challenge),
 
             # OAuth2
             web.get('/.well-known/openid-configuration', self._wellknown_openid_config),
@@ -171,6 +172,15 @@ class ApiServer:
             })
 
         return web.json_response(data={'tournament_matches': tournament_matches_view}, status=200)
+
+    async def _v1_join_match_challenge(self, request) -> web.Response:
+        """
+        Based on invite id and user credentials generates presigned match url that can be used by front-end
+          to load the game with specific opponent.
+        Note that the presigned url WILL contain the hash of the user's password
+        (this is an swf limitation)
+        """
+        raise NotImplementedError
 
     async def _wellknown_openid_config(self, request: web.Request) -> web.Response:
         """Endpoint for oidc client autodiscovery"""

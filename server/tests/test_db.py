@@ -433,6 +433,31 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(loser_rating.rating, 420)
             self.assertEqual(loser_rating.revision, 2)  # updated 3 times -> revision == 2
 
+    async def test_match_invite(self):
+        with patch('uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('random.randint') as mock_randint:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+            mock_uuid.return_value = '0'
+            user_1 = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            mock_uuid.return_value = '1'
+            user_2 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+            mock_uuid.return_value = '1234'
+
+            mock_randint.side_effect = [123, 456]
+            await self.conn.create_match_invite(user_1.user_id, user_2.user_id)
+
+        invite = await self.conn.get_match_invite('1234')
+
+        self.assertEqual(invite.invite_id, '1234')
+        self.assertEqual(invite.challenger_username, 'test_user_0')
+        self.assertEqual(invite.challenged_username, 'test_user_1')
+        self.assertEqual(invite.challenger_auth, 123)
+        self.assertEqual(invite.challenged_auth, 456)
+        self.assertEqual(invite.issued_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(invite.active_until, datetime(2020, 1, 1, 0, 1, 0, tzinfo=timezone.utc))
+
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -678,6 +703,27 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[0][:3], (0, 'tournament_id', 'varchar'))
         self.assertEqual(table_info[1][:3], (1, 'duel_idx', 'INTEGER'))
         self.assertEqual(table_info[2][:3], (2, 'match_id', 'varchar'))
+
+    async def test_migration_v9(self):
+        await migrations.execute_migrations(self.c, self.dbconn.config, 8)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('match_invites', table_names)
+
+        await migrations.execute_migrations(self.c, self.dbconn.config, 9)
+
+        table_names = await self.get_table_names()
+        self.assertIn('match_invites', table_names)
+
+        table_info = await self.get_table_info('match_invites')
+        self.assertEqual(len(table_info), 7)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'challenger_id', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'challenged_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'challenger_auth', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'challenged_auth', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'issued_at_timestamp', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'active_until_timestamp', 'INTEGER'))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

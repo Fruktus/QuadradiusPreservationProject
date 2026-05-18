@@ -59,6 +59,11 @@ class DiscordBot:
         async def reset_password(interaction, username: str):
             await self._reset_password(interaction, username)
 
+        @self.tree.command(name="challenge", description="Challenge the specified member to a match")
+        @discord.app_commands.describe(username="The in-game member username to challenge")
+        async def challenge_member(interaction, username: str):
+            await self._challenge_member(interaction, username)
+
         @self.client.event
         async def on_ready():
             await self._on_ready()
@@ -326,3 +331,118 @@ class DiscordBot:
             log.warning(
                 'User notifications channel not found or not accepting messages: ' +
                 self.user_notifications_channel_id)
+
+    async def _challenge_member(self, interaction: discord.Interaction, username: str) -> None:
+        """
+        Generates invite links for direct matches.
+        Note that challenger and challenged are similar, pay attention to code.
+        """
+        # 1.a Check if challenger has account
+        log.debug(f"challenge command received from '{interaction.user}'")
+        username = username.strip()
+
+        user_account_list = await self.connector.get_users_by_discord_id(str(interaction.user.id))
+        if user_account_list is None:
+            log.debug(f"Unregistered user '{interaction.user}' tried to challenge player: '{username}'")
+
+            await interaction.response.send_message(
+                "You need to register first.",
+                ephemeral=True)
+            return
+        user_accounts = {user.username: user for user in user_account_list}
+
+        # 1.b Check if challenger have not challenged their own account
+        if username in user_accounts:
+            log.debug(f"User '{interaction.user}' tried to challenge own account: '{username}'")
+
+            # TODO what do we do if the user tries to challenge one of own accounts?
+            # the assumption was that one dc user may own more than one qr account as parent or smth.
+            # but only one person can be reasonably logged into discord, so i guess we can discard all of those.
+            await interaction.user.send(
+                "You cannot challenge a different account tied to the same Discord account."
+            )
+            return
+
+        # 2. Check if the challenged user exist
+        challenged_user = await self.connector.get_user_by_username(username)
+        if challenged_user is None:
+            log.debug(f"User'{interaction.user}' tried to challenge unknown player: '{username}'")
+
+            await interaction.response.send_message(
+                f"Failed to find a player with username: {username}",
+                ephemeral=True)
+            return
+
+        # If it does, use dc library to get a Discord user object
+        challenged_user_dc = await self.client.fetch_user(challenged_user.discord_user_id)
+        challenger_user_dc = interaction.user
+
+        # 3. Generate challenge data (player 1 and 2 order ints)
+        # Generate an invite link via db connector (save it to db)
+        # Send to challenged first, if this succeeds, send to challenger
+        #   If first send failed, notify challenger in response to ephemeral
+        #   If second failed, notify challenger in response to ephemeral
+        #   If went well, notify in ephemeral that it worked and link is in dm
+        # TODO update connector
+
+        # 4. Store the challenge in the db (save issuer, date issued etc)
+
+        # 5. (opt) Save the date that challenge was used (if it was)
+        # 6. Once players click link, open the website, show login screen
+        # 7. Use login data to authenticate the player and load the game.swf
+        #     (get additional info via api - maybe smth like post to /challenge/{id}
+        #     with credentials to get the actual link)
+
+
+
+        # 8. Let players play
+        # TODO
+
+        challenge_url = f'{self.config.origin.get()}/challenge/{ids}'
+
+        # Send invites to challenged
+        await challenged_user_dc.send(
+            "### Match Invite"
+            "- You have been invited to a match!"
+            f"- Your opponent is: <@{user_account_list[0].discord_user_id}> - `{user_account_list[0].username}`"
+            f"- Match link: {challenge_url}"
+            f"- The match link will be valid for the next {self.config.challenge_invite_duration} minute"
+            f"{'s' if self.config.challenge_invite_duration != 1 else ''}"
+        )
+
+        await challenger_user_dc.send(
+            "### Match Invite"
+            "- You have been invited to a match!"
+            f"- Your opponent is: <@{user_account_list[0].discord_user_id}> - `{user_account_list[0].username}`"
+            f"- Match link: {challenge_url}"
+            f"- The match link will be valid for the next {self.config.challenge_invite_duration} minute"
+            f"{'s' if self.config.challenge_invite_duration != 1 else ''}"
+        )
+
+
+        # FIXME old stuff
+        try:
+            await interaction.user.send(
+                "### Challenge has been sent\n"
+                f"Password was reset for account: `{username}`.\n"
+                f"Your new password is: ||`{password}`||.")
+            await interaction.response.send_message(
+                f"Password for account was reset: `{username}`, credentials have been sent via DM.",
+                ephemeral=True)
+        except Exception as e:
+            log.warning("Failed to send new password via DM", exc_info=e)
+            await interaction.response.send_message(
+                f"Password for account was reset: `{username}`, failed to send credentials - check privacy settings.",
+                ephemeral=True)
+
+        # FIXME this is the place to generate an invite link
+
+        await challenged_user_dc.send(
+            "### Match Invite"
+            "- You have been invited to a match!"
+            f"- Your opponent is: <@{user_account_list[0].discord_user_id}> - `{user_account_list[0].username}`"
+            f"- Match link: https://quadradius.com/challenge/{ids}"
+            f"- The match link will be valid for the next {self.config.challenge_invite_duration} minute"
+            f"{'s' if self.config.challenge_invite_duration != 1 else ''}"
+        )
+        

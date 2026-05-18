@@ -228,6 +228,13 @@ class Config:
             cli_args=[],
             description='Maximum number of aliases per user',
             default_value=1)
+        self.challenge_invite_duration = ConfigKey(
+            config=self,
+            name='discord.bot.challenge.invite_duration',
+            cli_args=[],
+            description='Direct challenge invite duration in minutes. Likely reliant on the swf\'s capability to wait'
+                        ' for the other party',
+            default_value='1')
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

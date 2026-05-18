@@ -1,7 +1,8 @@
 import logging
 import os
+import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from QRServer.config import Config
 from QRServer.db.common import UpdateCollisionError, retry_on_update_collision
@@ -10,8 +11,8 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common import utils
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, TournamentDuel, TournamentMatch, TournamentParticipant, \
-    Tournament, UserRating
+from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, TournamentDuel, TournamentMatch, \
+    TournamentParticipant, Tournament, UserRating
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -832,6 +833,65 @@ class DbConnector:
                 tournament_id,
                 duel_idx,
                 match_id,
+            )
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def get_match_invite(self, invite_id: str) -> MatchInvite | None:
+        c = await self.conn.cursor()
+        await c.execute(
+            "select match_invites.id, u1.username, u2.username, challenger_auth, challenged_auth, issued_at_timestamp,"
+            " active_until_timestamp"
+            " from match_invites"
+            " left join users u1"
+            " on challenger_id = u1.id"
+            " left join users u2"
+            " on challenged_id = u2.id"
+            " where match_invites.id = ?",
+            (
+                invite_id,
+            ))
+        row = await c.fetchone()
+        if row is None:
+            return None
+
+        return MatchInvite(
+            invite_id=row[0],
+            challenger_username=row[1],
+            challenged_username=row[2],
+            challenger_auth=row[3],
+            challenged_auth=row[4],
+            issued_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
+            active_until=datetime.fromtimestamp(row[6], tz=timezone.utc),
+        )
+
+    async def create_match_invite(self, challenger_id: str, challenged_id: str) -> bool:
+        """
+        Returns:
+            bool: True if successfully created the invite
+        """
+        c = await self.conn.cursor()
+        now = datetime.now()
+        await c.execute(
+            "insert or ignore into match_invites ("
+            " id,"
+            " challenger_id,"
+            " challenged_id,"
+            " challenger_auth,"
+            " challenged_auth,"
+            " issued_at_timestamp,"
+            " active_until_timestamp"
+            ")"
+            "values (?, ?, ?, ?, ?, ?, ?)",
+            (
+                str(uuid.uuid4()),
+                challenger_id,
+                challenged_id,
+                random.randint(65535),
+                random.randint(65535),
+                int(now.timestamp()),
+                int((now + timedelta(minutes=int(self.config.challenge_invite_duration.get()))).timestamp())
             )
         )
         await self.conn.commit()

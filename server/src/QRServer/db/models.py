@@ -75,3 +75,14 @@ class TournamentDuel:
 class TournamentMatch:
     duel_idx: int
     match: DbMatchReport
+
+
+@dataclass
+class MatchInvite:
+    invite_id: str
+    challenger_username: str
+    challenged_username: str
+    challenger_auth: int
+    challenged_auth: int
+    issued_at: datetime
+    active_until: datetime

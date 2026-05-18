@@ -1,10 +1,10 @@
 import logging
 import os
 
-from QRServer.discord import logger as discord_logger
-
 
 def refresh_logger_configuration(config):
+    from QRServer.discord import logger as discord_logger
+
     log_level = logging.DEBUG if config.log_verbose.get() else logging.INFO
 
     if config.log_long.get():

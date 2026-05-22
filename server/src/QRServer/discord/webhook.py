@@ -6,6 +6,12 @@ from QRServer.common.classes import GameResultHistory
 
 log = logging.getLogger('qr.webhook')
 
+_DISCORD_WEBHOOK_PREFIX = 'https://discord.com/api/webhooks/'
+
+
+def _validate_webhook_url(url: str) -> bool:
+    return url.startswith(_DISCORD_WEBHOOK_PREFIX)
+
 
 def webhook(webhook_name, disable_log=False):
     def webhook_debug(message):
@@ -19,6 +25,12 @@ def webhook(webhook_name, disable_log=False):
 
             try:
                 if webhook_url:
+                    if not _validate_webhook_url(webhook_url):
+                        log.error(
+                            f'Webhook "{webhook_name}" URL is invalid: '
+                            f'must start with {_DISCORD_WEBHOOK_PREFIX!r}')
+                        return
+
                     webhook_debug(f'Invoking a webhook "{webhook_name}"')
                     json = await f(*args, **kwargs)
 

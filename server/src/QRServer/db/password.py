@@ -1,5 +1,6 @@
 import binascii
 import hashlib
+import hmac
 import os
 
 _iterations = 100000
@@ -29,4 +30,4 @@ def password_verify(provided_password: bytes | None, stored_hash: str | None) ->
         salt.encode('ascii'),
         _iterations)
     h_str = binascii.hexlify(h).decode('ascii')
-    return h_str == stored_hash
+    return hmac.compare_digest(h_str, stored_hash)

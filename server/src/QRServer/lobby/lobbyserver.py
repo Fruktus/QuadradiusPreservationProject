@@ -98,7 +98,9 @@ class LobbyServer:
 
         message = ChallengeMessage.new(challenged_idx, challenger_idx)
         try:
-            if self.clients[challenger_idx] and self.clients[challenged_idx]:
+            has_challenger = challenger_idx < len(self.clients) and self.clients[challenger_idx]
+            has_challenged = challenged_idx < len(self.clients) and self.clients[challenged_idx]
+            if has_challenger and has_challenged:
                 await self.clients[challenged_idx].send_msg(message)
                 return True
         except SendMessageException as e:

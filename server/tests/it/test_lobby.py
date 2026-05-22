@@ -353,6 +353,21 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         await second_client.assert_received_message(LobbyChatMessage.new(None, 'Could not challenge the user'))
         await first_client.assert_no_more_messages()
 
+    async def test_lobby_challenge_oob_idx(self):
+        first_client = await self.new_lobby_client()
+        await first_client.join_lobby('First Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        second_client = await self.new_lobby_client()
+        await second_client.join_lobby('Second Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+
+        await first_client.assert_received_message_type(LobbyStateResponse)
+
+        challenge_message = ChallengeMessage.new(challenged_idx=100, challenger_idx=1)
+        await second_client.send_message(challenge_message)
+
+        await second_client.assert_received_message(LobbyChatMessage.new(None, 'Could not challenge the user'))
+        await first_client.assert_no_more_messages()
+
     async def test_lobby_lobby_state_send_error(self):
         first_client = await self.new_lobby_client()
         await first_client.join_lobby('First Player', 'cf585d509bf09ce1d2ff5d4226b7dacb')

@@ -15,6 +15,7 @@ setup(
         'aiosqlite',
         'aiohttp',
         'discord.py',
+        'pyjwt',
     ],
     extras_require={
         'dev': [

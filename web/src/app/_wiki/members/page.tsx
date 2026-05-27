@@ -8,7 +8,7 @@ interface MemberInfo {
 
 const membershipLevels: MemberInfo[] = [
   {
-    rank: "Free Player",
+    rank: "Guest Player",
     benefits: [
       "Access to basic game features",
       "Play against other players",
@@ -16,7 +16,7 @@ const membershipLevels: MemberInfo[] = [
     ],
   },
   {
-    rank: "Premium Member",
+    rank: "Registered Member",
     benefits: [
       "Custom username without GUEST suffix",
       "Owned account - no imposters",
@@ -24,13 +24,13 @@ const membershipLevels: MemberInfo[] = [
       "Access to Advanced settings (including board and squadron size, colors, round time)",
       "Access to all orbs and powers",
     ],
-    requirements: ["Monthly subscription"],
+    requirements: ["Registration"],
   },
 ];
 
 export default function MembersPage() {
   return (
-    <div className="prose max-w-none">
+    <div className="prose max-w-none prose-invert">
       <h2 className="text-2xl font-bold mb-6 mt-4">Membership Levels</h2>
       <div className="grid gap-8 md:grid-cols-2">
         {membershipLevels.map((level) => (

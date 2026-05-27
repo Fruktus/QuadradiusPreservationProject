@@ -5,10 +5,20 @@ export default function BasicTraining() {
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-6">Basic Training</h1>
 
-      <div className="prose max-w-none">
+      <div className="prose max-w-none prose-invert">
         <p>
-          When it is your turn, your piece can initially move one space in any
-          direction (except diagonal).
+          Quadradius is a two player, head to head, internet game.
+          Eliminate your opponent by jumping on them, or using powers against them.
+          Many tactical combinations of powers can be used to attack, defend, or foil your opponent's plans.
+          Play strangers or invite your friends along to battle you in the Quadradius Arena.
+        </p>
+        <p>
+          When it is your turn, your piece can initially move one space in any direction (except diagonal).
+          Power orbs are what make each game of quadradius interesting.
+          Jump on spaces with power orbs to obtain one of many different powers.
+          You can use these powers at any time to beat your opponent.
+          To use a power, click the piece with the power.
+          Then click on the power you wish to use.
         </p>
 
         <h2>Power Orbs</h2>
@@ -28,16 +38,15 @@ export default function BasicTraining() {
         <p>
           To find out what the power you picked does you can read the instructions
           on the right side. You can also press the small question mark on the right
-          side of the powerup. Finally, if you don&apos;t know what opponent&apos;s powerup did,
+          side of the powerup. Finally, if you don't know what opponent's powerup did,
           you can click on it on the Recent Powerups list to learn about it.
         </p>
 
         <Callout title="Quick Tips:">
           <ul className="list-disc ml-5">
-            <li>Move one space at a time in non-diagonal directions</li>
-            <li>Collect power orbs by landing on them</li>
-            <li>Use powers strategically to gain advantage</li>
-            <li>Eliminate opponents by jumping on them</li>
+            <li>Move one space at a time</li>
+            <li>Collect power orbs</li>
+            <li>Use powers strategically</li>
           </ul>
         </Callout>
       </div>

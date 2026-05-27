@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Press_Start_2P, VT323, Silkscreen } from "next/font/google";
-import "./globals.css";
-import Tabs from "./components/tabs";
-import bgImage from "./assets/qr-bg.jpg";
-import config from "../../configurations/config.json";
+import "../styles/globals.css";
+import Tabs from "../components/tabs";
+import config from "../configurations/config.json";
 
 const tabs = [
   { label: "Game Play", href: "/gameplay" },
@@ -67,7 +66,7 @@ export default function RootLayout({
         <div className="max-w-4xl mx-auto p-6 pt-0">
           <div
             className="bg-cover bg-center mb-6 p-6 pb-0"
-            style={{ backgroundImage: `url(${bgImage.src})` }}
+            style={{ backgroundImage: `url(/assets/qr-bg.jpg)` }}
           >
             <div className="flex flex-row justify-between">
               <h1 className="text-3xl mb-8 pixel-text inline">

@@ -1,3 +1,5 @@
+import Callout from "@/components/callout";
+
 export default function BasicTraining() {
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -30,15 +32,14 @@ export default function BasicTraining() {
           you can click on it on the Recent Powerups list to learn about it.
         </p>
 
-        <div className="bg-gray-50 p-4 rounded mt-6">
-          <h3 className="font-semibold text-gray-800">Quick Tips:</h3>
-          <ul className="text-gray-800">
+        <Callout title="Quick Tips:">
+          <ul className="list-disc ml-5">
             <li>Move one space at a time in non-diagonal directions</li>
             <li>Collect power orbs by landing on them</li>
             <li>Use powers strategically to gain advantage</li>
             <li>Eliminate opponents by jumping on them</li>
           </ul>
-        </div>
+        </Callout>
       </div>
     </div>
   );

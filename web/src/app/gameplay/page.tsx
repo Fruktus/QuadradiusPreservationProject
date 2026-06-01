@@ -1,3 +1,5 @@
+import Callout from "@/components/callout";
+
 export default function Gameplay() {
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -36,15 +38,14 @@ export default function Gameplay() {
           than a single step.
         </p>
 
-        <div className="bg-yellow-50 p-4 rounded mt-6">
-          <h3 className="font-semibold text-yellow-800">Warning:</h3>
+        <Callout title="Warning:" variant="warning">
           <p className="text-gray-800">
             Don&apos;t get overzealous with the powers. If you get 10 or more of
             any single power on any single piece, you can overheat. The
             mechanized torus was not built to withstand this type of power
             storage and the core will melt down.
           </p>
-        </div>
+        </Callout>
       </div>
     </div>
   );

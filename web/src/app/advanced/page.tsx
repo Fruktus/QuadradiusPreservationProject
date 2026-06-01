@@ -1,3 +1,5 @@
+import Callout from "@/components/callout";
+
 export default function AdvancedTraining() {
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -27,14 +29,13 @@ export default function AdvancedTraining() {
           destroyed. Use this knowledge both defensively and offensively.
         </p>
 
-        <div className="bg-blue-50 p-4 rounded mt-6 mb-6">
-          <h3 className="font-semibold text-blue-800">Pro Tip:</h3>
-          <p className="text-gray-800">
+        <Callout title="Pro Tip:" variant="info">
+        <p className="text-gray-800">
             Don&apos;t get overzealous with powers. When an opponent&apos;s
             piece has multiple powers, using Pilfer on it will steal all their
             powers. This can be used to turn the tide of the battle.
           </p>
-        </div>
+        </Callout>
 
         <h2>Advanced Tactics</h2>
         <ul className="list-disc ml-6">
@@ -55,14 +56,13 @@ export default function AdvancedTraining() {
           </li>
         </ul>
 
-        <div className="bg-red-50 p-4 rounded mt-6">
-          <h3 className="font-semibold text-red-800">Advanced Warning:</h3>
-          <p className="text-gray-800">
+        <Callout title="Warning:" variant="warning">
+        <p className="text-gray-800">
             Be wary of opponents who seem to be &quot;charging up&quot; pieces
             with multiple powers. They may be setting up for a complex
             combination attack. Consider these pieces a priority targets.
           </p>
-        </div>
+        </Callout>
       </div>
     </div>
   );

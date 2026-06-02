@@ -1,4 +1,4 @@
-import config from "../../configurations/config.json";
+import config from "@/configurations/config.json";
 
 interface MemberInfo {
   rank: string;

@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Press_Start_2P, VT323, Silkscreen } from "next/font/google";
-import "../styles/globals.css";
-import Tabs from "../components/tabs";
-import config from "../configurations/config.json";
+import "@/styles/globals.css";
+import Tabs from "@/components/tabs";
+import config from "@/configurations/config.json";
 
 const tabs = [
   { label: "Game Play", href: "/gameplay" },

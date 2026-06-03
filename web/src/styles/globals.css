@@ -50,10 +50,26 @@
   --status-busy:  #cc1a1a;
 }
 
+html,
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: var(--font-geist-sans), Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: black;
+  color: white;
+  font-family: sans-serif;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:link,
+a:visited {
+  color: #777777;
+}
+
+a:hover {
+  color: #aaaaaa;
 }
 
 /* Header with background image */

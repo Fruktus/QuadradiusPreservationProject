@@ -1,36 +1,32 @@
-import Script from "next/script";
+
+'use client';
+
+import styles from './index.module.css';
+import Ruffle from '@/components/ruffle/ruffle';
+import FullscreenToggle from '@/components/ui/fullscreen-toggle/fullscreen-toggle';
+import Footer from "@/components/ui/footer/footer";
+import { useUnloadWarning } from '@/hooks/use-unload-warning';
 
 export default function Home() {
+  useUnloadWarning();
+
   return (
     <>
-      <Script src="/config-ruffle.js" />
-      <Script src="/fullscreen.js" />
-      <Script src="/main.js"/>
-      <div className="directions">
-        <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>
-      </div>
-      <div className="fullscreen">
-        <button id="fullscreen-toggle" title="Toggle fullscreen">
-          <img
-            src="fullscreen-open.svg"
-            id="fullscreen-open"
-            alt="Fullscreen open icon"
-          />
-          <img
-            src="fullscreen-close.svg"
-            id="fullscreen-close"
-            alt="Fullscreen close icon"
-          />
-        </button>
-      </div>
-      <div className="container">
-        <object className="game">
-          <embed src="./quadradius_lobby.swf" className="embed" />
-        </object>
-
-        <div className="footer">
+      <div className="footer">
           Made possible by the <a href="https://github.com/Fruktus/QuadradiusPreservationProject" target="_blank">Quadradius Preservation Project</a>.
         </div>
+      <div className={styles.directions}>
+        <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>
+      </div>
+      <FullscreenToggle />
+
+      <Ruffle />
+
+      <div className={styles.container}>
+        <object className={styles.game}>
+          <embed src="./quadradius_lobby.swf" className={styles.embed} />
+        </object>
+        <Footer />
       </div>
     </>
   )

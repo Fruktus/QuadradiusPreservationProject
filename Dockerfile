@@ -1,3 +1,14 @@
+FROM --platform=$BUILDPLATFORM node:22-alpine AS web-builder
+ENV NEXT_OUTPUT=export
+
+WORKDIR /app
+COPY web/package*.json ./
+RUN npm ci
+
+COPY web .
+RUN npm run build
+
+
 FROM python:3.12.6 AS server-builder
 
 COPY server /server
@@ -21,6 +32,7 @@ RUN mkdir -p /data && \
 
 COPY docker /
 COPY --from=server-builder /server/dist/qrserver-*.whl /qr/server/
+COPY --from=web-builder /app/out /qr/http/
 RUN pip install /qr/server/*.whl
 
 EXPOSE 8000

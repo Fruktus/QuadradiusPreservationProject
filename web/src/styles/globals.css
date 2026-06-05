@@ -3,29 +3,51 @@
 @tailwind utilities;
 
 :root {
-  --background: #34312c;
-  --foreground: #746f67;
-  --text-primary: #cccccc;
-  --primary: #ab9c45;
-  --secondary: #6c757d;
-  --accent: #311a16;
-  --neutral: #919993;
-  --base-100: #b7b396;
+  /* App */
+  --background:    #34312c;
+  --foreground:    #746f67;
+  --text-primary:  #cccccc;
+  --primary:       #ab9c45;
+  --neutral:       #919993;
+
+  /* Dark base scale */
   --base-200: #311a16;
   --base-300: #21120e;
   --base-400: #120a07;
   --base-500: #0a0a0a;
-  --base-600: #050505;
-  --base-700: #020202;
-  --base-800: #010101;
   --base-900: #24241f;
 
-  /* New colors sampled from the image */
-  --red-dark: #480000;
+  /* Reds */
+  --red-dark:   #480000;
   --red-medium: #a52a2a;
-  --red-light: #cd5c5c;
-  --button-bg: #8b1a1a;
-  --button-text: #ffffff;
+  --red-light:  #cd5c5c;
+
+  /* Metal panel */
+  --panel-bg:      #dedad2;
+  --panel-edge:    #b8b2a0;
+  --panel-groove:  #a09a88;
+  --panel-shine:   #f4f0e6;
+  --screw-bg:      #c8c2b0;
+  --screw-shine:   #f0ece0;
+
+  /* CRT inputs */
+  --input-bg:          #3d0a0a;
+  --input-border:      #6b1010;
+  --input-focus:       #991515;
+  --input-text:        #ff2222;
+  --input-placeholder: #661010;
+
+  /* Login button */
+  --btn-login-bg:     #5c0f0f;
+  --btn-login-hover:  #7a1414;
+  --btn-login-active: #3d0808;
+  --btn-login-border: #8b1a1a;
+  --btn-login-text:   #ffaaaa;
+
+  /* Status line */
+  --status-error: #ff4444;
+  --status-ok:    #44ff88;
+  --status-busy:  #cc1a1a;
 }
 
 body {

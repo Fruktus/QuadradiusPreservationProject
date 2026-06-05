@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:web/src/app/_wiki/members/page.tsx
 import config from "@/configurations/config.json";
+========
+import config from "../../../configurations/config.json";
+>>>>>>>> 6e29ba2 (feat: add web app login page):web/src/app/(main)/members/page.tsx
 
 interface MemberInfo {
   rank: string;

@@ -1,8 +1,7 @@
 # Quadradius Web App
 
-This is the web app for Quadradius. It is built with Next.js (react) and Tailwind CSS.
-It is utilizing server-side rendering (SSR) for performance and SEO.
-It is completely static and can be deployed to any static site host and has nothing to do with the actual game server.
+This is the web app for Quadradius.
+It is built with Next.js (react) and Tailwind CSS.
 
 ## Prerequisites
 
@@ -11,7 +10,7 @@ It is completely static and can be deployed to any static site host and has noth
 
 ## Development
 
-Navigate to web and install packages (this needs to happen only once)
+Navigate to `/web` and install packages
 
 ```bash
 cd web

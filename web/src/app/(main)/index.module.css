@@ -1,0 +1,28 @@
+.container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: stretch;
+  align-content: stretch;
+  position: relative;
+}
+
+.game {
+  flex: 1;
+}
+
+.embed {
+  width: 100%;
+  height: 100%;
+}
+
+.directions {
+  position: absolute;
+  right: 8px;
+  z-index: 1;
+  top: 8px;
+  font-size: clamp(0.8rem, 1vw, 1rem);
+}

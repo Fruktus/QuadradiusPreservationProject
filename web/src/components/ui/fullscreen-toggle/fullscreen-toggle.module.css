@@ -1,0 +1,40 @@
+.fullscreen {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 10;
+}
+
+.toggle {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.25;
+}
+
+.toggle img {
+    inset: 10px;
+}
+
+.toggle:hover {
+    background: rgba(255, 255, 255, 0.9);
+    opacity: 0.8;
+}
+
+.toggle img {
+    padding: 4px;
+}
+
+@media (hover: none) {
+    .toggle {
+        display: flex;
+    }
+}

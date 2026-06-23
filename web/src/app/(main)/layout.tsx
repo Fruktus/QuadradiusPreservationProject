@@ -13,13 +13,14 @@ export default function MainLayout() {
       <head dangerouslySetInnerHTML={{__html: `
         <script src="config-ruffle.js"></script>
         <script src="main.js"></script>
+        <script src="fullscreen.js"></script>
       `}}/>
 
-      <body dangerouslySetInnerHTML={{__html: `
-        <div class="directions">
+      <body>
+        <div className="directions">
           <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>
         </div>
-        <div class="fullscreen">
+        <div className="fullscreen">
           <button id="fullscreen-toggle" title="Toggle fullscreen">
             <img
               src="fullscreen-open.svg"
@@ -33,19 +34,16 @@ export default function MainLayout() {
             />
           </button>
         </div>
-        <div class="container">
-            <object class="game">
-                <embed src="./quadradius_lobby.swf" class="embed" />
+        <div className="container">
+            <object className="game">
+                <embed src="./quadradius_lobby.swf" className="embed" />
             </object>
 
-            <div class="footer">
-                Made possible by the
-                <a href="https://github.com/Fruktus/QuadradiusPreservationProject" target="_blank">Quadradius Preservation Project</a>.
+            <div className="footer">
+                Made possible by the <a href="https://github.com/Fruktus/QuadradiusPreservationProject" target="_blank">Quadradius Preservation Project</a>.
             </div>
         </div>
-
-        <script src="fullscreen.js"></script>
-      `}}/>
+      </body>
     </html>
   )
 }

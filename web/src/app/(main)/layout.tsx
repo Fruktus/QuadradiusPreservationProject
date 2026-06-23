@@ -1,19 +1,21 @@
+import { Metadata } from "next"
+import "@/styles/styles.css"
+
+export const metadata: Metadata = {
+  title: 'Quadradius',
+  description:
+    'Quadradius is a two-player turn-based strategy game from 2007 made in Flash. A game of skill, luck, and deception with the gameplay of checkerboards on steroids. Originally created by Jimmi Heiserman and Brad Kayal.',
+}
+
 export default function MainLayout() {
   return (
-    <html lang="en" dangerouslySetInnerHTML={{__html: `
-      <head>
-        <title>Quadradius</title>
-        <meta charset="utf-8" />
-        <meta
-          name="description"
-          content="Quadradius is a two-player turn-based strategy game from 2007 made in Flash. A game of skill, luck, and deception with the gameplay of checkerboards on steroids. Originally created by Jimmi Heiserman and Brad Kayal." />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <html lang="en" >
+      <head dangerouslySetInnerHTML={{__html: `
         <script src="config-ruffle.js"></script>
-        <link rel="stylesheet" href="styles.css" />
         <script src="main.js"></script>
-      </head>
+      `}}/>
 
-      <body>
+      <body dangerouslySetInnerHTML={{__html: `
         <div class="directions">
           <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>
         </div>
@@ -43,7 +45,7 @@ export default function MainLayout() {
         </div>
 
         <script src="fullscreen.js"></script>
-      </body>
-    `}}/>
+      `}}/>
+    </html>
   )
 }

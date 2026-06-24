@@ -10,12 +10,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" >
-      <head dangerouslySetInnerHTML={{__html: `
-        <script src="config-ruffle.js"></script>
-        <script src="main.js"></script>
-        <script src="fullscreen.js"></script>
-      `}}/>
-
       <body>
         {children}
       </body>

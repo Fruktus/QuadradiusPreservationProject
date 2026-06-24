@@ -116,7 +116,30 @@ class Config:
             cli_args=[],
             description='welcome message sent after joining the lobby',
             default_value='')
-
+        self.origin = ConfigKey(
+            config=self,
+            name='origin',
+            cli_args=[],
+            description='The origin where server is hosted at. Used for creating invite links and oauth',
+            default_value='http://localhost')
+        self.api_token_secret = ConfigKey(
+            config=self,
+            name='api.token_secret',
+            cli_args=[],
+            description='Secret key used to sign other tokens. Recommended length: 32 bytes',
+            default_value='CHANGE_ME!')
+        self.api_access_token_lifetime_sec = ConfigKey(
+            config=self,
+            name='api.access_token_lifetime_sec',
+            cli_args=[],
+            description='Lifetime (in seconds) of the access token',
+            default_value=15 * 60)  # 15 minutes
+        self.api_refresh_token_lifetime_sec = ConfigKey(
+            config=self,
+            name='api.refresh_token_lifetime_sec',
+            cli_args=[],
+            description='Lifetime (in seconds) of the refresh token',
+            default_value=6 * 30 * 24 * 60 * 60)  # 6 months
         self.discord_webhook_lobby_joined_url = ConfigKey(
             config=self,
             name='discord.webhook.lobby_joined.url',
@@ -205,6 +228,13 @@ class Config:
             cli_args=[],
             description='Maximum number of aliases per user',
             default_value=1)
+        self.challenge_invite_duration = ConfigKey(
+            config=self,
+            name='discord.bot.challenge.invite_duration',
+            cli_args=[],
+            description='Direct challenge invite duration in minutes. Likely reliant on the swf\'s capability to wait'
+                        ' for the other party',
+            default_value='1')
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

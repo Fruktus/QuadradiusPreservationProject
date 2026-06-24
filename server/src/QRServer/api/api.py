@@ -2,6 +2,7 @@ import asyncio
 from enum import Enum
 import logging
 
+from QRServer.api.auth import decode_token, make_access_token, make_refresh_token
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbUser, Tournament, TournamentDuel, TournamentMatch
@@ -35,6 +36,10 @@ class ApiServer:
         self.lobby_server = lobby_server
         self.game_server = game_server
         self.runner = web.AppRunner(self.app)
+        self.origin = self.config.origin.get()
+        self.api_token_secret = self.config.api_token_secret.get()
+        self.api_access_token_lifetime_sec = self.config.api_access_token_lifetime_sec.get()
+        self.api_refresh_token_lifetime_sec = self.config.api_refresh_token_lifetime_sec.get()
 
     def api_socks(self):
         if self.site:
@@ -64,10 +69,17 @@ class ApiServer:
             web.get('/api/v1/game/stats', self._v1_game_stats),
             web.get('/api/v1/health', self._v1_health),
             web.get('/api/v1/lobby/stats', self._v1_lobby_stats),
+
+            # Tournaments
             web.get('/api/v1/tournaments/{id}', self._v1_tournaments),
             web.get('/api/v1/tournaments/{id}/duels', self._v1_tournament_duels),
             web.get('/api/v1/tournaments/{id}/matches', self._v1_tournament_matches),
             web.get('/api/v1/tournaments/{id}/users', self._v1_tournament_users),
+            web.post('/api/v1/challenges/{id}', self._v1_join_match_challenge),
+
+            # OAuth2
+            web.get('/.well-known/openid-configuration', self._wellknown_openid_config),
+            web.post('/oauth/token', self._oauth_token),
         ])
 
     async def _v1_game_stats(self, _request: web.Request) -> web.Response:
@@ -160,3 +172,114 @@ class ApiServer:
             })
 
         return web.json_response(data={'tournament_matches': tournament_matches_view}, status=200)
+
+    async def _v1_join_match_challenge(self, request) -> web.Response:
+        """
+        Based on invite id and user credentials generates presigned match url that can be used by front-end
+          to load the game with specific opponent.
+        Note that the presigned url WILL contain the hash of the user's password
+        (this is an swf limitation)
+        """
+        raise NotImplementedError
+
+    async def _wellknown_openid_config(self, request: web.Request) -> web.Response:
+        """Endpoint for oidc client autodiscovery"""
+        base = f'{self.origin}'
+        return web.json_response({
+            'issuer': base,
+            'token_endpoint': f'{base}/oauth/token',
+            'userinfo_endpoint': f'{base}/oauth/userinfo',
+            'response_types_supported': ['token'],
+            'grant_types_supported': ['password', 'refresh_token'],
+            'token_endpoint_auth_methods_supported': ['none'],
+        })
+
+    async def _oauth_token(self, request: web.Request) -> web.Response:
+        content_type = request.content_type
+
+        if 'application/json' in content_type:
+            # json sent when using raw requests
+            try:
+                body = await request.json()
+            except Exception:
+                return web.json_response({'error': 'invalid_request'}, status=400)
+        elif 'application/x-www-form-urlencoded':
+            # form-encoded, which is what oidc-client-ts sends
+            body = await request.post()
+        else:
+            return web.json_response({'error': 'unsupported_media_type'}, status=400)
+
+        if not body:
+            return web.json_response({'error': 'invalid_request'}, status=400)
+
+        grant_type = body.get('grant_type')
+
+        match grant_type:
+            case 'password':
+                username = body.get('username') or ''
+                password = body.get('password') or ''
+                return await self._oauth_password_grant(username, password)
+
+            case 'refresh_token':
+                refresh_token = body.get('refresh_token') or ''
+                return await self._oauth_refresh_token_grant(refresh_token)
+            case _: return web.json_response({'error': 'unsupported_grant_type'}, status=400)
+
+    async def _oauth_password_grant(self, username: str, password: str) -> web.Response:
+        """password is expected in swf format, provided by frontend"""
+        if not username or not password:
+            return web.json_response({'error': 'invalid_request'}, status=400)
+
+        user: DbUser | None = await self.connector.authenticate_user(
+            username=username,
+            password=password.encode()
+        )
+        if user is None:
+            return web.json_response({'error': 'invalid_grant'}, status=401)
+
+        access = make_access_token(
+            self.api_token_secret,
+            user.user_id,
+            user.username,
+            self.api_access_token_lifetime_sec,
+        )
+        refresh = make_refresh_token(
+            self.api_token_secret,
+            user.user_id,
+            self.api_refresh_token_lifetime_sec
+        )
+
+        return web.json_response({
+            'access_token': access,
+            'refresh_token': refresh,
+            'token_type': 'Bearer',
+            'expires_in': self.api_access_token_lifetime_sec,
+        })
+
+    async def _oauth_refresh_token_grant(self, refresh_token: str) -> web.Response:
+        if not refresh_token:
+            return web.json_response({'error': 'invalid_request'}, status=400)
+
+        try:
+            claims = decode_token(self.api_token_secret, refresh_token)
+        except Exception:
+            return web.json_response({'error': 'invalid_grant'}, status=401)
+
+        if claims.get('type') != 'refresh':
+            return web.json_response({'error': 'invalid_grant'}, status=401)
+
+        user: DbUser | None = await self.connector.get_user(claims['sub'])
+        if user is None:
+            return web.json_response({'error': 'invalid_grant'}, status=401)
+
+        access = make_access_token(
+            self.api_token_secret,
+            user.user_id,
+            user.username,
+            self.api_access_token_lifetime_sec,
+        )
+        return web.json_response({
+            'access_token': access,
+            'token_type': 'Bearer',
+            'expires_in': self.api_access_token_lifetime_sec,
+        })

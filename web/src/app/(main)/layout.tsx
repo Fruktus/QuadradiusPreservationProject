@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     'Quadradius is a two-player turn-based strategy game from 2007 made in Flash. A game of skill, luck, and deception with the gameplay of checkerboards on steroids. Originally created by Jimmi Heiserman and Brad Kayal.',
 }
 
-export default function MainLayout() {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" >
       <head dangerouslySetInnerHTML={{__html: `
@@ -17,32 +17,7 @@ export default function MainLayout() {
       `}}/>
 
       <body>
-        <div className="directions">
-          <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>
-        </div>
-        <div className="fullscreen">
-          <button id="fullscreen-toggle" title="Toggle fullscreen">
-            <img
-              src="fullscreen-open.svg"
-              id="fullscreen-open"
-              alt="Fullscreen open icon"
-            />
-            <img
-              src="fullscreen-close.svg"
-              id="fullscreen-close"
-              alt="Fullscreen close icon"
-            />
-          </button>
-        </div>
-        <div className="container">
-            <object className="game">
-                <embed src="./quadradius_lobby.swf" className="embed" />
-            </object>
-
-            <div className="footer">
-                Made possible by the <a href="https://github.com/Fruktus/QuadradiusPreservationProject" target="_blank">Quadradius Preservation Project</a>.
-            </div>
-        </div>
+        {children}
       </body>
     </html>
   )

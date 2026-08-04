@@ -1,7 +1,7 @@
 import inspect
 import sys
 from datetime import datetime, timezone
-from typing import Sequence, Type
+from typing import Any, Sequence, Type, TypeGuard
 
 from QRServer.common import powers
 from QRServer.common.classes import GameResultHistory, MatchStats, RankingEntry, LobbyPlayer
@@ -972,9 +972,18 @@ class SettingsReadyOnAgainMessage(RequestMessage, ResponseMessage):
 # UTILS
 ################################################################################
 
-__message_classes_full = inspect.getmembers(
+def is_message_class(obj: Any) -> TypeGuard[type[Message]]:
+    return (
+        inspect.isclass(obj)
+        and issubclass(obj, Message)
+        and obj.__module__ == __name__
+        and obj.prefix is not None
+    )
+
+
+__message_classes_full: list[tuple[str, type[Message]]] = inspect.getmembers(
     sys.modules[__name__],
-    lambda o: inspect.isclass(o) and o.__module__ == __name__ and o.prefix,
+    is_message_class,
 )
 __message_classes: list[Type[Message]] = list(map(lambda member: member[1], __message_classes_full))
 

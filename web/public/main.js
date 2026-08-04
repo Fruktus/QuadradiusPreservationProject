@@ -10,7 +10,7 @@ let version = new URLSearchParams(window.location.search).get(
 if (version) {
   version = "@" + version + "/ruffle.js";
 } else {
-  version = "@0.2.0-nightly.2026.4.21/ruffle.js";
+  version = "@0.5.0/ruffle.js";
 }
 let ruffleScript = document.createElement("script");
 ruffleScript.setAttribute(

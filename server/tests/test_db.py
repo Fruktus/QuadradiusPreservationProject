@@ -673,6 +673,34 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[1][:3], (1, 'duel_idx', 'INTEGER'))
         self.assertEqual(table_info[2][:3], (2, 'match_id', 'varchar'))
 
+    async def test_migration_v9(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('match_recordings', table_names)
+        self.assertNotIn('match_recording_messages', table_names)
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
+
+        table_names = await self.get_table_names()
+        self.assertIn('match_recordings', table_names)
+        self.assertIn('match_recording_messages', table_names)
+
+        table_info = await self.get_table_info('match_recordings')
+        self.assertEqual(len(table_info), 2)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'match_id', 'varchar'))
+
+        table_info = await self.get_table_info('match_recording_messages')
+        self.assertEqual(len(table_info), 7)
+        self.assertEqual(table_info[0][:3], (0, 'recording_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'seq', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'timestamp', 'INTEGER'))
+        self.assertEqual(table_info[3][:3], (3, 'sender_id', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'receiver_id', 'varchar'))
+        self.assertEqual(table_info[5][:3], (5, 'message_type', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'message', 'BLOB'))
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

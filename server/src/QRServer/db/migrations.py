@@ -38,6 +38,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v14,
         _migration_upgrade_to_v15,
         _migration_upgrade_to_v16,
+        _migration_upgrade_to_v17,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -399,3 +400,32 @@ async def _migration_upgrade_to_v16(c, _config):
     )
     await c.execute("create index idx_scheduled_tasks_status on scheduled_tasks (status)")
     await _set_version(c, 16)
+
+
+async def _migration_upgrade_to_v17(c, _config):
+    await c.execute(
+        "create table match_recordings ("
+        " id varchar primary key,"
+        " match_id varchar not null,"
+        " foreign key(match_id) references matches (id)"
+        ")"
+    )
+    await c.execute("create unique index idx_match_recordings_match_id on match_recordings (match_id)")
+
+    await c.execute(
+        "create table match_recording_messages ("
+        " recording_id varchar not null,"
+        " seq integer not null,"
+        " timestamp integer not null,"
+        " sender_id varchar,"
+        " receiver_id varchar,"
+        " message_type integer not null,"  # see messages.py for list of types
+        " message blob not null,"
+        " primary key(recording_id, seq),"
+        " foreign key(recording_id) references match_recordings (id),"
+        " foreign key(sender_id) references users (id),"
+        " foreign key(receiver_id) references users (id)"
+        ")"
+    )
+
+    await _set_version(c, 17)

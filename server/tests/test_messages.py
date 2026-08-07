@@ -3,9 +3,98 @@ from datetime import datetime
 
 from QRServer.common import messages
 from QRServer.common.classes import GameResultHistory, RankingEntry
-from QRServer.common.messages import HelloGameRequest, JoinGameRequest, GameChatMessage, ServerRecentRequest, \
-    ServerRankingRequest, JoinLobbyRequest, LastPlayedResponse, ServerRankingThisMonthResponse, UsePowerMessage, \
-    ChallengeMessage, ChallengeAuthMessage, SettingsReadyOnMessage, ResignMessage
+from QRServer.common.messages import AddStatsRequest, AssignNextPowerCountMessage, AssignPowerSquareMessage, \
+    BankruptActionMessage, BroadcastCommentResponse, ChangePasswordRequest, ChangePasswordResponseOk, \
+    CrossDomainPolicyAllowAllResponse, DisconnectRequest, GetPowerSquareMessage, GrabPieceMessage, HelloGameRequest, \
+    HelloLobbyRequest, JoinGameRequest, GameChatMessage, JumpOnPieceMessage, LastLoggedResponse, \
+    LobbyBadMemberResponse, LobbyChatMessage, LobbyDuplicateResponse, LobbyStateResponse, NameTakenRequest, \
+    NameTakenResponse, NameTakenResponseNo, NameTakenResponseYes, NewGridCoordMessage, NukeMessage, OldSwfResponse, \
+    OpponentDeadResponse, PlayerCountResponse, PolicyFileRequest, PowerNoEffectMessage, RecursiveDoneMessage, \
+    ReleasePieceMessage, RemoveOneWayWallMessage, RemovePlayerMessage, ServerAliveRequest, ServerAliveResponse, \
+    ServerPingRequest, ServerRecentRequest, ServerRankingRequest, JoinLobbyRequest, LastPlayedResponse, \
+    ServerRankingThisMonthResponse, SetCommentRequest, SettingsArenaSizeMessage, SettingsColorMessage, \
+    SettingsLoadedMessage, SettingsReadyOffMessage, SettingsReadyOnAgainMessage, SettingsSquadronSizeMessage, \
+    SettingsTimerMessage, SettingsTopBottomMessage, SwitchPlayerMessage, SwitcherooMessage, UsePowerMessage, \
+    ChallengeMessage, ChallengeAuthMessage, SettingsReadyOnMessage, ResignMessage, VoidScoreRequest, VoidScoreResponse
+
+
+class MessagesTest(unittest.TestCase):
+    def test_every_message_has_unique_id(self):
+        ids = set()
+        for message in getattr(messages, "__message_classes"):
+            self.assertIsNotNone(message.message_type_id)
+            self.assertNotIn(message.message_type_id, ids)
+            ids.add(message.message_type_id)
+
+    def test_every_message_has_mapping(self):
+        self.assertEqual(messages.get_message_type_from_id(0), DisconnectRequest)
+        self.assertEqual(messages.get_message_type_from_id(1), PolicyFileRequest)
+        self.assertEqual(messages.get_message_type_from_id(2), HelloLobbyRequest)
+        self.assertEqual(messages.get_message_type_from_id(3), JoinLobbyRequest)
+        self.assertEqual(messages.get_message_type_from_id(4), HelloGameRequest)
+        self.assertEqual(messages.get_message_type_from_id(5), JoinGameRequest)
+        self.assertEqual(messages.get_message_type_from_id(6), ServerRecentRequest)
+        self.assertEqual(messages.get_message_type_from_id(7), ServerRankingRequest)
+        self.assertEqual(messages.get_message_type_from_id(8), ServerAliveRequest)
+        self.assertEqual(messages.get_message_type_from_id(9), ServerPingRequest)
+
+        self.assertEqual(messages.get_message_type_from_id(10), SetCommentRequest)
+        self.assertEqual(messages.get_message_type_from_id(11), AddStatsRequest)
+        self.assertEqual(messages.get_message_type_from_id(12), VoidScoreRequest)
+        self.assertEqual(messages.get_message_type_from_id(13), NameTakenRequest)
+        self.assertEqual(messages.get_message_type_from_id(14), ChangePasswordRequest)
+        self.assertEqual(messages.get_message_type_from_id(15), CrossDomainPolicyAllowAllResponse)
+        self.assertEqual(messages.get_message_type_from_id(16), PlayerCountResponse)
+        self.assertEqual(messages.get_message_type_from_id(17), BroadcastCommentResponse)
+        self.assertEqual(messages.get_message_type_from_id(18), OldSwfResponse)
+        self.assertEqual(messages.get_message_type_from_id(19), NameTakenResponse)
+
+        self.assertEqual(messages.get_message_type_from_id(20), ServerAliveResponse)
+        self.assertEqual(messages.get_message_type_from_id(21), LobbyDuplicateResponse)
+        self.assertEqual(messages.get_message_type_from_id(22), LobbyBadMemberResponse)
+        self.assertEqual(messages.get_message_type_from_id(23), LastLoggedResponse)
+        self.assertEqual(messages.get_message_type_from_id(24), LastPlayedResponse)
+        self.assertEqual(messages.get_message_type_from_id(25), ServerRankingThisMonthResponse)
+        self.assertEqual(messages.get_message_type_from_id(26), LobbyStateResponse)
+        self.assertEqual(messages.get_message_type_from_id(27), OpponentDeadResponse)
+        self.assertEqual(messages.get_message_type_from_id(28), VoidScoreResponse)
+        self.assertEqual(messages.get_message_type_from_id(29), NameTakenResponseNo)
+
+        self.assertEqual(messages.get_message_type_from_id(30), NameTakenResponseYes)
+        self.assertEqual(messages.get_message_type_from_id(31), ChangePasswordResponseOk)
+        self.assertEqual(messages.get_message_type_from_id(32), UsePowerMessage)
+        self.assertEqual(messages.get_message_type_from_id(33), GameChatMessage)
+        self.assertEqual(messages.get_message_type_from_id(34), LobbyChatMessage)
+        self.assertEqual(messages.get_message_type_from_id(35), GrabPieceMessage)
+        self.assertEqual(messages.get_message_type_from_id(36), ReleasePieceMessage)
+        self.assertEqual(messages.get_message_type_from_id(37), SwitchPlayerMessage)
+        self.assertEqual(messages.get_message_type_from_id(38), RecursiveDoneMessage)
+        self.assertEqual(messages.get_message_type_from_id(39), SwitcherooMessage)
+
+        self.assertEqual(messages.get_message_type_from_id(40), RemoveOneWayWallMessage)
+        self.assertEqual(messages.get_message_type_from_id(41), BankruptActionMessage)
+        self.assertEqual(messages.get_message_type_from_id(42), RemovePlayerMessage)
+        self.assertEqual(messages.get_message_type_from_id(43), PowerNoEffectMessage)
+        self.assertEqual(messages.get_message_type_from_id(44), NukeMessage)
+        self.assertEqual(messages.get_message_type_from_id(45), JumpOnPieceMessage)
+        self.assertEqual(messages.get_message_type_from_id(46), GetPowerSquareMessage)
+        self.assertEqual(messages.get_message_type_from_id(47), SettingsLoadedMessage)
+        self.assertEqual(messages.get_message_type_from_id(48), AssignPowerSquareMessage)
+        self.assertEqual(messages.get_message_type_from_id(49), AssignNextPowerCountMessage)
+
+        self.assertEqual(messages.get_message_type_from_id(50), NewGridCoordMessage)
+        self.assertEqual(messages.get_message_type_from_id(51), ResignMessage)
+        self.assertEqual(messages.get_message_type_from_id(52), ChallengeMessage)
+        self.assertEqual(messages.get_message_type_from_id(53), ChallengeAuthMessage)
+        self.assertEqual(messages.get_message_type_from_id(54), SettingsReadyOffMessage)
+        self.assertEqual(messages.get_message_type_from_id(55), SettingsArenaSizeMessage)
+        self.assertEqual(messages.get_message_type_from_id(56), SettingsSquadronSizeMessage)
+        self.assertEqual(messages.get_message_type_from_id(57), SettingsTimerMessage)
+        self.assertEqual(messages.get_message_type_from_id(58), SettingsTopBottomMessage)
+        self.assertEqual(messages.get_message_type_from_id(59), SettingsColorMessage)
+
+        self.assertEqual(messages.get_message_type_from_id(60), SettingsReadyOnMessage)
+        self.assertEqual(messages.get_message_type_from_id(61), SettingsReadyOnAgainMessage)
 
 
 class RequestMessagesTest(unittest.TestCase):

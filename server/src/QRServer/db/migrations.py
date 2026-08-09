@@ -12,11 +12,14 @@ async def setup_metadata(c):
         ")")
 
 
-async def execute_migrations(c, config: Config, max_version=None):
-    version = await _select_version(c)
+async def execute_migrations(transaction, config: Config, max_version=None):
+    async with transaction('r') as c:
+        version = await _select_version(c)
+
     if version is None:
-        await c.execute("insert into metadata (name, value) values ('version', '0')")
-        version = 0
+        async with transaction('w') as c:
+            await c.execute("insert into metadata (name, value) values ('version', '0')")
+            version = 0
 
     migrations = [
         _migration_upgrade_to_v1,
@@ -31,7 +34,8 @@ async def execute_migrations(c, config: Config, max_version=None):
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
         if version <= i:
-            await migrations[i](c, config)
+            async with transaction('w') as c:
+                await migrations[i](c, config)
 
 
 async def _select_version(c):

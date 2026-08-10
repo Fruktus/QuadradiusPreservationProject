@@ -49,7 +49,7 @@ class GameServer:
                 if report:
                     await self.connector.add_match_result(report)
                     log.debug(f'Added match report {report}')
-                    result = await self.connector.get_match2(report.match_id)
+                    result = await self.connector.get_match_result(report.match_id)
                     log.info(f'A match has ended; '
                              f'{result.player_won} beat {result.player_lost} '
                              f'{result.won_score}-{result.lost_score}')

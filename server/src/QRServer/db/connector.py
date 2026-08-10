@@ -246,7 +246,7 @@ class DbConnector:
             is_void=bool(row[11]),
         )
 
-    async def get_match2(self, match_id: str):
+    async def get_match_result(self, match_id: str) -> GameResultHistory | None:
         c = await self.conn.cursor()
 
         await c.execute(

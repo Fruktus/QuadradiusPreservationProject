@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='QRServer',
-    version='1.1.1',
+    version='1.1.2',
     author='Fruktus, Kamil Jarosz',
     package_dir={'': 'src'},
     packages=find_packages('src'),

@@ -535,7 +535,7 @@ class DbConnector:
             finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
         )
 
-    async def list_tournaments(self) -> list[Tournament]:
+    async def list_tournaments(self) -> list[Tournament] | None:
         c = await self.conn.cursor()
         await c.execute(
             "select id, name, created_by_dc_id, tournament_msg_dc_id,"
@@ -732,7 +732,7 @@ class DbConnector:
             user2_id=row[4],
         )
 
-    async def get_duel_matches(self, tournament_id: str, duel_idx: int) -> list[DbMatchReport]:
+    async def get_duel_matches(self, tournament_id: str, duel_idx: int) -> list[DbMatchReport] | None:
         c = await self.conn.cursor()
         await c.execute(
             "select id, winner_id, loser_id, winner_pieces_left,"

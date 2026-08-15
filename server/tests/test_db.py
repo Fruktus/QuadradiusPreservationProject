@@ -1,10 +1,10 @@
+import asyncio
 import unittest
 from datetime import datetime, timezone
 from unittest.mock import patch
 import uuid
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
-from QRServer.db.common import UpdateCollisionError
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant
 from QRServer.common.classes import RankingEntry
@@ -395,43 +395,33 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(user.discord_user_id, '11111111111')
             self.assertFalse(user.is_guest)
 
-    async def test_update_rating_rollback(self):
-        # Forces collision (update during other update) to test if rollback will work
+    async def test_concurrent_rating_updates_do_not_lose_or_crash(self):
+        # Simulates two matches finishing at (almost) the same time and both trying to update same rating
 
         with patch('uuid.uuid4') as mock_uuid:
-            # Set up 4 users
             mock_uuid.return_value = '0'
-            winner = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            winner = await self.conn.authenticate_user('test_user_0', b'asd', auto_create=True)
             mock_uuid.return_value = '1'
-            loser = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+            loser = await self.conn.authenticate_user('test_user_1', b'asd', auto_create=True)
 
-            # This helper will be executed every time when update_user_rating rungs
-            # This will cause the outer call to fail (but the helper will succeed)
-            # so with 3 retries we should see 3 updates (revision 2 - counting from 0)
-            async def perform_conflicting_update():
-                await self.conn.update_users_rating(winner.user_id, loser.user_id, 4, 2025)
+        month, year = 4, 2025
 
-            # Try and update user rating - if every retry fails this will raise exception
-            collision_detected = False
-            try:
-                await self.conn.update_users_rating(winner.user_id, loser.user_id, 4, 2025, perform_conflicting_update)
-            except UpdateCollisionError:
-                collision_detected = True
+        async def call():
+            await self.conn._update_users_rating(winner.user_id, loser.user_id, month, year)
 
-            self.assertTrue(collision_detected)
+        await asyncio.wait_for(
+            asyncio.gather(call(), call(), return_exceptions=False),
+            timeout=5,
+        )
 
-            winner_rating = await self.conn.get_user_rating(winner.user_id, 4, 2025)
-            loser_rating = await self.conn.get_user_rating(loser.user_id, 4, 2025)
+        winner_rating = await self.conn.get_user_rating(winner.user_id, month, year)
+        loser_rating = await self.conn.get_user_rating(loser.user_id, month, year)
 
-            self.assertEqual(winner_rating.year, 2025)
-            self.assertEqual(winner_rating.month, 4)
-            self.assertEqual(winner_rating.rating, 580)
-            self.assertEqual(winner_rating.revision, 2)  # updated 3 times -> revision == 2
+        self.assertIsNotNone(winner_rating)
+        self.assertIsNotNone(loser_rating)
 
-            self.assertEqual(loser_rating.year, 2025)
-            self.assertEqual(loser_rating.month, 4)
-            self.assertEqual(loser_rating.rating, 420)
-            self.assertEqual(loser_rating.revision, 2)  # updated 3 times -> revision == 2
+        self.assertEqual(winner_rating.revision, 1)
+        self.assertEqual(loser_rating.revision, 1)
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
@@ -440,11 +430,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
         self.dbconn = DbConnector(':memory:', Config())
         # manually initialize the dbconn to avoid executing migrations
-        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=False)
-        c = await self.dbconn.conn.cursor()
-        await migrations.setup_metadata(c)
-        await self.dbconn.conn.commit()
-        self.c = await self.dbconn.conn.cursor()
+        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=True)
+
+        async with self.dbconn._transaction('w') as c:
+            await migrations.setup_metadata(c)
+
+        self.transaction = self.dbconn._transaction
 
     async def asyncTearDown(self):
         await self.dbconn.conn.close()
@@ -452,18 +443,20 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def get_table_names(self) -> list[str]:
         # Utility to pull the names of the existing tables
         # Flattens them to list of strings from tuples
-        await self.c.execute("select name from sqlite_master where type='table';")
-        tables = await self.c.fetchall()
-        return [i[0] for i in tables]
+        async with self.transaction('r') as c:
+            await c.execute("select name from sqlite_master where type='table';")
+            tables = await c.fetchall()
+            return [i[0] for i in tables]
 
     async def get_table_info(self, table_name: str) -> list[tuple]:
-        await self.c.execute(f'pragma table_info(\'{table_name}\')')
-        return await self.c.fetchall()
+        async with self.transaction('r') as c:
+            await c.execute(f'pragma table_info(\'{table_name}\')')
+            return await c.fetchall()
 
     async def test_migration_v1(self):
         self.assertNotIn('users', await self.get_table_names())
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 1)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
 
         self.assertIn('users', await self.get_table_names())
         table_info = await self.get_table_info('users')
@@ -474,23 +467,23 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[2][:3], (2, 'password', 'varchar'))
 
     async def test_migration_v2(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 1)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 3)
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 2)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 2)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 4)
         self.assertEqual(table_info[3][:3], (3, 'comment', 'varchar'))
 
     async def test_migration_v3(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 2)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 2)
 
         self.assertNotIn('matches', await self.get_table_names())
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 3)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 3)
 
         self.assertIn('matches', await self.get_table_names())
         table_info = await self.get_table_info('matches')
@@ -509,38 +502,39 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[11][:3], (11, 'is_void', 'INTEGER'))
 
     async def test_migration_v4(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 3)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 3)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 4)
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 4)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 4)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 5)
         self.assertEqual(table_info[4][:3], (4, 'created_at', 'INTEGER'))
 
     async def test_migration_v5(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 4)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 4)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 5)
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 5)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 5)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 6)
         self.assertEqual(table_info[5][:3], (5, 'discord_user_id', 'varchar'))
 
     async def test_migration_v6(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 5)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 5)
 
         async def make_user(id_: str, username: str):
-            await self.c.execute(
-                "insert or ignore into users(id, username, password, created_at, discord_user_id"
-                ") values (?, ?, ?, ?, ?)",
-                (id_, username, password_hash(b'password'), datetime.now(timezone.utc).timestamp(), None)
-            )
+            async with self.transaction('w') as c:
+                await c.execute(
+                    "insert or ignore into users(id, username, password, created_at, discord_user_id"
+                    ") values (?, ?, ?, ?, ?)",
+                    (id_, username, password_hash(b'password'), datetime.now(timezone.utc).timestamp(), None)
+                )
 
         await make_user('1', 'test_user_1')
         await make_user('2', 'test_user_2')
@@ -559,44 +553,43 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
             is_void=False,
             match_id='1234',
         )
-        await self.c.execute(
-            "insert into matches ("
-            "  id,"
-            "  winner_id,"
-            "  loser_id,"
-            "  winner_pieces_left,"
-            "  loser_pieces_left,"
-            "  move_counter,"
-            "  grid_size,"
-            "  squadron_size,"
-            "  started_at,"
-            "  finished_at,"
-            "  is_ranked,"
-            "  is_void"
-            ") values ("
-            "?, ?, ?, ?, ?, ?,"
-            "?, ?, ?, ?, ?, ?"
-            ")", (
-                test_match.match_id,
-                test_match.winner_id,
-                test_match.loser_id,
-                test_match.winner_pieces_left,
-                test_match.loser_pieces_left,
-                test_match.move_counter,
-                test_match.grid_size,
-                test_match.squadron_size,
-                test_match.started_at.timestamp(),
-                test_match.finished_at.timestamp(),
-                test_match.is_ranked,
-                test_match.is_void
+        async with self.transaction('w') as c:
+            await c.execute(
+                "insert into matches ("
+                "  id,"
+                "  winner_id,"
+                "  loser_id,"
+                "  winner_pieces_left,"
+                "  loser_pieces_left,"
+                "  move_counter,"
+                "  grid_size,"
+                "  squadron_size,"
+                "  started_at,"
+                "  finished_at,"
+                "  is_ranked,"
+                "  is_void"
+                ") values ("
+                "?, ?, ?, ?, ?, ?,"
+                "?, ?, ?, ?, ?, ?"
+                ")", (
+                    test_match.match_id,
+                    test_match.winner_id,
+                    test_match.loser_id,
+                    test_match.winner_pieces_left,
+                    test_match.loser_pieces_left,
+                    test_match.move_counter,
+                    test_match.grid_size,
+                    test_match.squadron_size,
+                    test_match.started_at.timestamp(),
+                    test_match.finished_at.timestamp(),
+                    test_match.is_ranked,
+                    test_match.is_void
+                )
             )
-        )
-
-        await self.dbconn.conn.commit()
 
         self.assertNotIn('rankings', await self.get_table_names())
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 6)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 6)
 
         self.assertIn('rankings', await self.get_table_names())
         table_info = await self.get_table_info('rankings')
@@ -609,18 +602,19 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[5][:3], (5, 'total_games', 'INTEGER'))
 
         # TODO self.get_ranking, compare
-        await self.c.execute('select * from rankings')
-        ranking_data = await self.c.fetchall()
+        async with self.transaction('r') as c:
+            await c.execute('select * from rankings')
+            ranking_data = await c.fetchall()
         self.assertEqual(len(ranking_data), 2)
         self.assertEqual(ranking_data[0], (2020, 1, 1, '1', 1, 1))
         self.assertEqual(ranking_data[1], (2020, 1, 2, '2', 0, 1))
 
     async def test_migration_v7(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 6)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 6)
 
         self.assertNotIn('user_ratings', await self.get_table_names())
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 7)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 7)
 
         self.assertIn('user_ratings', await self.get_table_names())
 
@@ -633,7 +627,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[4][:3], (4, 'rating', 'INTEGER'))
 
     async def test_migration_v8(self):
-        await migrations.execute_migrations(self.c, self.dbconn.config, 7)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 7)
 
         table_names = await self.get_table_names()
         self.assertNotIn('tournaments', table_names)
@@ -641,7 +635,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('tournament_duels', table_names)
         self.assertNotIn('tournament_matches', table_names)
 
-        await migrations.execute_migrations(self.c, self.dbconn.config, 8)
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
 
         table_names = await self.get_table_names()
         self.assertIn('tournaments', table_names)
@@ -686,13 +680,12 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
         self.dbconn = DbConnector(':memory:', Config())
         # manually initialize the dbconn to avoid executing migrations
-        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=False)
-        c = await self.dbconn.conn.cursor()
-        await migrations.setup_metadata(c)
+        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=True)
+        async with self.dbconn._transaction('w') as c:
+            await migrations.setup_metadata(c)
 
-        self.c = await self.dbconn.conn.cursor()
-        await migrations.execute_migrations(self.c, self.dbconn.config, 8)  # TODO either 8 or len(migrations)
-        await self.dbconn.conn.commit()
+        await migrations.execute_migrations(
+            self.dbconn._transaction, self.dbconn.config, 8)  # TODO either 8 or len(migrations)
 
     async def asyncTearDown(self):
         await self.dbconn.conn.close()

@@ -676,16 +676,8 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        import aiosqlite
-
         self.dbconn = DbConnector(':memory:', Config())
-        # manually initialize the dbconn to avoid executing migrations
-        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=True)
-        async with self.dbconn._transaction('w') as c:
-            await migrations.setup_metadata(c)
-
-        await migrations.execute_migrations(
-            self.dbconn._transaction, self.dbconn.config, 8)  # TODO either 8 or len(migrations)
+        await self.dbconn.connect()
 
     async def asyncTearDown(self):
         await self.dbconn.conn.close()

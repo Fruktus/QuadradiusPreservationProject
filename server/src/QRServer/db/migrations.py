@@ -30,6 +30,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v6,
         _migration_upgrade_to_v7,
         _migration_upgrade_to_v8,
+        _migration_upgrade_to_v9,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -259,3 +260,31 @@ async def _migration_upgrade_to_v8(c, _config):
     )
 
     await _set_version(c, 8)
+
+
+async def _migration_upgrade_to_v9(c, _config):
+    await c.execute(
+        "create table match_recordings ("
+        " id varchar primary key,"
+        " match_id varchar,"
+        " foreign key(match_id) references matches (id)"
+        ")"
+    )
+
+    await c.execute(
+        "create table match_recording_messages ("
+        " recording_id varchar,"
+        " seq integer,"
+        " timestamp integer,"
+        " sender_id varchar,"
+        " receiver_id varchar,"
+        " message_type integer,"
+        " message blob,"
+        " primary key(recording_id, seq),"
+        " foreign key(recording_id) references match_recordings (id)"
+        " foreign key(sender_id) references users (id)"
+        " foreign key(receiver_id) references users (id)"
+        ")"
+    )
+
+    await _set_version(c, 9)

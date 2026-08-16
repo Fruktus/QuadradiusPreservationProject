@@ -54,24 +54,34 @@ class DbConnector:
     async def get_user(self, user_id: str) -> DbUser | None:
         async with self._transaction("r") as c:
             await c.execute(
-                "select id, username, password, created_at, discord_user_id from users where id = ?", (
+                "select id, username, password, created_at, discord_user_id,"
+                " banned_at, ban_reason"
+                " from users u"
+                " left join bans b on u.id = b.user_id where u.id = ?", (
                     user_id,
                 ))
             row = await c.fetchone()
             if row is None:
                 return None
+
             return DbUser(
                 user_id=row[0],
                 username=row[1],
                 password=row[2],
                 created_at=row[3],
                 discord_user_id=row[4],
+                banned_at=timestamp_to_datetime(row[5]),
+                ban_reason=row[6],
             )
 
     async def get_user_by_username(self, username) -> DbUser | None:
         async with self._transaction("r") as c:
             await c.execute(
-                "select id, username, password, created_at, discord_user_id from users where username = ?", (
+                "select id, username, password, created_at, discord_user_id,"
+                " banned_at, ban_reason"
+                " from users u"
+                " left join bans b on u.id = b.user_id"
+                " where username = ?", (
                     username,
                 ))
             row = await c.fetchone()
@@ -83,12 +93,18 @@ class DbConnector:
                 password=row[2],
                 created_at=row[3],
                 discord_user_id=row[4],
+                banned_at=timestamp_to_datetime(row[5]),
+                ban_reason=row[6],
             )
 
     async def get_users_by_discord_id(self, discord_user_id: str) -> list[DbUser]:
         async with self._transaction("r") as c:
             await c.execute(
-                "select id, username, password, created_at, discord_user_id from users where discord_user_id = ?", (
+                "select id, username, password, created_at, discord_user_id,"
+                " banned_at, ban_reason"
+                " from users u"
+                " left join bans b on u.id = b.user_id"
+                " where discord_user_id = ?", (
                     discord_user_id,
                 ))
             rows = await c.fetchall()
@@ -103,7 +119,9 @@ class DbConnector:
                         username=row[1],
                         password=row[2],
                         created_at=row[3],
-                        discord_user_id=row[4]
+                        discord_user_id=row[4],
+                        banned_at=timestamp_to_datetime(row[5]),
+                        ban_reason=row[6],
                     )
                 )
             return result
@@ -140,8 +158,13 @@ class DbConnector:
                 )
 
         async with self._transaction("r") as c:
-            await c.execute("select id, username, password, created_at, discord_user_id from users where username = ?",
-                            (username,))
+            await c.execute(
+                "select id, username, password, created_at, discord_user_id,"
+                " banned_at, ban_reason"
+                " from users u"
+                " left join bans b on u.id = b.user_id"
+                " where username = ?",
+                (username,))
 
             row = await c.fetchone()
             if row is None:
@@ -153,6 +176,8 @@ class DbConnector:
                 password=row[2],
                 created_at=row[3],
                 discord_user_id=row[4],
+                banned_at=timestamp_to_datetime(row[5]),
+                ban_reason=row[6],
             )
 
             if not db_user.is_guest and verify_password and not password_verify(password, db_user.password):
@@ -576,12 +601,12 @@ class DbConnector:
     async def list_tournament_users(self, tournament_id: str) -> list[DbUser] | None:
         async with self._transaction("r") as c:
             await c.execute(
-                "select users.id, username, password, users.created_at, discord_user_id"
+                "select users.id, username, password, users.created_at, discord_user_id,"
+                " banned_at, ban_reason"
                 " from tournaments"
-                " left join tournament_participants"
-                " on tournaments.id = tournament_participants.tournament_id"
-                " left join users"
-                " on users.id = tournament_participants.user_id"
+                " left join tournament_participants on tournaments.id = tournament_participants.tournament_id"
+                " left join users on users.id = tournament_participants.user_id"
+                " left join bans on users.id = bans.user_id"
                 " where tournaments.id = ?",
                 (tournament_id,)
             )
@@ -603,6 +628,8 @@ class DbConnector:
                     password=row[2],
                     created_at=row[3],
                     discord_user_id=row[4],
+                    banned_at=timestamp_to_datetime(row[5]),
+                    ban_reason=row[6],
                 ))
             return result
 
@@ -844,6 +871,74 @@ class DbConnector:
                 )
             )
             return bool(c.rowcount)
+
+    async def ban_user(self, user_id: str, source_discord_id: str, ban_reason: str) -> bool:
+        """
+        Returns:
+            bool: True if succesfully banned
+        """
+
+        async with self._transaction("w") as c:
+            await c.execute(
+                "insert into bans ("
+                " user_id, banned_at, ban_reason"
+                ") values (?, ?, ?)"
+                "on conflict(user_id) do update set"
+                " banned_at = excluded.banned_at,"
+                " ban_reason = excluded.ban_reason",
+                (
+                    user_id,
+                    int(datetime.now(timezone.utc).timestamp()),
+                    ban_reason,
+                ),
+            )
+
+            if not bool(c.rowcount):
+                return False
+
+            await c.execute(
+                "insert into bans_audit_log ("
+                " timestamp, user_id, action, source_discord_id, ban_reason"
+                ") values (?, ?, ?, ?, ?)",
+                (
+                    int(datetime.now(timezone.utc).timestamp()),
+                    user_id,
+                    'ban',
+                    source_discord_id,
+                    ban_reason,
+                )
+            )
+
+        return True
+
+    async def unban_user(self, user_id: str, source_discord_id: str) -> bool:
+        """
+        Returns:
+            bool: True if succesfully unbanned
+        """
+
+        async with self._transaction("w") as c:
+            await c.execute(
+                "delete from bans"
+                " where user_id = ?",
+                (user_id, )
+            )
+            if not bool(c.rowcount):
+                return False
+
+            await c.execute(
+                "insert into bans_audit_log ("
+                " timestamp, user_id, action, source_discord_id"
+                ") values (?, ?, ?, ?)",
+                (
+                    int(datetime.now(timezone.utc).timestamp()),
+                    user_id,
+                    'unban',
+                    source_discord_id,
+                )
+            )
+
+        return True
 
 
 async def create_connector(config) -> DbConnector:

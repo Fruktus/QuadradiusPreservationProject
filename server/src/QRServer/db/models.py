@@ -13,10 +13,16 @@ class DbUser:
     password: str
     created_at: str
     discord_user_id: str
+    banned_at: datetime | None
+    ban_reason: str | None
 
     @property
     def is_guest(self):
         return self.username.lower().endswith(' guest')
+
+    @property
+    def is_banned(self):
+        return bool(self.banned_at)
 
 
 @dataclass

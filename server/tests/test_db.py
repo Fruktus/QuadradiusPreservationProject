@@ -673,6 +673,144 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[1][:3], (1, 'duel_idx', 'INTEGER'))
         self.assertEqual(table_info[2][:3], (2, 'match_id', 'varchar'))
 
+    async def test_migration_v9(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('match_results', table_names)
+
+        table_info = await self.get_table_info('matches')
+        self.assertEqual(len(table_info), 12)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'winner_id', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'loser_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'winner_pieces_left', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'loser_pieces_left', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'move_counter', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'grid_size', 'varchar'))
+        self.assertEqual(table_info[7][:3], (7, 'squadron_size', 'varchar'))
+        self.assertEqual(table_info[8][:3], (8, 'started_at', 'INTEGER'))
+        self.assertEqual(table_info[9][:3], (9, 'finished_at', 'INTEGER'))
+        self.assertEqual(table_info[10][:3], (10, 'is_ranked', 'INTEGER'))
+        self.assertEqual(table_info[11][:3], (11, 'is_void', 'INTEGER'))
+
+        async def make_user(id_: str, username: str):
+            async with self.transaction('w') as c:
+                await c.execute(
+                    "insert or ignore into users(id, username, password, created_at, discord_user_id"
+                    ") values (?, ?, ?, ?, ?)",
+                    (id_, username, password_hash(b'password'), datetime.now(timezone.utc).timestamp(), None)
+                )
+
+        await make_user('1', 'test_user_1')
+        await make_user('2', 'test_user_2')
+
+        test_match = DbMatchReport(
+            winner_id='1',
+            loser_id='2',
+            winner_pieces_left=10,
+            loser_pieces_left=5,
+            move_counter=20,
+            grid_size='small',
+            squadron_size='medium',
+            started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            finished_at=datetime(2020, 1, 1, 1, 0, 0, tzinfo=timezone.utc),
+            is_ranked=True,
+            is_void=False,
+            match_id='1234',
+        )
+        async with self.transaction('w') as c:
+            await c.execute(
+                "insert into matches ("
+                "  id,"
+                "  winner_id,"
+                "  loser_id,"
+                "  winner_pieces_left,"
+                "  loser_pieces_left,"
+                "  move_counter,"
+                "  grid_size,"
+                "  squadron_size,"
+                "  started_at,"
+                "  finished_at,"
+                "  is_ranked,"
+                "  is_void"
+                ") values ("
+                "?, ?, ?, ?, ?, ?,"
+                "?, ?, ?, ?, ?, ?"
+                ")", (
+                    test_match.match_id,
+                    test_match.winner_id,
+                    test_match.loser_id,
+                    test_match.winner_pieces_left,
+                    test_match.loser_pieces_left,
+                    test_match.move_counter,
+                    test_match.grid_size,
+                    test_match.squadron_size,
+                    test_match.started_at.timestamp(),
+                    test_match.finished_at.timestamp(),
+                    test_match.is_ranked,
+                    test_match.is_void
+                )
+            )
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
+
+        table_names = await self.get_table_names()
+        self.assertIn('matches', table_names)
+        self.assertIn('match_results', table_names)
+
+        table_info = await self.get_table_info('matches')
+        self.assertEqual(len(table_info), 5)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'user_1', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'user_2', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'is_ranked', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'started_at', 'INTEGER'))
+
+        table_info = await self.get_table_info('match_results')
+        self.assertEqual(len(table_info), 12)
+        self.assertEqual(table_info[0][:3], (0, 'match_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'winner_id', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'loser_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'winner_pieces_left', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'loser_pieces_left', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'move_counter', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'grid_size', 'varchar'))
+        self.assertEqual(table_info[7][:3], (7, 'squadron_size', 'varchar'))
+        self.assertEqual(table_info[8][:3], (8, 'started_at', 'INTEGER'))
+        self.assertEqual(table_info[9][:3], (9, 'finished_at', 'INTEGER'))
+        self.assertEqual(table_info[10][:3], (10, 'is_ranked', 'INTEGER'))
+        self.assertEqual(table_info[11][:3], (11, 'is_void', 'INTEGER'))
+
+        async with self.transaction('r') as c:
+            await c.execute('select id, user_1, user_2, is_ranked, started_at from matches')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 1)
+            row = rows[0]
+            self.assertEqual(row[0], '1234')
+            self.assertEqual(row[1], '1')
+            self.assertEqual(row[2], '2')
+            self.assertEqual(row[3], 1)
+            self.assertEqual(row[4], 1577836800)
+
+            await c.execute(
+                'select match_id, winner_id, loser_id, winner_pieces_left, loser_pieces_left,'
+                ' move_counter, grid_size, squadron_size, finished_at, is_void from match_results',
+            )
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 1)
+            row = rows[0]
+            self.assertEqual(row[0], '1234')
+            self.assertEqual(row[1], '1')
+            self.assertEqual(row[2], '2')
+            self.assertEqual(row[3], 10)
+            self.assertEqual(row[4], 5)
+            self.assertEqual(row[5], 20)
+            self.assertEqual(row[6], 'small')
+            self.assertEqual(row[7], 'medium')
+            self.assertEqual(row[8], 1577840400)
+            self.assertEqual(row[9], 0)
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

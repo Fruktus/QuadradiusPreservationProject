@@ -179,9 +179,28 @@ class DbConnector:
 
     async def add_match_result(self, match_result: DbMatchReport):
         async with self._transaction("w") as c:
+            user_1, user_2 = sorted((match_result.winner_id, match_result.loser_id))
+
             await c.execute(
                 "insert into matches ("
                 "  id,"
+                "  user_1,"
+                "  user_2,"
+                "  is_ranked,"
+                "  started_at"
+                ") values ("
+                "?, ?, ?, ?, ?"
+                ")", (
+                    match_result.match_id,
+                    user_1,
+                    user_2,
+                    match_result.is_ranked,
+                    match_result.started_at.timestamp(),
+                ))
+
+            await c.execute(
+                "insert into match_results ("
+                "  match_id,"
                 "  winner_id,"
                 "  loser_id,"
                 "  winner_pieces_left,"
@@ -189,13 +208,11 @@ class DbConnector:
                 "  move_counter,"
                 "  grid_size,"
                 "  squadron_size,"
-                "  started_at,"
                 "  finished_at,"
-                "  is_ranked,"
                 "  is_void"
                 ") values ("
-                "?, ?, ?, ?, ?, ?,"
-                "?, ?, ?, ?, ?, ?"
+                "?, ?, ?, ?, ?,"
+                "?, ?, ?, ?, ?"
                 ")", (
                     match_result.match_id,
                     match_result.winner_id,
@@ -205,10 +222,8 @@ class DbConnector:
                     match_result.move_counter,
                     match_result.grid_size,
                     match_result.squadron_size,
-                    match_result.started_at.timestamp(),
                     match_result.finished_at.timestamp(),
-                    match_result.is_ranked,
-                    match_result.is_void
+                    match_result.is_void,
                 ))
 
             start_date, end_date = utils.make_month_dates(
@@ -232,9 +247,11 @@ class DbConnector:
             await c.execute(
                 "select id, winner_id, loser_id, winner_pieces_left,"
                 " loser_pieces_left, move_counter, grid_size,"
-                " squadron_size, started_at, finished_at, is_ranked,"
+                " squadron_size, m.started_at, finished_at, m.is_ranked,"
                 " is_void"
-                " from matches where id = ?", (
+                " from matches m"
+                " left join match_results r on m.id = r.match_id"
+                " where id = ?", (
                     match_id,
                 ))
             row = await c.fetchone()
@@ -261,14 +278,15 @@ class DbConnector:
                 "select"
                 " u1.username,"
                 " u2.username,"
-                " m.winner_pieces_left,"
-                " m.loser_pieces_left,"
+                " r.winner_pieces_left,"
+                " r.loser_pieces_left,"
                 " m.started_at,"
-                " m.finished_at,"
-                " m.move_counter"
+                " r.finished_at,"
+                " r.move_counter"
                 " from matches m"
-                " left join users u1 on m.winner_id = u1.id"
-                " left join users u2 on m.loser_id = u2.id"
+                " left join match_results r on m.id = r.match_id"
+                " left join users u1 on r.winner_id = u1.id"
+                " left join users u2 on r.loser_id = u2.id"
                 " where m.id = ?", (match_id,))
 
             row = await c.fetchone()
@@ -290,16 +308,17 @@ class DbConnector:
             await c.execute("select"
                             " u1.username,"
                             " u2.username,"
-                            " m.winner_pieces_left,"
-                            " m.loser_pieces_left,"
+                            " r.winner_pieces_left,"
+                            " r.loser_pieces_left,"
                             " m.started_at,"
-                            " m.finished_at,"
-                            " m.move_counter"
+                            " r.finished_at,"
+                            " r.move_counter"
                             " from matches m"
-                            " left join users u1 on m.winner_id = u1.id"
-                            " left join users u2 on m.loser_id = u2.id"
-                            " where m.is_void = 0"
-                            " order by m.finished_at desc"
+                            " left join match_results r on m.id = r.match_id"
+                            " left join users u1 on r.winner_id = u1.id"
+                            " left join users u2 on r.loser_id = u2.id"
+                            " where r.is_void = 0"
+                            " order by r.finished_at desc"
                             " limit ?", (count,))
 
             recent_matches = []
@@ -384,15 +403,16 @@ class DbConnector:
                 "select"
                 " u.username,"
                 " u.id,"
-                " sum(m.winner_id = u.id) as total_wins,"
+                " sum(mr.winner_id = u.id) as total_wins,"
                 " count(*) as total_games"
                 " from users u"
-                " inner join matches m on (u.id = m.winner_id or u.id = m.loser_id)"
+                " inner join match_results mr on (u.id = mr.winner_id or u.id = mr.loser_id)"
+                " inner join matches m on m.id = mr.match_id"
                 " inner join user_ratings r on (u.id = r.user_id) and r.month = ? and r.year = ?"
-                " where m.finished_at >= ?"
-                " and m.finished_at < ?"
+                " where mr.finished_at >= ?"
+                " and mr.finished_at < ?"
                 " and (case when ? = 1 then m.is_ranked = 1 else 1=1 end)"
-                " and (case when ? = 0 then m.is_void = 0 else 1=1 end)"
+                " and (case when ? = 0 then mr.is_void = 0 else 1=1 end)"
                 " group by u.username"
                 " order by rating desc, total_games desc, total_wins desc, u.id desc"
                 " limit 100", (
@@ -724,11 +744,12 @@ class DbConnector:
             await c.execute(
                 "select id, winner_id, loser_id, winner_pieces_left,"
                 " loser_pieces_left, move_counter, grid_size,"
-                " squadron_size, started_at, finished_at, is_ranked,"
-                " is_void"
-                " from matches"
+                " squadron_size, m.started_at, finished_at, m.is_ranked,"
+                " r.is_void"
+                " from matches m"
                 " right join tournament_matches"
-                " on matches.id = tournament_matches.match_id"
+                " on m.id = tournament_matches.match_id"
+                " left join match_results r on m.id = r.match_id"
                 " where tournament_matches.tournament_id = ? and tournament_matches.duel_idx = ?",
                 (
                     tournament_id,
@@ -759,15 +780,16 @@ class DbConnector:
     async def list_tournament_matches(self, tournament_id: str) -> list[TournamentMatch] | None:
         async with self._transaction("r") as c:
             await c.execute(
-                "select matches.id, winner_id, loser_id, winner_pieces_left,"
+                "select m.id, winner_id, loser_id, winner_pieces_left,"
                 " loser_pieces_left, move_counter, grid_size,"
-                " squadron_size, matches.started_at, matches.finished_at, is_ranked,"
-                " is_void, duel_idx"
+                " squadron_size, m.started_at, r.finished_at, m.is_ranked,"
+                " r.is_void, duel_idx"
                 " from tournaments"
                 " left join tournament_matches"
                 " on tournaments.id = tournament_matches.tournament_id"
-                " left join matches"
-                " on matches.id = tournament_matches.match_id"
+                " left join matches m"
+                " on m.id = tournament_matches.match_id"
+                " left join match_results r on m.id = r.match_id"
                 " where tournaments.id = ?",
                 (tournament_id,)
             )

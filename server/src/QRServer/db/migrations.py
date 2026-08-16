@@ -30,6 +30,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v6,
         _migration_upgrade_to_v7,
         _migration_upgrade_to_v8,
+        _migration_upgrade_to_v9,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -259,3 +260,30 @@ async def _migration_upgrade_to_v8(c, _config):
     )
 
     await _set_version(c, 8)
+
+
+async def _migration_upgrade_to_v9(c, _config):
+    await c.execute("alter table matches rename to match_results")
+
+    await c.execute(
+        "create table matches ("
+        "  id varchar primary key,"
+        "  user_1 varchar,"
+        "  user_2 varchar,"
+        "  is_ranked integer,"
+        "  started_at integer,"
+        "  foreign key(user_1) references users (id),"
+        "  foreign key(user_2) references users (id)"
+        ")")
+
+    await c.execute(
+        "insert into matches (id, user_1, user_2, is_ranked, started_at)"
+        " select id,"
+        "   case when winner_id < loser_id then winner_id else loser_id end,"
+        "   case when winner_id < loser_id then loser_id else winner_id end,"
+        "   is_ranked, started_at"
+        " from match_results")
+
+    await c.execute("alter table match_results rename column id to match_id")
+
+    await _set_version(c, 9)

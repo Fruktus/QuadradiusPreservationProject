@@ -542,8 +542,8 @@ class DbConnector:
                 tournament_msg_dc_id=row[3],
                 required_matches_per_duel=row[4],
                 created_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
-                started_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
-                finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
+                started_at=timestamp_to_datetime(row[6]),
+                finished_at=timestamp_to_datetime(row[7]),
             )
 
     async def list_tournaments(self) -> list[Tournament] | None:
@@ -568,8 +568,8 @@ class DbConnector:
                     tournament_msg_dc_id=row[3],
                     required_matches_per_duel=row[4],
                     created_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
-                    started_at=datetime.fromtimestamp(row[6], tz=timezone.utc) if row[6] else None,
-                    finished_at=datetime.fromtimestamp(row[7], tz=timezone.utc) if row[7] else None,
+                    started_at=timestamp_to_datetime(row[6]),
+                    finished_at=timestamp_to_datetime(row[7]),
                 ))
             return result
 
@@ -854,3 +854,10 @@ async def create_connector(config) -> DbConnector:
     c = DbConnector(dbfile, config)
     await c.connect()
     return c
+
+
+def timestamp_to_datetime(timestamp: int | None) -> datetime | None:
+    try:
+        return datetime.fromtimestamp(timestamp, tz=timezone.utc) if timestamp else None
+    except ValueError:
+        return None

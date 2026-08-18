@@ -31,6 +31,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v7,
         _migration_upgrade_to_v8,
         _migration_upgrade_to_v9,
+        _migration_upgrade_to_v10,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -287,3 +288,28 @@ async def _migration_upgrade_to_v9(c, _config):
     await c.execute("alter table match_results rename column id to match_id")
 
     await _set_version(c, 9)
+
+
+async def _migration_upgrade_to_v10(c, config):
+    await c.execute(
+        "create table bans ("
+        " user_id varchar primary key,"
+        " banned_at integer,"
+        " ban_reason varchar,"
+        " foreign key(user_id) references users (id)"
+        ")"
+    )
+
+    await c.execute(
+        "create table bans_audit_log ("
+        " id integer primary key autoincrement,"
+        " timestamp integer,"
+        " user_id varchar,"
+        " action varchar check( action in ('ban','unban')),"
+        " source_discord_id varchar,"
+        " ban_reason varchar,"
+        " foreign key(user_id) references users (id)"
+        ")"
+    )
+
+    await _set_version(c, 10)

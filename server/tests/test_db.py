@@ -423,6 +423,124 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(winner_rating.revision, 1)
         self.assertEqual(loser_rating.revision, 1)
 
+    async def test_ban_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        user = await self.conn.get_user(user_id)
+        self.assertFalse(user.is_banned)
+        self.assertIsNone(user.banned_at)
+        self.assertIsNone(user.ban_reason)
+        async with self.conn._transaction('r') as c:
+            await c.execute('select * from bans_audit_log')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 0)
+
+        with patch('QRServer.db.connector.datetime') as dt_mock:
+            dt_mock.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            result = await self.conn.ban_user(user_id, '123', 'Test Ban')
+            self.assertTrue(result)
+
+        user = await self.conn.get_user(user_id)
+
+        self.assertEqual(user.is_banned, True)
+        self.assertEqual(user.banned_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(user.ban_reason, 'Test Ban')
+        async with self.conn._transaction('r') as c:
+            await c.execute('select id, timestamp, user_id, action, source_discord_id, ban_reason from bans_audit_log')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 1)
+            row = rows[0]
+            self.assertEqual(row[0], 1)
+            self.assertEqual(row[1], int(datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()))
+            self.assertEqual(row[2], user_id)
+            self.assertEqual(row[3], 'ban')
+            self.assertEqual(row[4], '123')
+            self.assertEqual(row[5], 'Test Ban')
+
+    @unittest.skip('At the time of writing sqlite does not enforce FK constraints, this will fail')
+    async def test_ban_nonexistent_user(self):
+        result = await self.conn.ban_user('asd', '123', 'Test Ban')
+        self.assertFalse(result)
+
+    async def test_ban_banned_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+
+        # Ban user for the first time
+        with patch('QRServer.db.connector.datetime') as dt_mock:
+            dt_mock.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            result = await self.conn.ban_user(user_id, '123', 'Test Ban')
+            self.assertTrue(result)
+
+        user = await self.conn.get_user(user_id)
+        self.assertEqual(user.is_banned, True)
+        self.assertEqual(user.banned_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(user.ban_reason, 'Test Ban')
+
+        # Ban user for the second time
+        with patch('QRServer.db.connector.datetime') as dt_mock:
+            dt_mock.now.return_value = datetime(2020, 2, 1, 0, 0, 0, tzinfo=timezone.utc)
+            result = await self.conn.ban_user(user_id, '321', 'Test Ban 2')
+            self.assertTrue(result)
+
+        user = await self.conn.get_user(user_id)
+        self.assertEqual(user.is_banned, True)
+        self.assertEqual(user.banned_at, datetime(2020, 2, 1, 0, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(user.ban_reason, 'Test Ban 2')
+
+        async with self.conn._transaction('r') as c:
+            await c.execute('select * from bans_audit_log')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 2)
+
+    async def test_unban_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        user = await self.conn.get_user(user_id)
+
+        await self.conn.ban_user(user_id, '123', 'Test Ban')
+        user = await self.conn.get_user(user_id)
+        self.assertEqual(user.is_banned, True)
+
+        with patch('QRServer.db.connector.datetime') as dt_mock:
+            dt_mock.now.return_value = datetime(2020, 2, 1, 0, 0, 0, tzinfo=timezone.utc)
+            result = await self.conn.unban_user(user_id, '321')
+            self.assertTrue(result)
+
+        user = await self.conn.get_user(user_id)
+        self.assertFalse(user.is_banned)
+        self.assertIsNone(user.banned_at)
+        self.assertIsNone(user.ban_reason)
+
+        async with self.conn._transaction('r') as c:
+            await c.execute('select id, timestamp, user_id, action, source_discord_id, ban_reason from bans_audit_log')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 2)
+            row = rows[1]
+            self.assertEqual(row[0], 2)
+            self.assertEqual(row[1], int(datetime(2020, 2, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp()))
+            self.assertEqual(row[2], user_id)
+            self.assertEqual(row[3], 'unban')
+            self.assertEqual(row[4], '321')
+            self.assertEqual(row[5], None)
+
+    async def test_unban_nonexistent_user(self):
+        result = await self.conn.unban_user('asd', '123')
+        self.assertFalse(result)
+
+        async with self.conn._transaction('r') as c:
+            await c.execute('select * from bans_audit_log')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 0)
+
+    async def test_unban_nonbanned_user(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+
+        result = await self.conn.unban_user(user_id, '123')
+        self.assertFalse(result)
+
+        async with self.conn._transaction('r') as c:
+            await c.execute('select * from bans_audit_log')
+            rows = await c.fetchall()
+            self.assertEqual(len(rows), 0)
+
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -839,6 +957,39 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(row[7], 'medium')
             self.assertEqual(row[8], 1577840400)
             self.assertEqual(row[9], 0)
+
+    async def test_migration_v10(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('bans', table_names)
+        self.assertNotIn('bans_audit_log', table_names)
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
+
+        table_names = await self.get_table_names()
+        ver = await self.get_db_version()
+        self.assertEqual(ver, 10)
+        self.assertIn('bans', table_names)
+        self.assertIn('bans_audit_log', table_names)
+
+        table_info = await self.get_table_info('bans')
+
+        self.assertEqual(len(table_info), 3)
+        self.assertEqual(table_info[0][:3], (0, 'user_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'banned_at', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'ban_reason', 'varchar'))
+
+        table_info = await self.get_table_info('bans_audit_log')
+
+        self.assertEqual(len(table_info), 6)
+        self.assertEqual(ver, 10)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'INTEGER'))
+        self.assertEqual(table_info[1][:3], (1, 'timestamp', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'user_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'action', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'source_discord_id', 'varchar'))
+        self.assertEqual(table_info[5][:3], (5, 'ban_reason', 'varchar'))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

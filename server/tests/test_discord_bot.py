@@ -32,7 +32,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_register_new_user(self):
         with patch('QRServer.discord.bot.utils.generate_random_password', return_value='123asd4567'):
-            self.bot._send_user_notification = AsyncMock()
+            self.bot._send_notification = AsyncMock()
 
             await self.bot._register(self.interaction, self.username)
             user = await self.conn.get_user_by_username(self.username)
@@ -52,10 +52,12 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
                 "You can change it in the game.\n"
                 "If you forget it, you can run `/resetpassword test_user` to reset it.")
 
-            self.bot._send_user_notification.assert_called_once_with(
+            self.bot._send_notification.assert_called_once_with(
                 "### Account registered\n"
                 "- Owner: <@123>\n"
-                "- Username: `test_user`")
+                "- Username: `test_user`",
+                "111",
+                )
 
     async def test_register_user_in_wrong_guild(self):
         self.interaction.user.guild.id = '1111111'
@@ -118,7 +120,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_claim_user(self):
         with patch('QRServer.discord.bot.utils.generate_random_password', return_value='123asd4567'):
-            self.bot._send_user_notification = AsyncMock()
+            self.bot._send_notification = AsyncMock()
             await self.conn.authenticate_user(self.username, password=None, verify_password=False, auto_create=True)
 
             await self.bot._claim(self.interaction, self.username)
@@ -135,10 +137,12 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
                 "You can change it in the game.\n"
                 "If you forget it, you can run `/resetpassword test_user` to reset it.")
 
-            self.bot._send_user_notification.assert_called_once_with(
+            self.bot._send_notification.assert_called_once_with(
                 "### Account claimed\n"
                 "- Owner: <@123>\n"
-                "- Username: `test_user`")
+                "- Username: `test_user`",
+                "111",
+                )
 
     async def test_claim_user_in_wrong_guild(self):
         self.interaction.user.guild.id = '1111111'

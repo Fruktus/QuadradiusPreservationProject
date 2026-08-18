@@ -1,3 +1,4 @@
+import logging
 import sys
 from argparse import ArgumentParser
 from dataclasses import dataclass, field
@@ -6,6 +7,7 @@ from typing import Any, Callable
 import toml
 
 from QRServer import config_handlers
+log = logging.getLogger('qr.config')
 
 
 @dataclass
@@ -250,7 +252,12 @@ class Config:
         return conf
 
     def set(self, name: str, value: str | int):
-        key = self.get_key(name)
+        try:
+            key = self.get_key(name)
+        except Exception as e:
+            log.warning(f'Unsupported config key detected, omitting: {e}')
+            return
+
         value_type = key.get_type()
 
         if value is None:

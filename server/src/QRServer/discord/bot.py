@@ -121,10 +121,12 @@ class DiscordBot:
             discord_user_id=str(interaction.user.id),
         )
 
-        await self._send_user_notification(
+        await self._send_notification(
             "### Account registered\n"
             f"- Owner: <@{interaction.user.id}>\n"
-            f"- Username: `{username}`")
+            f"- Username: `{username}`",
+            self.user_notifications_channel_id,
+        )
 
         # Respond to interaction so it doesn't show as command fail
         # and send credentials via DM
@@ -180,10 +182,12 @@ class DiscordBot:
             discord_user_id=str(interaction.user.id),
         )
 
-        await self._send_user_notification(
+        await self._send_notification(
             "### Account claimed\n"
             f"- Owner: <@{interaction.user.id}>\n"
-            f"- Username: `{username}`")
+            f"- Username: `{username}`",
+            self.user_notifications_channel_id,
+        )
 
         # Respond to interaction so it doesn't show as command fail
         # and send credentials via DM
@@ -312,17 +316,14 @@ class DiscordBot:
 
         return (True, "")
 
-    async def _send_user_notification(self, message: str) -> None:
-        # Send a message to the user notifications channel
-        if not self.user_notifications_channel_id:
-            return
-
-        channel = self.client.get_channel(int(self.user_notifications_channel_id))
+    async def _send_notification(self, message: str, channel: str) -> None:
+        discord_channel = self.client.get_channel(int(channel))
         allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
+
         if isinstance(channel, allowed_channels):
-            log.debug(f"Sending user notification: {repr(message)}")
-            await channel.send(message)
+            log.debug(f"Sending notification: {repr(message)}")
+            await discord_channel.send(message)
         else:
             log.warning(
-                'User notifications channel not found or not accepting messages: ' +
-                self.user_notifications_channel_id)
+                'notifications channel not found or not accepting messages: ' +
+                str(discord_channel))

@@ -425,7 +425,7 @@ class DiscordBot:
         discord_channel = self.client.get_channel(int(channel))
         allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
 
-        if isinstance(channel, allowed_channels):
+        if isinstance(discord_channel, allowed_channels):
             log.debug(f"Sending notification: {repr(message)}")
             await discord_channel.send(message)
         else:

@@ -294,10 +294,15 @@ class DiscordBot:
 
         if not user.discord_user_id:
             await interaction.response.send_message(
+                f"Banned user: `{username}`.\n"
                 "This user has no Discord ID",
                 ephemeral=True,
             )
             return
+        else:
+            await interaction.response.send_message(
+                f"Banned user: `{username}`.", ephemeral=True
+            )
 
         if not user.is_banned:
             discord_user = await self.client.fetch_user(int(user.discord_user_id))
@@ -343,10 +348,16 @@ class DiscordBot:
 
         if not user.discord_user_id:
             await interaction.response.send_message(
+                f"Unbanned user: `{username}`.\n"
                 "This user has no Discord ID",
                 ephemeral=True,
             )
             return
+        else:
+            await interaction.response.send_message(
+                f"Unbanned user: `{username}`.",
+                ephemeral=True,
+            )
 
         discord_user = await self.client.fetch_user(int(user.discord_user_id))
         await discord_user.send(

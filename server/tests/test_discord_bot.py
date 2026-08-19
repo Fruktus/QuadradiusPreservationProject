@@ -241,7 +241,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
         await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
 
-        self.interaction.response.send_message.assert_not_called()
+        self.interaction.response.send_message.assert_called_once_with('Banned user: `test_user`.', ephemeral=True)
         self.interaction.user.send.assert_not_called()
 
         self.bot._send_notification.assert_called_once_with(
@@ -281,7 +281,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.bot.client.fetch_user.return_value = user_sender_mock
         await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
 
-        self.interaction.response.send_message.assert_not_called()
+        self.interaction.response.send_message.assert_called_once_with('Banned user: `test_user`.', ephemeral=True)
         self.interaction.user.send.assert_not_called()
 
         self.bot._send_notification.assert_called_once_with(
@@ -303,7 +303,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
         await self.bot._unban_user(self.interaction, self.username)
 
-        self.interaction.response.send_message.assert_not_called()
+        self.interaction.response.send_message.assert_called_once_with('Unbanned user: `test_user`.', ephemeral=True)
         self.interaction.user.send.assert_not_called()
 
         self.bot._send_notification.assert_called_once_with(
@@ -351,7 +351,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
 
         self.interaction.response.send_message.assert_called_once_with(
-            'This user has no Discord ID',
+            "Banned user: `test_user`.\n"
+            "This user has no Discord ID",
             ephemeral=True,
         )
         self.interaction.user.send.assert_not_called()
@@ -376,7 +377,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self.bot._unban_user(self.interaction, self.username)
 
         self.interaction.response.send_message.assert_called_once_with(
-            'This user has no Discord ID',
+            "Unbanned user: `test_user`.\n"
+            "This user has no Discord ID",
             ephemeral=True,
         )
         self.interaction.user.send.assert_not_called()

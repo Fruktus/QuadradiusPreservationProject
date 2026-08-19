@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import unittest
 from unittest.mock import AsyncMock, patch
 
@@ -14,6 +15,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.config.set('discord.bot.guild_id', '123')
         self.config.set('discord.bot.max_aliases', 1)
         self.config.set('discord.bot.channel_user_notifications.id', '111')
+        self.config.set('discord.bot.channel_ban_notifications.id', '222')
 
         self.conn = DbConnector(':memory:', self.config)
         await self.conn.connect()
@@ -228,3 +230,160 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.interaction.response.send_message.assert_called_once_with(
             "You do not have an account with username: `test_user`.\nOwned accounts: `test_user2`, `test_user3`",
             ephemeral=True)
+
+    async def test_ban_user(self):
+        self.bot._send_notification = AsyncMock()
+        user_sender_mock = AsyncMock()
+        self.bot.client.fetch_user = AsyncMock()
+        self.bot.client.fetch_user.return_value = user_sender_mock
+
+        await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='123')
+
+        await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+
+        self.interaction.response.send_message.assert_not_called()
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_called_once_with(
+            "### Account banned\n"
+            "- Banned user: `test_user`\n"
+            "- Banned by: <@123>\n"
+            "- Reason: *Test Ban*\n", '222')
+
+        user_sender_mock.send.assert_called_once_with(
+            "### Ban\n"
+            "- Your account: `test_user` has been banned.\n"
+            "- Reason: *Test Ban*\n"
+        )
+
+    async def test_ban_nonexistent_user(self):
+        self.bot._send_notification = AsyncMock()
+
+        await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            'User with username "test_user" has not been found', ephemeral=True)
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_not_called()
+
+    async def test_ban_banned_user(self):
+        self.bot._send_notification = AsyncMock()
+        user_sender_mock = AsyncMock()
+        self.bot.client.fetch_user = AsyncMock()
+        user_id = await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='123')
+
+        with patch('QRServer.db.connector.datetime') as mock_dt:
+            mock_dt.now.return_value = datetime(2020, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+            result = await self.conn.ban_user(user_id, '123', 'Test Ban')
+            self.assertTrue(result)
+
+        self.bot.client.fetch_user.return_value = user_sender_mock
+        await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+
+        self.interaction.response.send_message.assert_not_called()
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_called_once_with(
+            "### Account banned (again)\n"
+            "- Banned user: `test_user`\n"
+            "- Banned by: <@123>\n"
+            "- Reason: *Test Ban*\n", '222')
+
+        user_sender_mock.send.assert_not_called()
+
+    async def test_unban_user(self):
+        self.bot._send_notification = AsyncMock()
+        user_sender_mock = AsyncMock()
+        self.bot.client.fetch_user = AsyncMock()
+        self.bot.client.fetch_user.return_value = user_sender_mock
+
+        user_id = await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='123')
+        await self.conn.ban_user(user_id, '123', 'Test Ban')
+
+        await self.bot._unban_user(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_not_called()
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_called_once_with(
+            "### Account unbanned\n"
+            "- Unbanned user: `test_user`\n"
+            "- Unbanned by: <@123>\n", '222')
+
+        user_sender_mock.send.assert_called_once_with(
+            "### Unban\n"
+            "- Your account: `test_user` has been unbanned.\n"
+        )
+
+    async def test_unban_nonexistent_user(self):
+        self.bot._send_notification = AsyncMock()
+
+        await self.bot._unban_user(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            'User with username "test_user" has not been found', ephemeral=True)
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_not_called()
+
+    async def test_unban_nonbanned_user(self):
+        self.bot._send_notification = AsyncMock()
+        await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='123')
+
+        await self.bot._unban_user(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            'This user is not currently banned',
+            ephemeral=True)
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_not_called()
+
+    async def test_ban_user_without_dc_id(self):
+        self.bot._send_notification = AsyncMock()
+        user_sender_mock = AsyncMock()
+        self.bot.client.fetch_user = AsyncMock()
+        self.bot.client.fetch_user.return_value = user_sender_mock
+
+        await self.conn.create_member(self.username, 'asd'.encode())
+
+        await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            'This user has no Discord ID',
+            ephemeral=True,
+        )
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_called_once_with(
+            "### Account banned\n"
+            "- Banned user: `test_user`\n"
+            "- Banned by: <@123>\n"
+            "- Reason: *Test Ban*\n", '222')
+
+        user_sender_mock.send.assert_not_called()
+
+    async def test_unban_user_without_dc_id(self):
+        self.bot._send_notification = AsyncMock()
+        user_sender_mock = AsyncMock()
+        self.bot.client.fetch_user = AsyncMock()
+        self.bot.client.fetch_user.return_value = user_sender_mock
+
+        user_id = await self.conn.create_member(self.username, 'asd'.encode())
+        await self.conn.ban_user(user_id, '123', 'Test Ban')
+
+        await self.bot._unban_user(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            'This user has no Discord ID',
+            ephemeral=True,
+        )
+        self.interaction.user.send.assert_not_called()
+
+        self.bot._send_notification.assert_called_once_with(
+            "### Account unbanned\n"
+            "- Unbanned user: `test_user`\n"
+            "- Unbanned by: <@123>\n", '222')
+
+        user_sender_mock.send.assert_not_called()

@@ -5,7 +5,7 @@ window.RufflePlayer = window.RufflePlayer || {};
 window.RufflePlayer.config = {
     autoplay: "on",
     contextMenu: "off",
-    logLevel: "debug",
+    logLevel: "info",
     socketProxy: [
         {
             host: "127.0.0.1",

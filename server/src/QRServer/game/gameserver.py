@@ -1,6 +1,7 @@
 import logging
 
 from QRServer.common.classes import MatchId, Match, MatchStats
+from QRServer.db.connector import DbConnector
 from QRServer.discord.webhook import Webhook
 from QRServer.game.gameclient import GameClientHandler
 
@@ -10,7 +11,7 @@ log = logging.getLogger('qr.game_server')
 class GameServer:
     matches: dict[MatchId, Match]
 
-    def __init__(self, config, connector):
+    def __init__(self, config, connector: DbConnector):
         self.config = config
         self.connector = connector
         self.webhook = Webhook(config)
@@ -47,7 +48,7 @@ class GameServer:
             try:
                 report = match.generate_match_report()
                 if report:
-                    await self.connector.add_match_result(report)
+                    await self.connector.create_match_and_add_result(report)
                     log.debug(f'Added match report {report}')
                     result = await self.connector.get_match_result(report.match_id)
                     log.info(f'A match has ended; '

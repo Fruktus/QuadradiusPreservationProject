@@ -24,7 +24,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
             )
 
     async def _login(self, client, username='testuser', password='asd'):
-        async with client.post('/oauth/token', json={
+        async with client.post('/api/v1/oauth/token', json={
             'grant_type': 'password',
             'username': username,
             'password': md5(f'++{username.upper()}++{password}'.encode()).hexdigest(),
@@ -39,8 +39,8 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
             doc = await r.json()
 
         self.assertEqual(doc['issuer'], 'http://localhost')
-        self.assertEqual(doc['token_endpoint'], 'http://localhost/oauth/token')
-        self.assertEqual(doc['userinfo_endpoint'], 'http://localhost/oauth/userinfo')
+        self.assertEqual(doc['token_endpoint'], 'http://localhost/api/v1/oauth/token')
+        self.assertEqual(doc['userinfo_endpoint'], 'http://localhost/api/v1/oauth/userinfo')
         self.assertEqual(doc['response_types_supported'], ['token'])
         self.assertEqual(doc['grant_types_supported'], ['password', 'refresh_token'])
         self.assertEqual(doc['token_endpoint_auth_methods_supported'], ['none'])
@@ -49,7 +49,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
     async def test_password_grant_missing_body(self):
         client = await self.new_api_client('v1')
 
-        async with client.post('/oauth/token') as r:
+        async with client.post('/api/v1/oauth/token') as r:
             self.assertEqual(r.status, 400)
             self.assertEqual((await r.json())['error'], 'invalid_request')
 
@@ -57,7 +57,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
         client = await self.new_api_client('v1')
 
         # Missing field
-        async with client.post('/oauth/token', json={
+        async with client.post('/api/v1/oauth/token', json={
             'grant_type': 'password',
             'username': 'testuser',
         }) as r:
@@ -65,7 +65,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
             self.assertEqual((await r.json())['error'], 'invalid_request')
 
         # Value present but set to None
-        async with client.post('/oauth/token', json={
+        async with client.post('/api/v1/oauth/token', json={
             'grant_type': 'password',
             'username': 'testuser',
             'password': None
@@ -126,7 +126,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
     async def test_unsupported_grant_type(self):
         client = await self.new_api_client('v1')
 
-        async with client.post('/oauth/token', json={
+        async with client.post('/api/v1/oauth/token', json={
             'grant_type': 'authorization_code',
             'code': 'asd',
         }) as r:
@@ -142,7 +142,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
         self.assertEqual(status, 200)
         refresh_token = body['refresh_token']
 
-        async with client.post('/oauth/token', json={
+        async with client.post('/api/v1/oauth/token', json={
             'grant_type': 'refresh_token',
             'refresh_token': refresh_token,
         }) as r:
@@ -162,7 +162,7 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
     async def test_refresh_grant_invalid_token(self):
         client = await self.new_api_client('v1')
 
-        async with client.post('/oauth/token', json={
+        async with client.post('/api/v1/oauth/token', json={
             'grant_type': 'refresh_token',
             'refresh_token': 'asd',
         }) as r:

@@ -78,7 +78,7 @@ class ApiServer:
 
             # OAuth2
             web.get('/.well-known/openid-configuration', self._wellknown_openid_config),
-            web.post('/oauth/token', self._oauth_token),
+            web.post('/api/v1/oauth/token', self._v1_oauth_token),
         ])
 
     async def _v1_game_stats(self, _request: web.Request) -> web.Response:
@@ -177,14 +177,14 @@ class ApiServer:
         base = f'{self.origin}'
         return web.json_response({
             'issuer': base,
-            'token_endpoint': f'{base}/oauth/token',
-            'userinfo_endpoint': f'{base}/oauth/userinfo',
+            'token_endpoint': f'{base}/api/v1/oauth/token',
+            'userinfo_endpoint': f'{base}/api/v1/oauth/userinfo',
             'response_types_supported': ['token'],
             'grant_types_supported': ['password', 'refresh_token'],
             'token_endpoint_auth_methods_supported': ['none'],
         })
 
-    async def _oauth_token(self, request: web.Request) -> web.Response:
+    async def _v1_oauth_token(self, request: web.Request) -> web.Response:
         content_type = request.content_type
 
         if 'application/json' in content_type:

@@ -202,9 +202,15 @@ class DbConnector:
                     user_id,
                 ))
 
-    async def add_match_result(self, match_result: DbMatchReport):
+    async def create_match_and_add_result(self, match_result: DbMatchReport):
+        await self.create_match(match_result.winner_id, match_result.loser_id)
+        await self.add_match_result(match_result)
+        await self._post_match(match_result)
+
+    async def create_match(self, user_1_id: str, user_2_id: str, is_ranked: bool) -> str:
         async with self._transaction("w") as c:
-            user_1, user_2 = sorted((match_result.winner_id, match_result.loser_id))
+            user_1, user_2 = sorted((user_1_id, user_2_id))
+            match_id = str(uuid.uuid4())
 
             await c.execute(
                 "insert into matches ("
@@ -216,13 +222,17 @@ class DbConnector:
                 ") values ("
                 "?, ?, ?, ?, ?"
                 ")", (
-                    match_result.match_id,
+                    match_id,
                     user_1,
                     user_2,
-                    match_result.is_ranked,
-                    match_result.started_at.timestamp(),
+                    is_ranked,
+                    int(datetime.now(timezone.utc).timestamp()),
                 ))
 
+            return match_id
+
+    async def add_match_result(self, match_result: DbMatchReport):
+        async with self._transaction("w") as c:
             await c.execute(
                 "insert into match_results ("
                 "  match_id,"
@@ -251,11 +261,12 @@ class DbConnector:
                     match_result.is_void,
                 ))
 
-            start_date, end_date = utils.make_month_dates(
-                month=match_result.finished_at.month, year=match_result.finished_at.year)
+    async def _post_match(self,  match_result: DbMatchReport):
+        start_date, end_date = utils.make_month_dates(
+            month=match_result.finished_at.month, year=match_result.finished_at.year)
 
-            ranked_only = self.config.leaderboards_ranked_only.get()
-            include_void = self.config.leaderboards_include_void.get()
+        ranked_only = self.config.leaderboards_ranked_only.get()
+        include_void = self.config.leaderboards_include_void.get()
 
         if (match_result.is_ranked or not ranked_only) and (not match_result.is_void or include_void):
             await self._update_users_rating(

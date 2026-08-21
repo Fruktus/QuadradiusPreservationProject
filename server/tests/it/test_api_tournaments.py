@@ -188,7 +188,7 @@ class ApiTournamentsIT(QuadradiusIntegrationTestCase):
             is_void=False,
             match_id=match_id,
         )
-        await self.connector.add_match_result(match)
+        await self.connector.create_match_and_add_result(match)
         result = await self.connector.add_duel_match(tournament_id, 0, match_id)
         self.assertTrue(result)
 

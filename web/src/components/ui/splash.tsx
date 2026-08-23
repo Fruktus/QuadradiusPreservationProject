@@ -11,11 +11,13 @@ export default function Splash() {
     async function loadSplash() {
       try {
         const res = await fetch("/splashes.txt")
-        if (!res.ok) return
+        if (!res.ok) {
+          setSplash(DEFAULT_SPLASH)
+          return
+        }
         const text = await res.text()
         const lines = text.split("\n").map((s: string) => s.trim()).filter(Boolean)
-        if (lines.length > 0)
-          setSplash(lines[Math.floor(Math.random() * lines.length)])
+        setSplash(lines.length > 0 ? lines[Math.floor(Math.random() * lines.length)] : DEFAULT_SPLASH)
       } catch {
         setSplash(DEFAULT_SPLASH)
       }

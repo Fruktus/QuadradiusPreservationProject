@@ -1,3 +1,4 @@
+import Footer from "@/components/ui/footer/footer";
 import Script from "next/script";
 
 export default function Home() {
@@ -28,9 +29,7 @@ export default function Home() {
           <embed src="./quadradius_lobby.swf" className="embed" />
         </object>
 
-        <div className="footer">
-          Made possible by the <a href="https://github.com/Fruktus/QuadradiusPreservationProject" target="_blank">Quadradius Preservation Project</a>.
-        </div>
+        <Footer />
       </div>
     </>
   )

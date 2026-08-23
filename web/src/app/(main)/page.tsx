@@ -23,7 +23,7 @@ export default function Home() {
           />
         </button>
       </div>
-      <div className="container">
+      <div className="game-container">
         <object className="game">
           <embed src="./quadradius_lobby.swf" className="embed" />
         </object>

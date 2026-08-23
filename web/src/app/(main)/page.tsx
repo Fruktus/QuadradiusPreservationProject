@@ -1,12 +1,13 @@
 import Footer from "@/components/ui/footer/footer";
+import Ruffle from "@/components/ruffle/ruffle";
 import Script from "next/script";
 
 export default function Home() {
   return (
     <>
-      <Script src="/config-ruffle.js" />
       <Script src="/fullscreen.js" />
       <Script src="/main.js"/>
+      <Ruffle />
       <div className="directions">
         <a href="/directions.html" target="_blank">How to play &amp; Powerup Cheatsheet</a>
       </div>

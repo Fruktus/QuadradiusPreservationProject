@@ -124,6 +124,12 @@ class Config:
             cli_args=[],
             description='The origin where server is hosted at. Used for creating invite links and oauth',
             default_value='http://localhost')
+        self.challenge_invite_duration = ConfigKey(
+            config=self,
+            name='discord.bot.challenge.invite_duration',
+            cli_args=[],
+            description='Direct challenge invite duration in minutes.',
+            default_value='15')
         self.api_token_secret = ConfigKey(
             config=self,
             name='api.token_secret',

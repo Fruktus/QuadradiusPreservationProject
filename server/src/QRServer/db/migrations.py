@@ -32,6 +32,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v8,
         _migration_upgrade_to_v9,
         _migration_upgrade_to_v10,
+        _migration_upgrade_to_v11,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -313,3 +314,27 @@ async def _migration_upgrade_to_v10(c, config):
     )
 
     await _set_version(c, 10)
+
+
+async def _migration_upgrade_to_v11(c, _config):
+    await c.execute(
+        "create table match_invites ("
+        " id varchar primary key,"
+        " challenger_id varchar,"
+        " challenged_id varchar,"
+        " challenger_auth integer,"
+        " challenged_auth integer,"
+        " challenger_tmp_pass varchar,"
+        " challenged_tmp_pass varchar,"
+        " issued_at_timestamp integer,"
+        " active_until_timestamp integer,"
+        " is_used integer,"
+        " used_at integer,"
+        " match_id varchar,"
+        " foreign key(challenger_id) references users (id),"
+        " foreign key(challenged_id) references users (id)"
+        " foreign key(match_id) references match (id)"
+        ")"
+    )
+
+    await _set_version(c, 11)

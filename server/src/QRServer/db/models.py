@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 import uuid
 import logging
@@ -81,3 +81,23 @@ class TournamentDuel:
 class TournamentMatch:
     duel_idx: int
     match: DbMatchReport
+
+
+@dataclass
+class MatchInvite:
+    invite_id: str
+    challenger_id: str
+    challenged_id: str
+    challenger_auth: int
+    challenged_auth: int
+    challenger_tmp_pass: str
+    challenged_tmp_pass: str
+    issued_at: datetime
+    active_until: datetime
+    is_used: bool
+    used_at: datetime | None
+    match_id: str | None
+
+    @property
+    def is_active(self):
+        return not self.is_used and self.active_until > datetime.now(timezone.utc)

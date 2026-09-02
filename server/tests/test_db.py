@@ -990,6 +990,21 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[4][:3], (4, 'source_discord_id', 'varchar'))
         self.assertEqual(table_info[5][:3], (5, 'ban_reason', 'varchar'))
 
+    async def test_migration_v11(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
+
+        table_info = await self.get_table_info('matches')
+        self.assertEqual(table_info[1][:3], (1, 'user_1', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'user_2', 'varchar'))
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 11)
+
+        table_info = await self.get_table_info('matches')
+        ver = await self.get_db_version()
+        self.assertEqual(ver, 11)
+        self.assertEqual(table_info[1][:3], (1, 'user_1_id', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'user_2_id', 'varchar'))
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

@@ -1,17 +1,18 @@
 import abc
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
+import uuid
 from QRServer.db.models import DbMatchReport
 
 
-class MatchId:
+class PairingId:
     id: frozenset
 
     def __init__(self, user_a_id, user_b_id) -> None:
         self.id = frozenset({user_a_id, user_b_id})
 
     def __eq__(self, o) -> bool:
-        if not isinstance(o, MatchId):
+        if not isinstance(o, PairingId):
             return False
         return self.id.__eq__(o.id)
 
@@ -66,16 +67,18 @@ class MatchStats:
 
 
 class Match:
-    id: MatchId
+    id_: str
+    pairing_id: PairingId
     ranked: bool
     users_voted_void: set[str]
     user_ids: set[str]
     parties: list[MatchParty]
     match_stats: dict[str, MatchStats]
 
-    def __init__(self, _id: MatchId) -> None:
+    def __init__(self, pairing_id: PairingId) -> None:
         super().__init__()
-        self.id = _id
+        self.id_ = str(uuid.uuid4())
+        self.pairing_id = pairing_id
         # Assume it's ranked unless a guest joins
         self.ranked = True
         self.users_voted_void = set()
@@ -142,6 +145,7 @@ class Match:
         # Winner reports his pieces normally and opponent's as 0 when giving up
         # Loser seems to report both correctly (his own +-1, may not have last move)
         return DbMatchReport(
+            match_id=self.id_,
             winner_id=winner_id,
             loser_id=loser_id,
             winner_pieces_left=winner_stats.own_piece_count,

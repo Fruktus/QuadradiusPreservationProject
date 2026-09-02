@@ -38,7 +38,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(user.created_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp())
             self.assertTrue(user.is_guest)
 
-    async def test_add_match_results(self):
+    async def test_create_match_and_add_result(self):
         with patch('uuid.uuid4') as mock_uuid:
             mock_uuid.return_value = '1'
             winner = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
@@ -60,8 +60,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 is_ranked=True,
                 is_void=False,
             )
-
-            await self.conn.add_match_result(test_match)
+            await self.conn.create_match_and_add_result(test_match)
             match = await self.conn.get_match(test_match.match_id)
 
             self.assertEqual(match.match_id, '1234')
@@ -129,7 +128,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
                 recent_matches.append(
                     GameResultHistory(
                         player_won=f'test_user_{i}',
@@ -184,7 +183,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 5 matches for user 1 in month 1
             for i in range(1, 6):
@@ -203,7 +202,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 10 matches for user 2 in month 1
             for i in range(1, 11):
@@ -222,7 +221,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 10 matches for user 2 in month 2
             for i in range(1, 11):
@@ -241,7 +240,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 2 unranked matches in month 1
             for i in range(1, 3):
@@ -260,7 +259,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 3 ranked void matches
             for i in range(1, 4):
@@ -279,7 +278,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=True,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             ranking_entries = [
                 RankingEntry(username='test_user_0', user_id='0', wins=7, games=7, rating=640),
@@ -325,7 +324,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 2 matches for user_2 (winner) vs user_1 (loser)
             for i in range(1, 3):
@@ -344,7 +343,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # Generate 5 matches for user_0 (winner) vs user_1 (loser) - user_1 lost some rating on user_2
             for i in range(1, 6):
@@ -363,7 +362,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                     is_void=False,
                 )
 
-                await self.conn.add_match_result(test_match)
+                await self.conn.create_match_and_add_result(test_match)
 
             # user_2 played less games than user_1,
             # but played against different players, therefore should have higher rating
@@ -1205,7 +1204,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
             is_ranked=True,
             is_void=False,
         )
-        await self.dbconn.add_match_result(match)
+        await self.dbconn.create_match_and_add_result(match)
         result = await self.dbconn.add_duel_match(tournament_id, 0, match.match_id)
 
         self.assertTrue(result)
@@ -1218,7 +1217,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
         match.match_id = str(uuid.uuid4())
 
-        await self.dbconn.add_match_result(match)
+        await self.dbconn.create_match_and_add_result(match)
         await self.dbconn.add_duel_match(tournament_id, 0, match.match_id)
 
         duel_matches = await self.dbconn.get_duel_matches(tournament_id, 0)

@@ -211,21 +211,21 @@ class DbConnector:
 
     async def create_match(self, match_id: str, started_at: datetime, user_1_id: str, user_2_id: str, is_ranked: bool):
         async with self._transaction("w") as c:
-            user_1, user_2 = sorted((user_1_id, user_2_id))
+            user_1_id, user_2_id = sorted((user_1_id, user_2_id))
 
             await c.execute(
                 "insert into matches ("
                 "  id,"
-                "  user_1,"
-                "  user_2,"
+                "  user_1_id,"
+                "  user_2_id,"
                 "  is_ranked,"
                 "  started_at"
                 ") values ("
                 "?, ?, ?, ?, ?"
                 ")", (
                     match_id,
-                    user_1,
-                    user_2,
+                    user_1_id,
+                    user_2_id,
                     is_ranked,
                     int(started_at.timestamp()),
                 ))

@@ -32,6 +32,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v8,
         _migration_upgrade_to_v9,
         _migration_upgrade_to_v10,
+        _migration_upgrade_to_v11,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -313,3 +314,10 @@ async def _migration_upgrade_to_v10(c, config):
     )
 
     await _set_version(c, 10)
+
+
+async def _migration_upgrade_to_v11(c, _config):
+    await c.execute("alter table matches rename column user_1 to user_1_id")
+    await c.execute("alter table matches rename column user_2 to user_2_id")
+
+    await _set_version(c, 11)

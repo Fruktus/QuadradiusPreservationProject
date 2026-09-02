@@ -2,8 +2,9 @@ from asyncio import Lock
 import contextlib
 import logging
 import os
+import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from QRServer.config import Config
 import aiosqlite
@@ -11,8 +12,8 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common import utils
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, TournamentDuel, TournamentMatch, TournamentParticipant, \
-    Tournament, UserRating
+from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, TournamentDuel, TournamentMatch, \
+     TournamentParticipant, Tournament, UserRating
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -515,6 +516,113 @@ class DbConnector:
                     new_rating, user.revision + 1, user.user_id, month, year, user.revision
                 )
             )
+
+    async def create_match_invite(self, challenger_id: str, challenged_id: str) -> bool:
+        """
+        Returns:
+            bool: True if successfully created the invite
+        """
+        now = datetime.now()
+        async with self._transaction('w') as c:
+            await c.execute(
+                "insert or ignore into match_invites ("
+                " id,"
+                " challenger_id,"
+                " challenged_id,"
+                " challenger_auth,"
+                " challenged_auth,"
+                " challenger_tmp_pass,"
+                " challenged_tmp_pass,"
+                " issued_at_timestamp,"
+                " active_until_timestamp"
+                ")"
+                "values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    str(uuid.uuid4()),
+                    challenger_id,
+                    challenged_id,
+                    random.randint(-65536, -1),
+                    random.randint(-65536, -1),
+                    str(uuid.uuid4()),
+                    str(uuid.uuid4()),
+                    int(now.timestamp()),
+                    int((now + timedelta(minutes=int(self.config.challenge_invite_duration.get()))).timestamp())
+                )
+            )
+            return bool(c.rowcount)
+
+    async def get_match_invite(self, invite_id: str) -> MatchInvite | None:
+        async with self._transaction('r') as c:
+            await c.execute(
+                "select id, challenger_id, challenged_id, challenger_auth, challenged_auth, challenger_tmp_pass,"
+                " challenged_tmp_pass, issued_at_timestamp, active_until_timestamp, is_used, used_at, match_id"
+                " from match_invites"
+                " where match_invites.id = ?",
+                (
+                    invite_id,
+                ))
+            row = await c.fetchone()
+            if row is None:
+                return None
+
+            return MatchInvite(
+                invite_id=row[0],
+                challenger_id=row[1],
+                challenged_id=row[2],
+                challenger_auth=row[3],
+                challenged_auth=row[4],
+                challenger_tmp_pass=row[5],
+                challenged_tmp_pass=row[6],
+                issued_at=datetime.fromtimestamp(row[7], tz=timezone.utc),
+                active_until=datetime.fromtimestamp(row[8], tz=timezone.utc),
+                is_used=bool(row[9]),
+                used_at=timestamp_to_datetime(row[10]),
+                match_id=row[11],
+            )
+
+    async def get_match_invite_by_tmp_pass(self, tmp_pass: str) -> MatchInvite | None:
+        async with self._transaction('r') as c:
+            await c.execute(
+                "select id, challenger_id, challenged_id, challenger_auth, challenged_auth, challenger_tmp_pass,"
+                " challenged_tmp_pass, issued_at_timestamp, active_until_timestamp, is_used, used_at, match_id"
+                " from match_invites"
+                " where ? in (challenger_tmp_pass, challenged_tmp_pass)",
+                (
+                    tmp_pass,
+                ))
+            row = await c.fetchone()
+            if row is None:
+                return None
+
+            return MatchInvite(
+                invite_id=row[0],
+                challenger_id=row[1],
+                challenged_id=row[2],
+                challenger_auth=row[3],
+                challenged_auth=row[4],
+                challenger_tmp_pass=row[5],
+                challenged_tmp_pass=row[6],
+                issued_at=datetime.fromtimestamp(row[7], tz=timezone.utc),
+                active_until=datetime.fromtimestamp(row[8], tz=timezone.utc),
+                is_used=bool(row[9]),
+                used_at=timestamp_to_datetime(row[10]),
+                match_id=row[11],
+            )
+
+    async def use_match_invite(self, match_invite_id: str, match_id: str) -> bool:
+        """
+        Returns:
+            bool: True if successfully used up the invite
+        """
+        async with self._transaction("w") as c:
+            now_ts = int(datetime.now(timezone.utc).timestamp())  # current datetime as integer timestamp
+            await c.execute(
+                "update match_invites"
+                " set is_used = ?, used_at = ?, match_id = ?"
+                " where id = ? and is_used is null",
+                (True, now_ts, match_id, match_invite_id)
+            )
+            return bool(c.rowcount)
 
     async def create_tournament(self, tournament_name: str, created_by_dc_id: str, tournament_msg_dc_id: str,
                                 required_matches_per_duel: int) -> str | None:

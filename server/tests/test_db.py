@@ -530,16 +530,54 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             rows = await c.fetchall()
             self.assertEqual(len(rows), 0)
 
-    async def test_unban_nonbanned_user(self):
-        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+    async def test_match_invite(self):
+        with patch('uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('random.randint') as mock_randint:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
-        result = await self.conn.unban_user(user_id, '123')
-        self.assertFalse(result)
+            mock_uuid.return_value = '0'
+            user_1 = await self.conn.authenticate_user('test_user_0', b'password', auto_create=True)
+            mock_uuid.return_value = '1'
+            user_2 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
 
-        async with self.conn._transaction('r') as c:
-            await c.execute('select * from bans_audit_log')
-            rows = await c.fetchall()
-            self.assertEqual(len(rows), 0)
+            mock_randint.side_effect = [123, 456]
+            mock_uuid.side_effect = ['1234', '567', '890']
+            await self.conn.create_match_invite(user_1.user_id, user_2.user_id)
+
+        invite = await self.conn.get_match_invite('1234')
+
+        self.assertEqual(invite.invite_id, '1234')
+        self.assertEqual(invite.challenger_id, '0')
+        self.assertEqual(invite.challenged_id, '1')
+        self.assertEqual(invite.challenger_auth, 123)
+        self.assertEqual(invite.challenged_auth, 456)
+        self.assertEqual(invite.challenger_tmp_pass, '567')
+        self.assertEqual(invite.challenged_tmp_pass, '890')
+        self.assertEqual(invite.issued_at, datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(invite.active_until, datetime(2020, 1, 1, 0, 15, 0, tzinfo=timezone.utc))
+        self.assertFalse(invite.is_used)
+        self.assertEqual(invite.used_at, None)
+        self.assertEqual(invite.match_id, None)
+        with patch('QRServer.db.models.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            self.assertTrue(invite.is_active)
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 10, 0, tzinfo=timezone.utc)
+            res = await self.conn.use_match_invite('1234', '5678')
+            self.assertTrue(res)
+        invite = await self.conn.get_match_invite('1234')
+
+        self.assertEqual(invite.is_used, True)
+        self.assertEqual(invite.used_at, datetime(2020, 1, 1, 0, 10, 0, tzinfo=timezone.utc))
+        self.assertEqual(invite.match_id, '5678')
+        with patch('QRServer.db.models.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            self.assertFalse(invite.is_active)
+
+        res = await self.conn.use_match_invite('1234', '1234')
+        self.assertFalse(res)
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
@@ -990,6 +1028,32 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[3][:3], (3, 'action', 'varchar'))
         self.assertEqual(table_info[4][:3], (4, 'source_discord_id', 'varchar'))
         self.assertEqual(table_info[5][:3], (5, 'ban_reason', 'varchar'))
+
+    async def test_migration_v11(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('match_invites', table_names)
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 11)
+
+        table_names = await self.get_table_names()
+        self.assertIn('match_invites', table_names)
+
+        table_info = await self.get_table_info('match_invites')
+        self.assertEqual(len(table_info), 12)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'challenger_id', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'challenged_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'challenger_auth', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'challenged_auth', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'challenger_tmp_pass', 'varchar'))
+        self.assertEqual(table_info[6][:3], (6, 'challenged_tmp_pass', 'varchar'))
+        self.assertEqual(table_info[7][:3], (7, 'issued_at_timestamp', 'INTEGER'))
+        self.assertEqual(table_info[8][:3], (8, 'active_until_timestamp', 'INTEGER'))
+        self.assertEqual(table_info[9][:3], (9, 'is_used', 'INTEGER'))
+        self.assertEqual(table_info[10][:3], (10, 'used_at', 'INTEGER'))
+        self.assertEqual(table_info[11][:3], (11, 'match_id', 'INTEGER'))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

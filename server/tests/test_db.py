@@ -48,6 +48,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             mock_uuid.return_value = '1234'
             test_match = DbMatchReport(
+                match_id=str(uuid.uuid4()),
                 winner_id=winner.user_id,
                 loser_id=loser.user_id,
                 winner_pieces_left=10,
@@ -113,8 +114,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 mock_uuid.return_value = str(i*100)
                 loser = await self.conn.authenticate_user(f'test_user_{i*100}', b'password', auto_create=True)
 
-                mock_uuid.return_value = f'1234{i}'
                 test_match = DbMatchReport(
+                    match_id=f'1234{i}',
                     winner_id=winner.user_id,
                     loser_id=loser.user_id,
                     winner_pieces_left=i,
@@ -168,8 +169,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # Generate 7 matches for user 1 in month 1
             for i in range(1, 8):
-                mock_uuid.return_value = f'0{i}'
                 test_match = DbMatchReport(
+                    match_id=f'0{i}',
                     winner_id=user0.user_id,
                     loser_id=user2.user_id,
                     winner_pieces_left=i,
@@ -187,8 +188,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # Generate 5 matches for user 1 in month 1
             for i in range(1, 6):
-                mock_uuid.return_value = f'1{i}'
                 test_match = DbMatchReport(
+                    match_id=f'1{i}',
                     winner_id=user1.user_id,
                     loser_id=user2.user_id,
                     winner_pieces_left=i,
@@ -206,8 +207,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # Generate 10 matches for user 2 in month 1
             for i in range(1, 11):
-                mock_uuid.return_value = f'2{i}'
                 test_match = DbMatchReport(
+                    match_id=f'2{i}',
                     winner_id=user2.user_id,
                     loser_id=user3.user_id,
                     winner_pieces_left=i,
@@ -227,6 +228,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             for i in range(1, 11):
                 mock_uuid.return_value = f'3{i}'
                 test_match = DbMatchReport(
+                    match_id=f'3{i}',
                     winner_id=user2.user_id,
                     loser_id=user3.user_id,
                     winner_pieces_left=i,
@@ -246,6 +248,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             for i in range(1, 3):
                 mock_uuid.return_value = f'4{i}'
                 test_match = DbMatchReport(
+                    match_id=f'4{i}',
                     winner_id=user2.user_id,
                     loser_id=user3.user_id,
                     winner_pieces_left=i,
@@ -265,6 +268,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
             for i in range(1, 4):
                 mock_uuid.return_value = f'5{i}'
                 test_match = DbMatchReport(
+                    match_id=f'5{i}',
                     winner_id=user2.user_id,
                     loser_id=user3.user_id,
                     winner_pieces_left=i,
@@ -309,8 +313,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # Generate 2 matches for user_2 (winner) vs user_3 (loser)
             for i in range(1, 3):
-                mock_uuid.return_value = f'1{i}'
                 test_match = DbMatchReport(
+                    match_id=f'1{i}',
                     winner_id=user2.user_id,
                     loser_id=user3.user_id,
                     winner_pieces_left=i,
@@ -328,8 +332,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # Generate 2 matches for user_2 (winner) vs user_1 (loser)
             for i in range(1, 3):
-                mock_uuid.return_value = f'2{i}'
                 test_match = DbMatchReport(
+                    match_id=f'2{i}',
                     winner_id=user2.user_id,
                     loser_id=user1.user_id,
                     winner_pieces_left=i,
@@ -347,8 +351,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
             # Generate 5 matches for user_0 (winner) vs user_1 (loser) - user_1 lost some rating on user_2
             for i in range(1, 6):
-                mock_uuid.return_value = f'0{i}'
                 test_match = DbMatchReport(
+                    match_id=f'0{i}',
                     winner_id=user0.user_id,
                     loser_id=user1.user_id,
                     winner_pieces_left=i,
@@ -1207,6 +1211,7 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
         duel = await self.dbconn.get_duel(tournament_id, 0)
 
         match = DbMatchReport(
+            match_id=str(uuid.uuid4()),
             winner_id=duel.user1_id,
             loser_id=duel.user2_id,
             winner_pieces_left=10,

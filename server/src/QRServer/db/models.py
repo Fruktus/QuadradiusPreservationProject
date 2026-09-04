@@ -1,6 +1,5 @@
 from datetime import datetime
 from dataclasses import dataclass, field
-import uuid
 import logging
 
 log = logging.getLogger('qr.db_models')
@@ -38,7 +37,7 @@ class DbMatchReport:
     finished_at: datetime
     is_ranked: bool
     is_void: bool
-    match_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    match_id: str
 
 
 @dataclass

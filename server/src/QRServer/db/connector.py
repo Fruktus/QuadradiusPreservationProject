@@ -287,7 +287,7 @@ class DbConnector:
                 " squadron_size, m.started_at, finished_at, m.is_ranked,"
                 " is_void"
                 " from matches m"
-                " left join match_results r on m.id = r.match_id"
+                " inner join match_results r on m.id = r.match_id"
                 " where id = ?", (
                     match_id,
                 ))
@@ -321,7 +321,7 @@ class DbConnector:
                 " r.finished_at,"
                 " r.move_counter"
                 " from matches m"
-                " left join match_results r on m.id = r.match_id"
+                " inner join match_results r on m.id = r.match_id"
                 " left join users u1 on r.winner_id = u1.id"
                 " left join users u2 on r.loser_id = u2.id"
                 " where m.id = ?", (match_id,))
@@ -351,7 +351,7 @@ class DbConnector:
                             " r.finished_at,"
                             " r.move_counter"
                             " from matches m"
-                            " left join match_results r on m.id = r.match_id"
+                            " inner join match_results r on m.id = r.match_id"
                             " left join users u1 on r.winner_id = u1.id"
                             " left join users u2 on r.loser_id = u2.id"
                             " where r.is_void = 0"
@@ -788,14 +788,14 @@ class DbConnector:
                 " from matches m"
                 " right join tournament_matches"
                 " on m.id = tournament_matches.match_id"
-                " left join match_results r on m.id = r.match_id"
+                " inner join match_results r on m.id = r.match_id"
                 " where tournament_matches.tournament_id = ? and tournament_matches.duel_idx = ?",
                 (
                     tournament_id,
                     duel_idx,
                 ))
             rows = await c.fetchall()
-            if rows is None:
+            if not rows:
                 return None
 
             result = []
@@ -843,6 +843,8 @@ class DbConnector:
 
             result = []
             for row in rows:
+                if row[9] is None:  # Match does exist but has no result
+                    continue
                 tournament_match = TournamentMatch(
                     match=DbMatchReport(
                         match_id=row[0],

@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from QRServer.common.classes import MatchId, MatchParty
+from QRServer.common.classes import PairingId, MatchParty
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
     RequestMessage, ResponseMessage, GameChatMessage, GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, \
@@ -85,10 +85,10 @@ class GameClientHandler(ClientHandler, MatchParty):
     def user_id(self) -> str:
         return self._user_id
 
-    def match_id(self) -> MatchId:
+    def pairing_id(self) -> PairingId:
         if not self.config.auto_register.get() or self.config.auth_disable.get():
-            return MatchId(self.username, self.opponent_username)
-        return MatchId(self.user_id, self.opponent_id)
+            return PairingId(self.username, self.opponent_username)
+        return PairingId(self.user_id, self.opponent_id)
 
     def match_opponent(self, opponent: 'MatchParty'):
         if not isinstance(opponent, GameClientHandler):
@@ -133,7 +133,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         self.opponent_id = db_opponent.user_id
 
-        self.game_server.register_client(self)
+        await self.game_server.register_client(self)
         player_count = self.game_server.get_player_count()
         await self.send_msg(PlayerCountResponse.new(player_count))
 

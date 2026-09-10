@@ -23,6 +23,8 @@ class GameServer:
             self.matches[pairing_id] = Match(pairing_id)
 
         match = self.matches[pairing_id]
+        if client_handler.invite_id:
+            match.invite_id = client_handler.invite_id
 
         log.debug(f'Player {client_handler.username} joins a match {pairing_id}')
         match.add_party(client_handler)
@@ -39,7 +41,7 @@ class GameServer:
         if pairing_id not in self.matches:
             return
 
-        match = self.matches[pairing_id]
+        match: Match = self.matches[pairing_id]
         if client_handler.user_id in match.match_stats:
             log.warning(f'User {client_handler.username} already sent results for match {pairing_id}')
             return
@@ -62,6 +64,9 @@ class GameServer:
                                  f'{result.player_won} beat {result.player_lost} '
                                  f'{result.won_score}-{result.lost_score}')
                         await self.webhook.invoke_webhook_game_ended(result)
+
+                    if match.invite_id:
+                        await self.connector.use_match_invite(match.invite_id, match.id_)
                 else:
                     log.error('Failed to generate report')
             except Exception:

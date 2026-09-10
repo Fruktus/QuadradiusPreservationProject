@@ -69,6 +69,7 @@ class MatchStats:
 class Match:
     id_: str
     pairing_id: PairingId
+    invite_id: None | str
     ranked: bool
     users_voted_void: set[str]
     user_ids: set[str]
@@ -79,6 +80,7 @@ class Match:
         super().__init__()
         self.id_ = str(uuid.uuid4())
         self.pairing_id = pairing_id
+        self.invite_id = None
         # Assume it's ranked unless a guest joins
         self.ranked = True
         self.users_voted_void = set()

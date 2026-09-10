@@ -2,10 +2,10 @@ import asyncio
 from enum import Enum
 import logging
 
-from QRServer.api.auth import decode_token, make_access_token, make_refresh_token
+from QRServer.api.auth import authenticated, decode_token, make_access_token, make_refresh_token
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbUser, Tournament, TournamentDuel, TournamentMatch
+from QRServer.db.models import DbUser, MatchInvite, Tournament, TournamentDuel, TournamentMatch
 from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyserver import LobbyServer
 from aiohttp import web
@@ -75,6 +75,9 @@ class ApiServer:
             web.get('/api/v1/tournaments/{id}/duels', self._v1_tournament_duels),
             web.get('/api/v1/tournaments/{id}/matches', self._v1_tournament_matches),
             web.get('/api/v1/tournaments/{id}/users', self._v1_tournament_users),
+
+            # Invites
+            web.get('/api/v1/invites/{id}/make-url', self._v1_invites_make_url),
 
             # OAuth2
             web.get('/.well-known/openid-configuration', self._wellknown_openid_config),
@@ -171,6 +174,44 @@ class ApiServer:
             })
 
         return web.json_response(data={'tournament_matches': tournament_matches_view}, status=200)
+
+    @authenticated
+    async def _v1_invites_make_url(self, request, user: DbUser) -> web.Response:
+        invite_id = request.match_info['id']
+        match_invite: MatchInvite | None = await self.connector.get_match_invite(invite_id)
+        if not match_invite:
+            return web.json_response(data={'error': 'this invite does not exist'}, status=404)
+
+        if not match_invite.is_active:
+            return web.json_response({'error': 'this invite can no longer be used'}, status=410)  # 410: gone (poof)
+
+        challenger: DbUser | None = await self.connector.get_user(match_invite.challenger_id)
+        challenged: DbUser | None = await self.connector.get_user(match_invite.challenged_id)
+        if not (challenger and challenged):
+            return web.json_response({'error': 'one or more users do not exist'}, status=400)
+
+        if challenger.username == user.username:
+            my_name = challenger.username
+            my_authentication = match_invite.challenger_auth
+            opponent_name = challenged.username
+            opponent_authentication = match_invite.challenged_auth
+            my_pass = match_invite.challenger_tmp_pass
+        elif challenged.username == user.username:
+            my_name = challenged.username
+            my_authentication = match_invite.challenged_auth
+            opponent_name = challenger.username
+            opponent_authentication = match_invite.challenger_auth
+            my_pass = match_invite.challenged_tmp_pass
+        else:
+            log.warning(f'user {user.username} tried joining invite {invite_id}')
+            return web.json_response(data={'error': 'this user does not belong to this invite'}, status=403)
+
+        return web.json_response({
+            'url': f'myName={my_name}&myAuthentication={my_authentication}&opponentName={opponent_name}'
+                   f'&opponentAuthentication={opponent_authentication}&myPass={my_pass}'
+            },
+            status=200,
+        )
 
     async def _wellknown_openid_config(self, request: web.Request) -> web.Response:
         """Endpoint for oidc client autodiscovery"""

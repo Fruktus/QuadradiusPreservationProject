@@ -34,6 +34,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v10,
         _migration_upgrade_to_v11,
         _migration_upgrade_to_v12,
+        _migration_invite_test,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -340,9 +341,55 @@ async def _migration_upgrade_to_v12(c, _config):
         " used_at integer,"
         " match_id varchar,"
         " foreign key(challenger_id) references users (id),"
-        " foreign key(challenged_id) references users (id)"
-        " foreign key(match_id) references match (id)"
+        " foreign key(challenged_id) references users (id),"
+        " foreign key(match_id) references matches (id)"
         ")"
     )
 
     await _set_version(c, 12)
+
+
+async def _migration_invite_test(c, _config):
+    # create invite link from constant string for debug
+    try:
+        import uuid
+        from datetime import datetime, timedelta
+
+        await c.execute('select id from users where username = \'asd\'')
+        asd_id = (await c.fetchone())[0]
+        await c.execute('select id from users where username = \'sdf\'')
+        sdf_id = (await c.fetchone())[0]
+
+        await c.execute(
+            "delete from match_invites where id = \'6b2e2c52-e502-4090-a075-6ccc55a6138d\'"
+        )
+        await c.execute(
+            "insert or ignore into match_invites ("
+            " id,"
+            " challenger_id,"
+            " challenged_id,"
+            " challenger_auth,"
+            " challenged_auth,"
+            " challenger_tmp_pass,"
+            " challenged_tmp_pass,"
+            " issued_at_timestamp,"
+            " active_until_timestamp"
+            ") values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                '6b2e2c52-e502-4090-a075-6ccc55a6138d',
+                asd_id,
+                sdf_id,
+                -1,
+                -2,
+                str(uuid.uuid4()),
+                str(uuid.uuid4()),
+                datetime.now().timestamp(),
+                (datetime.now() + timedelta(minutes=10)).timestamp(),
+            ),
+        )
+        print('DBG INVITE LINK: http://localhost:8000/challenge?id=6b2e2c52-e502-4090-a075-6ccc55a6138d')
+    except Exception:
+        print('create both users and retry')
+        await c.execute(
+            ""
+        )

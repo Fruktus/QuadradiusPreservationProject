@@ -74,6 +74,8 @@ class Match:
     user_ids: set[str]
     parties: list[MatchParty]
     match_stats: dict[str, MatchStats]
+    created: bool
+    ready_user_ids: set[str]
 
     def __init__(self, pairing_id: PairingId) -> None:
         super().__init__()
@@ -86,6 +88,8 @@ class Match:
         self.match_stats = {}
         self.user_ids = set()
         self.start_time = datetime.now(timezone.utc)
+        self.created = False
+        self.ready_user_ids: set[str] = set()
 
     def empty(self):
         return len(self.parties) == 0
@@ -98,7 +102,7 @@ class Match:
             parties_str = list(map(lambda p: p.username, self.parties))
             raise Exception(
                 f'Too many parties for a match. '
-                f'Player {party.username} tried do join, '
+                f'Player {party.username} tried to join, '
                 f'but there are already 2 players: {parties_str}')
         self.parties.append(party)
         self.user_ids.add(party.user_id)
@@ -121,6 +125,15 @@ class Match:
         if len(self.parties) > 0:
             self.parties[0].unmatch_opponent()
         party.unmatch_opponent()
+
+    def set_ready(self, user_id: str):
+        self.ready_user_ids.add(user_id)
+
+    def set_not_ready(self, user_id: str):
+        self.ready_user_ids.discard(user_id)
+
+    def all_ready(self) -> bool:
+        return self.full() and self.ready_user_ids >= self.user_ids
 
     def add_match_stats(self, user_id: str, match_stats: MatchStats):
         self.match_stats[user_id] = match_stats

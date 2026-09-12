@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from QRServer.common.classes import MatchStats, PairingId
 from QRServer.config import Config
@@ -66,6 +66,10 @@ class GameServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.game_server.matches), 1)
         match = next(iter(self.game_server.matches.values()))
         self.assertTrue(match.full())
+
+        await self.game_server.set_ready(user_1, True)
+        await self.game_server.set_ready(user_2, True)
+        self.assertTrue(match.all_ready())
 
         async with self.conn._transaction('r') as c:
             await c.execute(

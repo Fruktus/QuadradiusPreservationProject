@@ -64,9 +64,9 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(AssignNextPowerCountMessage, self._handle_forward)
         self.register_message_handler(NewGridCoordMessage, self._handle_forward)
         self.register_message_handler(ResignMessage, self._handle_forward)
-        self.register_message_handler(SettingsReadyOnMessage, self._handle_forward)
-        self.register_message_handler(SettingsReadyOnAgainMessage, self._handle_forward)
-        self.register_message_handler(SettingsReadyOffMessage, self._handle_forward)
+        self.register_message_handler(SettingsReadyOnMessage, self._handle_ready_on)
+        self.register_message_handler(SettingsReadyOnAgainMessage, self._handle_ready_on)
+        self.register_message_handler(SettingsReadyOffMessage, self._handle_ready_off)
         self.register_message_handler(SettingsArenaSizeMessage, self._handle_forward)
         self.register_message_handler(SettingsSquadronSizeMessage, self._handle_forward)
         self.register_message_handler(SettingsTimerMessage, self._handle_forward)
@@ -162,6 +162,14 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_add_stats(self, message: AddStatsRequest):
         await self.game_server.add_match_stats(self, message.to_stats())
 
+    async def _handle_ready_on(self, message):
+        await self.game_server.set_ready(self, True)
+        await self._handle_forward(message)
+
+    async def _handle_ready_off(self, message):
+        await self.game_server.set_ready(self, False)
+        await self._handle_forward(message)
+
     async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.opponent_handler is not None:
@@ -169,3 +177,7 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         await self.game_server.remove_client(self)
         self.close_and_stop()
+
+    async def _cleanup(self):
+        if self._user_id is not None:
+            await self.game_server.remove_client(self)

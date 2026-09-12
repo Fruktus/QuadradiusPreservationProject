@@ -17,19 +17,37 @@ class GameServer:
         self.webhook = Webhook(config)
         self.matches = {}
 
-    async def register_client(self, client_handler: GameClientHandler):
+    def register_client(self, client_handler: GameClientHandler):
         pairing_id = client_handler.pairing_id()
         if pairing_id not in self.matches:
             self.matches[pairing_id] = Match(pairing_id)
 
         match = self.matches[pairing_id]
+        if match.created:
+            # Do not allow reconnects to an already-started match
+            raise Exception(
+                f'Player {client_handler.username} tried to join, but the match has already started'
+            )
 
         log.debug(f'Player {client_handler.username} joins a match {pairing_id}')
         match.add_party(client_handler)
-        if match.full():
-            await self.connector.create_match(
-                match.id_, match.start_time, match.parties[0].user_id, match.parties[1].user_id, match.ranked
-            )
+
+    async def set_ready(self, client_handler: GameClientHandler, ready: bool):
+        pairing_id = client_handler.pairing_id()
+        if pairing_id not in self.matches:
+            return
+        match = self.matches[pairing_id]
+
+        if ready:
+            match.set_ready(client_handler.user_id)
+            if match.all_ready() and not match.created:
+                match.created = True
+                await self.connector.create_match(
+                    match.id_, match.start_time,
+                    match.parties[0].user_id, match.parties[1].user_id, match.ranked,
+                )
+        else:
+            match.set_not_ready(client_handler.user_id)
 
     def get_player_count(self):
         return len(self.matches) * 2
@@ -69,8 +87,15 @@ class GameServer:
 
     async def remove_client(self, client: GameClientHandler):
         pairing_id = client.pairing_id()
-        if pairing_id in self.matches:
-            match = self.matches[pairing_id]
-            match.remove_party(client)
-            if match.empty():
-                del self.matches[pairing_id]
+        if pairing_id not in self.matches:
+            return
+
+        match = self.matches[pairing_id]
+        if client not in match.parties:
+            return  # already cleaned up
+
+        match.remove_party(client)
+
+        if not match.created or match.empty():
+            del self.matches[pairing_id]
+            return

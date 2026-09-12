@@ -60,12 +60,17 @@ class GameServerTest(unittest.IsolatedAsyncioTestCase):
              patch('QRServer.common.classes.datetime') as mock_datetime:
             mock_uuid.return_value = '1234'
             mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-            await self.game_server.register_client(user_1)
-            await self.game_server.register_client(user_2)
+            self.game_server.register_client(user_1)
+            self.game_server.register_client(user_2)
 
         self.assertEqual(len(self.game_server.matches), 1)
         match = next(iter(self.game_server.matches.values()))
         self.assertTrue(match.full())
+
+        self.assertFalse(match.all_ready())
+        await self.game_server.set_ready(user_1, True)
+        await self.game_server.set_ready(user_2, True)
+        self.assertTrue(match.all_ready())
 
         async with self.conn._transaction('r') as c:
             await c.execute(

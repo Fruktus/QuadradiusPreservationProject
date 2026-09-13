@@ -104,6 +104,11 @@ class Match:
                 f'Too many parties for a match. '
                 f'Player {party.username} tried to join, '
                 f'but there are already 2 players: {parties_str}')
+
+        if party.user_id in self.user_ids:
+            raise Exception(
+                f'Player {party.username} has already joined this match')
+
         self.parties.append(party)
         self.user_ids.add(party.user_id)
 

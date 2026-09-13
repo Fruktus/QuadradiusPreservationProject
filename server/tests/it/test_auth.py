@@ -69,19 +69,24 @@ class AuthDisabledIT(QuadradiusIntegrationTestCase):
         await client.assert_received_message_type(PlayerCountResponse)
 
     async def test_game_any_password(self):
+        tmp_client1 = await self.new_lobby_client()
+        await tmp_client1.join_lobby('John1', '098f6bcd4621d373cade4e832627b4f6')
+        tmp_client2 = await self.new_lobby_client()
+        await tmp_client2.join_lobby('John2', 'ad0234829205b9033196ba818f7a872b')
+
         client = await self.new_game_client()
         await client.send_message(HelloGameRequest.new())
         await client.send_message(JoinGameRequest.new(
-            'John', '1234',
-            'John', '4321',
+            'John1', '1234',
+            'John2', '4321',
             '098f6bcd4621d373cade4e832627b4f6'))
         await client.assert_received_message_type(PlayerCountResponse)
 
         client = await self.new_game_client()
         await client.send_message(HelloGameRequest.new())
         await client.send_message(JoinGameRequest.new(
-            'John', '1234',
-            'John', '4321',
+            'John2', '4321',
+            'John1', '1234',
             'ad0234829205b9033196ba818f7a872b'))
         await client.assert_received_message_type(PlayerCountResponse)
 
@@ -125,19 +130,25 @@ class AuthAutoRegisterIT(QuadradiusIntegrationTestCase):
         await client.assert_received_message_type(PlayerCountResponse)
 
     async def test_game_wrong_password(self):
-        client = await self.new_game_client()
-        await client.send_message(HelloGameRequest.new())
-        await client.send_message(JoinGameRequest.new(
-            'John', '1234',
-            'John', '4321',
-            '098f6bcd4621d373cade4e832627b4f6'))
-        await client.assert_received_message_type(PlayerCountResponse)
+        tmp_client1 = await self.new_lobby_client()
+        await tmp_client1.join_lobby('John1', '098f6bcd4621d373cade4e832627b4f6')
+        tmp_client2 = await self.new_lobby_client()
+        await tmp_client2.join_lobby('John2', 'asd')
 
         client = await self.new_game_client()
         await client.send_message(HelloGameRequest.new())
         await client.send_message(JoinGameRequest.new(
-            'John', '1234',
-            'John', '4321',
+            'John1', '1234',
+            'John2', '4321',
+            '098f6bcd4621d373cade4e832627b4f6'))
+        await client.assert_received_message_type(PlayerCountResponse)
+        await client.disconnect()
+
+        client = await self.new_game_client()
+        await client.send_message(HelloGameRequest.new())
+        await client.send_message(JoinGameRequest.new(
+            'John1', '1234',
+            'John2', '4321',
             'ad0234829205b9033196ba818f7a872b'))
         await client.assert_connection_closed()
         await client.assert_no_more_messages()
@@ -145,7 +156,7 @@ class AuthAutoRegisterIT(QuadradiusIntegrationTestCase):
         client = await self.new_game_client()
         await client.send_message(HelloGameRequest.new())
         await client.send_message(JoinGameRequest.new(
-            'John', '1234',
-            'John', '4321',
+            'John1', '1234',
+            'John2', '4321',
             '098f6bcd4621d373cade4e832627b4f6'))
         await client.assert_received_message_type(PlayerCountResponse)

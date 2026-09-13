@@ -75,6 +75,7 @@ class ClientHandler(abc.ABC):
         try:
             await self._run()
         finally:
+            await self._cleanup()
             self.writer.close()
 
     async def _run(self):
@@ -112,6 +113,9 @@ class ClientHandler(abc.ABC):
             except Exception:
                 log.exception(f'Error when processing message: {message}')
                 return
+
+    async def _cleanup(self):
+        pass
 
     async def send(self, data: bytes):
         """Deprecated, do not use"""

@@ -127,7 +127,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         if not db_opponent:
             log.error(
                 f'Player {username} tried to connect to a game with a ' +
-                'non existing opponent {self.opponent_username}')
+                f'non existing opponent {self.opponent_username}')
             self.close_and_stop()
             return
 

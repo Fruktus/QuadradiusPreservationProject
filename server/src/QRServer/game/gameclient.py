@@ -1,3 +1,5 @@
+from asyncio import CancelledError, Task, sleep as aiosleep, create_task
+from datetime import datetime, timezone
 import logging
 from typing import Optional
 
@@ -12,6 +14,7 @@ from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, Join
     SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
     CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest, \
     SwitcherooMessage, RemoveOneWayWallMessage, BankruptActionMessage, ServerAliveResponse
+from QRServer.db.models import DbUser
 from QRServer.discord.webhook import Webhook
 
 log = logging.getLogger('qr.game_client_handler')
@@ -19,6 +22,7 @@ log = logging.getLogger('qr.game_client_handler')
 
 class GameClientHandler(ClientHandler, MatchParty):
     opponent_handler: Optional['GameClientHandler']
+    _invite_sentinel_task: None | Task
 
     def __init__(self, config, connector, reader, writer, game_server):
         super().__init__(config, connector, reader, writer)
@@ -34,6 +38,8 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.opponent_auth = None
         self._is_guest = True
         self._is_void_score = False
+        self.invite_id = None
+        self._invite_sentinel_task = None
 
         self.register_message_handler(PolicyFileRequest, self._handle_policy)
         self.register_message_handler(HelloGameRequest, self._handle_hello_game)
@@ -95,6 +101,10 @@ class GameClientHandler(ClientHandler, MatchParty):
             raise Exception('Wrong opponent')
         self.opponent_handler = opponent
 
+        # If opponent connected, early quit the sentinel
+        if self._invite_sentinel_task:
+            self._invite_sentinel_task.cancel()
+
     def unmatch_opponent(self):
         self.opponent_handler = None
 
@@ -112,13 +122,59 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         username = message.get_username()
         password = message.get_password()
-        db_user = await self.authenticate_user(username, password)
-        if not db_user:
-            log.debug(f'Player {username} tried to connect to a game, but failed to authenticate')
-            # according to my analysis, there's no way to tell the client
-            # it failed to authenticate, so just close the connection
-            self.close_and_stop()
-            return
+
+        # if both auths are negative then its likely an invite match with temp passwords,
+        # run a separate auth flow where we check if username + temp password submitted matches the invite
+        db_user: DbUser | None
+        if int(self.own_auth) < 0 and int(self.opponent_auth) < 0:
+            match_invite = await self.connector.get_match_invite_by_tmp_pass(password)
+            if not match_invite:
+                log.debug(f'Player {username} attempted joining nonexistent invite')
+                self.close_and_stop()
+                return
+
+            if not match_invite.is_active:
+                log.debug(f'Player {username} attempted joining inactive invite')
+                self.close_and_stop()
+                return
+
+            self.invite_id = match_invite.invite_id
+            if password == match_invite.challenger_tmp_pass:
+                my_id = match_invite.challenger_id
+                opp_id = match_invite.challenged_id
+            else:
+                my_id = match_invite.challenged_id
+                opp_id = match_invite.challenger_id
+
+            my_db_user = await self.connector.get_user(my_id)
+            opp_db_user = await self.connector.get_user(opp_id)
+            self._username = username
+
+            if not my_db_user or not opp_db_user:
+                log.warning(f'Players do not match the invite: id: {self.invite_id}; '
+                            f'missing user record(s) for my_id={my_id}, opp_id={opp_id}')
+                self.close_and_stop()
+                return
+
+            if my_db_user.username != self.username or opp_db_user.username != self.opponent_username:
+                log.warning(f'Players do not match the invite: id: {self.invite_id},'
+                            f' my_username: {self.username}, opp_username: {self.opponent_username},'
+                            f" my_user: {my_db_user.user_id}, opp_user: {opp_db_user.user_id}")
+                self.close_and_stop()
+                return
+
+            timeout = (match_invite.active_until - datetime.now(timezone.utc)).total_seconds()
+            self._invite_sentinel_task = create_task(self._invite_sentinel(timeout))
+            db_user = my_db_user
+        else:
+            db_user = await self.authenticate_user(username, password)
+
+            if not db_user:
+                log.debug(f'Player {username} tried to connect to a game, but failed to authenticate')
+                # according to my analysis, there's no way to tell the client
+                # it failed to authenticate, so just close the connection
+                self.close_and_stop()
+                return
 
         self._user_id = db_user.user_id
         self._is_guest = db_user.is_guest
@@ -177,6 +233,22 @@ class GameClientHandler(ClientHandler, MatchParty):
 
         await self.game_server.remove_client(self)
         self.close_and_stop()
+
+    async def _invite_sentinel(self, timeout_s: float):
+        try:
+            await aiosleep(timeout_s)
+        except CancelledError:
+            # opponent joined in time, cancel sentinel
+            return
+
+        if self.opponent_handler:
+            return
+
+        log.debug(
+            f'Opponent: {self.opponent_username} did not join {self.username} for the invite-only match in time'
+        )
+        await self.game_server.remove_client(self)
+        self.close()
 
     async def _cleanup(self):
         if self._user_id is not None:

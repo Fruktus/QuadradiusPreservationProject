@@ -9,12 +9,13 @@ from QRServer.game.gameserver import GameServer
 
 
 class MockedParty:
-    def __init__(self, user_id, username, opponent_id):
+    def __init__(self, user_id, username, opponent_id, invite_id=None):
         self.user_id = user_id
         self.username = username
         self.opponent_id = opponent_id
         self.is_guest = False
         self.is_void_score = False
+        self.invite_id = invite_id
 
     def pairing_id(self):
         return PairingId(self.user_id, self.opponent_id)
@@ -102,3 +103,43 @@ class GameServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.won_score, 6)
         self.assertEqual(result.lost_score, 2)
         self.assertEqual(result.moves, 40)
+
+    async def test_invite_match_marks_invite_as_used_on_ready(self):
+        challenger = await self.conn.authenticate_user('challenger', b'password', auto_create=True)
+        challenged = await self.conn.authenticate_user('challenged', b'password', auto_create=True)
+
+        invite_id = '52b750dd-eeb4-45f8-a922-66d7359be987'
+        tmp_pass_1 = 'fe97cf3f-0160-41b2-88e4-4952727b8efd'
+        tmp_pass_2 = '88b14654-9d5b-4df0-a9d7-26ab59586f4f'
+
+        with patch('uuid.uuid4') as mock_uuid:
+            mock_uuid.side_effect = [invite_id, tmp_pass_1, tmp_pass_2]
+            created = await self.conn.create_match_invite(challenger.user_id, challenged.user_id)
+            self.assertTrue(created)
+
+        invite = await self.conn.get_match_invite(invite_id)
+        self.assertIsNotNone(invite)
+        self.assertFalse(invite.is_used)
+        self.assertIsNone(invite.match_id)
+
+        party_1 = MockedParty(user_id=challenger.user_id, username='challenger',
+                              opponent_id=challenged.user_id, invite_id=invite.invite_id)
+        party_2 = MockedParty(user_id=challenged.user_id, username='challenged',
+                              opponent_id=challenger.user_id, invite_id=invite.invite_id)
+
+        self.game_server.register_client(party_1)
+        self.game_server.register_client(party_2)
+
+        match = next(iter(self.game_server.matches.values()))
+        self.assertEqual(match.invite_id, invite.invite_id)
+
+        await self.game_server.set_ready(party_1, True)
+        # Only one party ready: invite must still be untouched.
+        still_unused = await self.conn.get_match_invite(invite.invite_id)
+        self.assertFalse(still_unused.is_used)
+
+        await self.game_server.set_ready(party_2, True)
+
+        used_invite = await self.conn.get_match_invite(invite.invite_id)
+        self.assertTrue(used_invite.is_used)
+        self.assertEqual(used_invite.match_id, match.id_)

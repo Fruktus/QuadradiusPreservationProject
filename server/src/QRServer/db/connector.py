@@ -529,11 +529,12 @@ class DbConnector:
                 )
             )
 
-    async def create_match_invite(self, challenger_id: str, challenged_id: str) -> bool:
+    async def create_match_invite(self, challenger_id: str, challenged_id: str) -> str | None:
         """
         Returns:
-            bool: True if successfully created the invite
+            str: invite id if successfully created invite
         """
+        invite_id = str(uuid.uuid4())
         now = datetime.now()
         async with self._transaction('w') as c:
             await c.execute(
@@ -550,7 +551,7 @@ class DbConnector:
                 ")"
                 "values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    str(uuid.uuid4()),
+                    invite_id,
                     challenger_id,
                     challenged_id,
                     random.randint(-65536, -1),
@@ -561,7 +562,9 @@ class DbConnector:
                     int((now + timedelta(minutes=int(self.config.challenge_invite_duration.get()))).timestamp())
                 )
             )
-            return bool(c.rowcount)
+            if bool(c.rowcount):
+                return invite_id
+            return None
 
     async def get_match_invite(self, invite_id: str) -> MatchInvite | None:
         async with self._transaction('r') as c:

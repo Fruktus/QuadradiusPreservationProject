@@ -49,9 +49,17 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
     async def test_password_grant_missing_body(self):
         client = await self.new_api_client('v1')
 
-        async with client.post('/api/oauth/token') as r:
+        async with client.post('/api/oauth/token',
+                               headers={'content-type': 'application/x-www-form-urlencoded'}) as r:
             self.assertEqual(r.status, 400)
             self.assertEqual((await r.json())['error'], 'invalid_request')
+
+    async def test_password_grant_invalid_content_type(self):
+        client = await self.new_api_client('v1')
+
+        async with client.post('/api/oauth/token') as r:
+            self.assertEqual(r.status, 400)
+            self.assertEqual((await r.json())['error'], 'unsupported_media_type')
 
     async def test_password_grant_missing_fields(self):
         client = await self.new_api_client('v1')

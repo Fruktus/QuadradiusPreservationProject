@@ -239,7 +239,7 @@ class ApiServer:
                 body = await request.json()
             except Exception:
                 return web.json_response({'error': 'invalid_request'}, status=400)
-        elif 'application/x-www-form-urlencoded':
+        elif 'application/x-www-form-urlencoded' in content_type:
             # form-encoded, which is what oidc-client-ts sends
             body = await request.post()
         else:

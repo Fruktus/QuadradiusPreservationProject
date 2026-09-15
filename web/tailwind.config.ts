@@ -36,6 +36,7 @@ export default {
       },
       fontFamily: {
         vt323:      ["var(--font-vt323)"],
+        doto:       ["var(--font-doto)"],
         silkscreen: ["var(--font-silkscreen)"],
         mono:       ["var(--font-geist-mono)"],
       },

@@ -20,6 +20,13 @@ type InviteSuccess = {
 
 type ApiError = {
   error: string;
+  error_code?: string;
+};
+
+const INVITE_ERROR_MESSAGES: Record<string, string> = {
+  invite_expired: 'This invite has expired.',
+  invite_used: 'This invite has already been used.',
+  invite_not_found: 'This invite does not exist.',
 };
 
 // Since we need access to searchParams, we need Suspense boundary wrapper
@@ -59,7 +66,10 @@ function DirectChallenge() {
         if (response.status === 410) {
           const data: ApiError = await response.json();
 
-          setErrorMessage('This invite can no longer be used');
+          setErrorMessage(
+            (data.error_code && INVITE_ERROR_MESSAGES[data.error_code]) ??
+              'This invite can no longer be used'
+          );
           setStatus('expired');
           console.error(data.error)
 
@@ -69,7 +79,10 @@ function DirectChallenge() {
         if (!response.ok) {
           const data: ApiError = await response.json();
 
-          setErrorMessage('Something went wrong');
+          setErrorMessage(
+            (data.error_code && INVITE_ERROR_MESSAGES[data.error_code]) ??
+              'Something went wrong'
+          );
           setStatus('error');
           console.error(data.error)
 

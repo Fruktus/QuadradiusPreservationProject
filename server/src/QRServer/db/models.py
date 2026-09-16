@@ -99,4 +99,8 @@ class MatchInvite:
 
     @property
     def is_active(self):
+        return self.active_until > datetime.now(timezone.utc)
+
+    @property
+    def can_be_used(self):
         return not self.is_used and self.active_until > datetime.now(timezone.utc)

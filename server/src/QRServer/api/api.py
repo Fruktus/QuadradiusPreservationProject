@@ -181,10 +181,14 @@ class ApiServer:
         invite_id = request.match_info['id']
         match_invite: MatchInvite | None = await self.connector.get_match_invite(invite_id)
         if not match_invite:
-            return web.json_response(data={'error': 'this invite does not exist'}, status=404)
+            return web.json_response(
+                data={'error': 'this invite does not exist', 'error_code': 'invite_not_found'}, status=404)
 
         if not match_invite.is_active:
-            return web.json_response({'error': 'this invite can no longer be used'}, status=410)  # 410: gone (poof)
+            return web.json_response({'error': 'this invite has expired', 'error_code': 'invite_expired'}, status=410)
+
+        if match_invite.is_used:
+            return web.json_response({'error': 'this invite was already used', 'error_code': 'invite_used'}, status=410)
 
         challenger: DbUser | None = await self.connector.get_user(match_invite.challenger_id)
         challenged: DbUser | None = await self.connector.get_user(match_invite.challenged_id)

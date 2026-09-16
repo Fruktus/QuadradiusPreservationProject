@@ -133,8 +133,8 @@ class GameClientHandler(ClientHandler, MatchParty):
                 self.close_and_stop()
                 return
 
-            if not match_invite.is_active:
-                log.debug(f'Player {username} attempted joining inactive invite')
+            if not match_invite.can_be_used:
+                log.debug(f'Player {username} tried joining unusable invite')
                 self.close_and_stop()
                 return
 

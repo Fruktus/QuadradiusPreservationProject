@@ -86,6 +86,7 @@ class GameServer:
                                  f'{result.player_won} beat {result.player_lost} '
                                  f'{result.won_score}-{result.lost_score}')
                         await self.webhook.invoke_webhook_game_ended(result)
+                    self.matches.pop(pairing_id, None)
                 else:
                     log.error('Failed to generate report')
             except Exception:

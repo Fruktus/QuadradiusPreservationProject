@@ -1,6 +1,7 @@
 import asyncio
 from enum import Enum
 import logging
+from urllib.parse import quote
 
 from QRServer.api.auth import authenticated, decode_token, make_access_token, make_refresh_token
 from QRServer.config import Config
@@ -207,8 +208,9 @@ class ApiServer:
             return web.json_response(data={'error': 'this user does not belong to this invite'}, status=403)
 
         return web.json_response({
-            'params': f'myName={my_name}&myAuthentication={my_authentication}&opponentName={opponent_name}'
-                      f'&opponentAuthentication={opponent_authentication}&myPass={my_pass}'
+            'params': f'myName={quote(my_name)}&myAuthentication={my_authentication}'
+                      f'&opponentName={quote(opponent_name)}&opponentAuthentication={opponent_authentication}'
+                      f'&myPass={my_pass}'
             },
             status=200,
             headers={

@@ -578,7 +578,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(invite.match_id, None)
         with patch('QRServer.db.models.datetime') as mock_datetime:
             mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-            self.assertTrue(invite.is_active)
+            self.assertTrue(invite.can_be_used)
 
         with patch('QRServer.db.connector.datetime') as mock_datetime:
             mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 10, 0, tzinfo=timezone.utc)
@@ -591,7 +591,7 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(invite.match_id, '5678')
         with patch('QRServer.db.models.datetime') as mock_datetime:
             mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-            self.assertFalse(invite.is_active)
+            self.assertFalse(invite.can_be_used)
 
         res = await self.conn.use_match_invite('1234', '1234')
         self.assertFalse(res)

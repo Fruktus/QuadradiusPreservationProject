@@ -25,7 +25,7 @@ export default function HudInput({
     <div className={cn("flex flex-col gap-1.5", className)}>
       <label
         htmlFor={id}
-        className="font-mono text-[11px] tracking-[2px] uppercase text-[var(--panel-groove)]"
+        className="font-rajdhani font-semibold text-[12px] tracking-[2px] uppercase text-[var(--panel-groove)]"
       >
         {label}
       </label>
@@ -39,7 +39,7 @@ export default function HudInput({
         onChange={onChange}
         spellCheck={false}
         className={cn(
-          "font-vt323 text-2xl",
+          "font-dotmatrix text-xl tracking-wide",
           "w-full rounded bg-input-bg border border-input-border",
           "px-3 py-2.5 text-input-text",
           "shadow-input caret-[var(--input-text)]",

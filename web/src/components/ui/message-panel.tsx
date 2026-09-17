@@ -1,8 +1,8 @@
 import MetalPanelScrewed from "@/components/ui/metal-panel-screwed"
 import { cn } from "@/lib/utils"
-import { Doto } from "next/font/google"
+import { DotGothic16 } from "next/font/google"
 
-const doto = Doto({ weight: "600", variable: "--font-doto", subsets: ["latin"] })
+const dotGothic16 = DotGothic16({ weight: "400", variable: "--font-dotgothic16", subsets: ["latin"] })
 
 
 export type MessageVariant = "idle" | "busy" | "ok" | "error"
@@ -30,8 +30,8 @@ export default function MessagePanel({
       <div
         role="alert"
         className={cn(
-          doto.variable,
-          "font-doto text-2xl",
+          dotGothic16.variable,
+          "font-dotmatrix text-2xl tracking-wide",
           "w-full rounded bg-input-bg border border-input-border",
           "px-3 py-2.5 min-h-[100px]",
           "shadow-input",

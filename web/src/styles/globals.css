@@ -22,13 +22,13 @@
   --red-medium: #a52a2a;
   --red-light:  #cd5c5c;
 
-  /* Metal panel */
-  --panel-bg:      #dedad2;
-  --panel-edge:    #b8b2a0;
-  --panel-groove:  #a09a88;
-  --panel-shine:   #f4f0e6;
-  --screw-bg:      #c8c2b0;
-  --screw-shine:   #f0ece0;
+  /* Metal panel — brushed steel, neutral/warm so it doesn't read blue */
+  --panel-bg:      #96948f;
+  --panel-edge:    #4e4c49;
+  --panel-groove:  #5e5b57;
+  --panel-shine:   #d2cfc9;
+  --screw-bg:      #484642;
+  --screw-shine:   #706d67;
 
   /* CRT inputs */
   --input-bg:          #3d0a0a;

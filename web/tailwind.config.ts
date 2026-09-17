@@ -36,8 +36,8 @@ export default {
       },
       fontFamily: {
         vt323:      ["var(--font-vt323)"],
-        doto:       ["var(--font-doto)"],
-        silkscreen: ["var(--font-silkscreen)"],
+        rajdhani:   ["var(--font-rajdhani)"],
+        dotmatrix:  ["var(--font-dotgothic16)"],
         mono:       ["var(--font-geist-mono)"],
       },
       boxShadow: {

@@ -20,10 +20,10 @@ export default function Screw({ slot }: ScrewProps) {
     >
       {/* horizontal bar of the Phillips cross */}
       <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-        w-[8px] h-[1.5px] bg-black/60 rounded-sm rotate-45 block" />
+        w-[9px] h-[2px] bg-black rounded-[1px] rotate-45 block shadow-[0_1px_0_rgba(255,255,255,0.06)]" />
       {/* vertical bar */}
       <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-        w-[8px] h-[1.5px] bg-black/60 rounded-sm -rotate-45 block" />
+        w-[9px] h-[2px] bg-black rounded-[1px] -rotate-45 block shadow-[0_1px_0_rgba(255,255,255,0.06)]" />
     </div>
   )
 }

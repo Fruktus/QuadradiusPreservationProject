@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 
 from QRServer.common.classes import PairingId, MatchParty
-from QRServer.common.clienthandler import ClientHandler
+from QRServer.common.clienthandler import ClientHandler, SendMessageException
 from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
     RequestMessage, ResponseMessage, GameChatMessage, GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, \
     RecursiveDoneMessage, RemovePlayerMessage, PowerNoEffectMessage, NukeMessage, JumpOnPieceMessage, \
@@ -229,7 +229,10 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.opponent_handler is not None:
-            await self.opponent_handler.send_msg(OpponentDeadResponse.new())
+            try:
+                await self.opponent_handler.send_msg(OpponentDeadResponse.new())
+            except SendMessageException:
+                log.debug(f'Opponent {self.opponent_handler.username} already gone, skipping notify')
 
         await self.game_server.remove_client(self)
         self.close_and_stop()

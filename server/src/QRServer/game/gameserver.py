@@ -78,15 +78,15 @@ class GameServer:
             try:
                 report = match.generate_match_report()
                 if report:
+                    result = await self.connector.get_match_result(report.match_id)
+                    self.matches.pop(pairing_id, None)
                     await self.connector.add_match_result(report)
                     log.debug(f'Added match report {report}')
-                    result = await self.connector.get_match_result(report.match_id)
                     if result:
                         log.info(f'A match has ended; '
                                  f'{result.player_won} beat {result.player_lost} '
                                  f'{result.won_score}-{result.lost_score}')
                         await self.webhook.invoke_webhook_game_ended(result)
-                    self.matches.pop(pairing_id, None)
                 else:
                     log.error('Failed to generate report')
             except Exception:

@@ -639,6 +639,36 @@ class DbConnector:
             )
             return bool(c.rowcount)
 
+    async def get_latest_match_invite_between(self, user_a_id: str, user_b_id: str) -> MatchInvite | None:
+        async with self._transaction('r') as c:
+            await c.execute(
+                "select id, challenger_id, challenged_id, challenger_auth, challenged_auth, challenger_tmp_pass,"
+                " challenged_tmp_pass, issued_at_timestamp, active_until_timestamp, is_used, used_at, match_id"
+                " from match_invites"
+                " where (challenger_id = ? and challenged_id = ?) or (challenger_id = ? and challenged_id = ?)"
+                " order by issued_at_timestamp desc"
+                " limit 1",
+                (user_a_id, user_b_id, user_b_id, user_a_id)
+            )
+            row = await c.fetchone()
+            if row is None:
+                return None
+
+            return MatchInvite(
+                invite_id=row[0],
+                challenger_id=row[1],
+                challenged_id=row[2],
+                challenger_auth=row[3],
+                challenged_auth=row[4],
+                challenger_tmp_pass=row[5],
+                challenged_tmp_pass=row[6],
+                issued_at=datetime.fromtimestamp(row[7], tz=timezone.utc),
+                active_until=datetime.fromtimestamp(row[8], tz=timezone.utc),
+                is_used=bool(row[9]),
+                used_at=timestamp_to_datetime(row[10]),
+                match_id=row[11],
+            )
+
     async def create_tournament(self, tournament_name: str, created_by_dc_id: str, tournament_msg_dc_id: str,
                                 required_matches_per_duel: int) -> str | None:
         """

@@ -596,6 +596,69 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         res = await self.conn.use_match_invite('1234', '1234')
         self.assertFalse(res)
 
+    async def test_get_latest_match_invite_between_no_invites(self):
+        user_1 = await self.conn.authenticate_user('test_user_0', b'asd', auto_create=True)
+        user_2 = await self.conn.authenticate_user('test_user_1', b'asd', auto_create=True)
+
+        result = await self.conn.get_latest_match_invite_between(user_1.user_id, user_2.user_id)
+        self.assertIsNone(result)
+
+    async def test_get_latest_match_invite_between_both_directions(self):
+        with patch('uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('random.randint', return_value=1):
+            mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            mock_uuid.return_value = '1'
+            user_1 = await self.conn.authenticate_user('test_user_0', b'asd', auto_create=True)
+            mock_uuid.return_value = '2'
+            user_2 = await self.conn.authenticate_user('test_user_1', b'asd', auto_create=True)
+
+            mock_uuid.side_effect = ['1234', '5678', '9012']
+            await self.conn.create_match_invite(user_1.user_id, user_2.user_id)
+
+        # Check both directions (order doesn't matter)
+        result = await self.conn.get_latest_match_invite_between(user_1.user_id, user_2.user_id)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.invite_id, '1234')
+        self.assertEqual(result.challenger_id, user_1.user_id)
+        self.assertEqual(result.challenged_id, user_2.user_id)
+        result = await self.conn.get_latest_match_invite_between(user_2.user_id, user_1.user_id)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.invite_id, '1234')
+        self.assertEqual(result.challenger_id, user_1.user_id)
+        self.assertEqual(result.challenged_id, user_2.user_id)
+
+    async def test_get_latest_match_invite_between_most_recent(self):
+        with patch('uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('random.randint', return_value=1):
+            mock_uuid.return_value = '1'
+            mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            user_1 = await self.conn.authenticate_user('test_user_0', b'asd', auto_create=True)
+            mock_uuid.return_value = '2'
+            user_2 = await self.conn.authenticate_user('test_user_1', b'asd', auto_create=True)
+
+            mock_uuid.side_effect = ['1234', '5678', '9012']
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc)
+            await self.conn.create_match_invite(user_1.user_id, user_2.user_id)
+
+            mock_uuid.side_effect = ['4321', '8765', '2109']
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 5, tzinfo=timezone.utc)
+            await self.conn.create_match_invite(user_2.user_id, user_1.user_id)
+
+        result = await self.conn.get_latest_match_invite_between(user_1.user_id, user_2.user_id)
+        self.assertEqual(result.invite_id, '4321')
+
+    async def test_get_latest_match_invite_between_unrelated_users(self):
+        user_1 = await self.conn.authenticate_user('test_user_0', b'asd', auto_create=True)
+        user_2 = await self.conn.authenticate_user('test_user_1', b'asd', auto_create=True)
+        user_3 = await self.conn.authenticate_user('test_user_2', b'asd', auto_create=True)
+
+        await self.conn.create_match_invite(user_1.user_id, user_2.user_id)
+
+        result = await self.conn.get_latest_match_invite_between(user_1.user_id, user_3.user_id)
+        self.assertIsNone(result)
+
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

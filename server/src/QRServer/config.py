@@ -242,6 +242,12 @@ class Config:
             cli_args=[],
             description='Discord Channel ID for sending notifications about user bans/unbans',
             default_value='')
+        self.discord_bot_channel_tournament_notifications_id = ConfigKey(
+            config=self,
+            name='discord.bot.channel_tournament_notifications.id',
+            cli_args=[],
+            description='Discord Channel ID for tournament notifications such as tournament start, round start or other',
+            default_value='')
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

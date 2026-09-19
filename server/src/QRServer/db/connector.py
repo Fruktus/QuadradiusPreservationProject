@@ -846,7 +846,7 @@ class DbConnector:
             )
             return bool(c.rowcount)
 
-    async def add_duel(self, tournament_id: str, duel_idx: int, active_until: datetime,
+    async def add_duel(self, tournament_id: str, duel_idx: int, active_until: datetime | None,
                        user1_id: str | None, user2_id: str | None) -> bool:
         """
         Returns:
@@ -865,10 +865,34 @@ class DbConnector:
                 (
                     tournament_id,
                     duel_idx,
-                    int(active_until.timestamp()),
+                    int(active_until.timestamp()) if active_until else None,
+                user1_id,
+                user2_id,
+            )
+        )
+        await self.conn.commit()
+        return bool(c.rowcount)
+
+    async def update_duel(self, tournament_id: str, duel_idx: int, active_until: datetime,
+                          user1_id: str | None, user2_id: str | None) -> bool:
+        """
+        Returns:
+            bool: True if succesfully updated the duel
+        """
+        c = await self.conn.cursor()
+        await c.execute(
+            "update tournament_duels"
+            " set active_until = ?,"
+            " user1_id = ?,"
+            " user2_id = ?"
+            " where tournament_id = ? and duel_idx = ?",
+            (
+                int(active_until.timestamp()),
                     user1_id,
                     user2_id,
-                )
+                    tournament_id,
+                duel_idx,
+            )
             )
             return bool(c.rowcount)
 

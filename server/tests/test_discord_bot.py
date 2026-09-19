@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.password import password_verify
-from QRServer.discord.bot import DiscordBot
+from QRServer.discord.bot import DiscordBot, DiscordException
 import discord
 
 
@@ -32,6 +32,24 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def asyncTearDown(self):
         await self.conn.close()
+
+    async def test_raises_when_no_token(self):
+        config = Config()
+        config.set('discord.bot.guild_id', '123')
+        config.set('discord.bot.max_aliases', 1)
+        config.set('discord.bot.channel_user_notifications.id', '111')
+
+        with pytest.raises(DiscordException):
+            DiscordBot(config, self.conn)
+    
+    async def test_raises_when_no_guild_id(self):
+        config = Config()
+        config.set('discord.bot.token', 'test_token')
+        config.set('discord.bot.max_aliases', 1)
+        config.set('discord.bot.channel_user_notifications.id', '111')
+
+        with self.assertRaises(DiscordException):
+            await DiscordBot(config, self.conn)
 
     async def test_register_new_user(self):
         with patch('QRServer.discord.bot.utils.generate_random_password', return_value='123asd4567'):

@@ -209,7 +209,13 @@ class ApiServer:
             my_pass = match_invite.challenged_tmp_pass
         else:
             log.warning(f'user {user.username} tried joining invite {invite_id}')
-            return web.json_response(data={'error': 'this user does not belong to this invite'}, status=403)
+            return web.json_response(
+                data={
+                    'error': 'this user does not belong to this invite',
+                    'error_code': 'invite_wrong_user',
+                },
+                status=403,
+            )
 
         return web.json_response({
             'params': f'myName={quote(my_name)}&myAuthentication={my_authentication}'

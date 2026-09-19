@@ -27,6 +27,7 @@ const INVITE_ERROR_MESSAGES: Record<string, string> = {
   invite_expired: 'This invite has expired.',
   invite_used: 'This invite has already been used.',
   invite_not_found: 'This invite does not exist.',
+  invite_wrong_user: 'This user is not part of this invite (did you use the right alias?)',
 };
 
 // Since we need access to searchParams, we need Suspense boundary wrapper

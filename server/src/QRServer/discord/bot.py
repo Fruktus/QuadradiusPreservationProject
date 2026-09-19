@@ -75,6 +75,12 @@ class DiscordBot:
             await self._unban_user(interaction, username)
         unban_user.default_permissions = discord.Permissions(permissions=0)
 
+        @self.tree.command(name="challenge", description="Challenge the specified member to a match")
+        @discord.app_commands.describe(username="The in-game member username to challenge (case-sensitive)")
+        async def challenge_member(interaction, username: str):
+            await self._challenge_member(interaction, username)
+        challenge_member.default_permissions = discord.Permissions(permissions=0)
+
         @self.client.event
         async def on_ready():
             await self._on_ready()
@@ -443,3 +449,133 @@ class DiscordBot:
             log.warning(
                 'notifications channel not found or not accepting messages: ' +
                 str(discord_channel))
+
+    async def _challenge_member(self, interaction: discord.Interaction, username: str) -> None:
+        """
+        Generates invite links for direct matches.
+        """
+        # Note that challenger and challenged are similar, pay attention to code.
+        log.debug(f"challenge command received from '{interaction.user}'")
+        username = username.strip()
+
+        # Run basic checks, like whether the user belongs to server
+        if not hasattr(interaction.user, 'guild'):
+            await interaction.response.send_message(
+                "I'm a bot, I don't respond to messages. Please use the slash command in an appropriate channel.",
+                ephemeral=True)
+            return
+
+        can_use_bot, error_message = self._can_use_bot(str(interaction.user.guild.id))
+        if not can_use_bot:
+            await interaction.response.send_message(error_message, ephemeral=True)
+            return
+
+        user_account_list = await self.connector.get_users_by_discord_id(str(interaction.user.id))
+        if not user_account_list:
+            log.debug(f"Unregistered user '{interaction.user}' tried to challenge player: '{username}'")
+
+            await interaction.response.send_message(
+                "You need to register first.",
+                ephemeral=True)
+            return
+        # Get the oldest challenger alias if they have more than one
+        sorted_user_account_list = sorted(user_account_list, key=lambda u: u.created_at)
+        challenger_user = sorted_user_account_list[0]
+
+        if challenger_user.is_banned:
+            log.debug(f"Banned user '{interaction.user}' tried to challenge player: '{username}'")
+
+            await interaction.response.send_message(
+                f"Your account: `{challenger_user.username}` has been banned.",
+                ephemeral=True)
+            return
+
+        # Check if challenger have not challenged their own account
+        user_accounts = {user.username: user for user in user_account_list}
+        if username in user_accounts:
+            log.debug(f"User '{interaction.user}' tried to challenge own account: '{username}'")
+            await interaction.response.send_message(
+                "You cannot challenge a different account tied to the same Discord account.",
+                ephemeral=True)
+            return
+
+        # Check if the challenged user exist and is not banned
+        challenged_user = await self.connector.get_user_by_username(username)
+        if not challenged_user:
+            log.debug(f"User'{interaction.user}' tried to challenge unknown player: '{username}'")
+
+            await interaction.response.send_message(
+                f"Failed to find a player with username: `{username}`. Check for typos and case.",
+                ephemeral=True)
+            return
+        elif challenged_user.is_banned:
+            log.debug(f"User '{interaction.user}' tried to challenge banned player: '{username}'")
+
+            await interaction.response.send_message(
+                f"Your opponent's account: `{challenged_user.username}` has been banned.",
+                ephemeral=True)
+            return
+        elif challenged_user.is_guest:
+            log.debug(f"User '{interaction.user}' tried to challenge guest: '{username}'")
+            await interaction.response.send_message(
+                "You cannot challenge guest users.",
+                ephemeral=True)
+            return
+
+        # Check if there is a pending active invite, if so do not resend
+        existing_invite = await self.connector.get_latest_match_invite_between(
+            challenger_user.user_id, challenged_user.user_id)
+
+        if existing_invite and existing_invite.can_be_used:
+            challenge_url = f'{self.config.origin.get()}/challenge?id={existing_invite.invite_id}'
+            await interaction.response.send_message(
+                f"You already have an active invite with this user: {challenge_url}",
+                ephemeral=True)
+            return
+
+        challenger_user_dc = interaction.user
+        challenged_user_dc = await self.client.fetch_user(int(challenged_user.discord_user_id))
+
+        # Create the invite and prepare the link
+        challenge_id = await self.connector.create_match_invite(
+            challenged_id=challenged_user.user_id, challenger_id=challenger_user.user_id)
+        challenge_url = f'{self.config.origin.get()}/challenge?id={challenge_id}'
+
+        # Handle restrictive DM permissions exceptions
+        try:
+            await challenged_user_dc.send(
+                "### Match Invite\n"
+                "- You have been invited to a match!\n"
+                f"- Your opponent is: <@{challenger_user.discord_user_id}> - `{challenger_user.username}`\n"
+                f"- Match link: {challenge_url}\n"
+                f"- The match link will be valid for the next {self.config.challenge_invite_duration.get()} minute"
+                f"{'s' if self.config.challenge_invite_duration.get() != 1 else ''}"
+            )
+        except (discord.Forbidden, discord.HTTPException) as e:
+            log.warning(f"Failed to DM challenged user '{challenged_user.username}'", exc_info=e)
+            await interaction.response.send_message(
+                f"Created a challenge for `{username}`, but couldn't DM them (their privacy settings may block it).\n"
+                f"You can send them this link yourself: {challenge_url}",
+                ephemeral=True)
+            return
+
+        try:
+            await challenger_user_dc.send(
+                "### Match Invite\n"
+                "- You have been invited to a match!\n"
+                f"- Your opponent is: <@{challenged_user.discord_user_id}> - `{challenged_user.username}`\n"
+                f"- Match link: {challenge_url}\n"
+                f"- The match link will be valid for the next {self.config.challenge_invite_duration.get()} minute"
+                f"{'s' if self.config.challenge_invite_duration.get() != 1 else ''}"
+            )
+        except (discord.Forbidden, discord.HTTPException) as e:
+            log.warning("Failed to DM challenger", exc_info=e)
+            await interaction.response.send_message(
+                f"Challenge sent to `{username}`, but I couldn't DM you the link.\n"
+                f"Here it is: {challenge_url}",
+                ephemeral=True)
+            return
+
+        await interaction.response.send_message(
+            "### Invite has been sent",
+            ephemeral=True)

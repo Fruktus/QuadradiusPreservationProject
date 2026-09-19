@@ -4,6 +4,9 @@ import secrets
 import string
 
 
+BASE62 = string.digits + string.ascii_letters
+
+
 def is_guest(username: str, password: str) -> bool:
     """
     Determines whether the pair of username and password belongs to a guest.
@@ -76,3 +79,21 @@ def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int =
     new_loser_rating = loser_rating + k_factor * (0 - expected_score_2)
 
     return (round(new_winner_rating), round(new_loser_rating))
+
+
+def base62_id() -> str:
+    """
+    Generates a compact, timestamp-derived ID with millisecond resolution.
+    Intended for tracing/debugging only.
+    Example: 'vvHc2Wt'
+
+    DO NOT USE FOR PRIMARY KEYS.
+    """
+    n = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    result = []
+    while n:
+        n, remainder = divmod(n, 62)
+        result.append(BASE62[remainder])
+
+    return ''.join(reversed(result))

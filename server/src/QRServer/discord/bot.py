@@ -75,7 +75,8 @@ class DiscordBot:
             await self._unban_user(interaction, username)
         unban_user.default_permissions = discord.Permissions(permissions=0)
 
-        @self.tree.command(name="challenge", description="Challenge the specified member to a match")
+        @self.tree.command(name="challenge", description="Challenge the specified member to a match",
+                           guild=discord.Object(id=self.guild_id))
         @discord.app_commands.describe(username="The in-game member username to challenge (case-sensitive)")
         async def challenge_member(interaction, username: str):
             await self._challenge_member(interaction, username)

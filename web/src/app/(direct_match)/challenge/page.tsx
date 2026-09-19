@@ -1,11 +1,9 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useState, type ComponentProps } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import Footer from '@/components/ui/footer/footer';
 import Ruffle from '@/components/ruffle/ruffle';
-import FullscreenToggle from '@/components/ui/fullscreen-toggle/fullscreen-toggle';
 import MessagePanel from '@/components/ui/message-panel';
 
 import { useUnloadWarning } from '@/hooks/use-unload-warning';
@@ -30,10 +28,19 @@ const INVITE_ERROR_MESSAGES: Record<string, string> = {
   invite_wrong_user: 'This user is not part of this invite (did you use the right alias?)',
 };
 
+// Centering helper
+function ChallengeMessage(props: ComponentProps<typeof MessagePanel>) {
+  return (
+    <div className="flex flex-1 items-center justify-center bg-base-500">
+      <MessagePanel {...props} />
+    </div>
+  );
+}
+
 // Since we need access to searchParams, we need Suspense boundary wrapper
 export default function DirectChallengeWrapper() {
   return (
-    <Suspense fallback={<MessagePanel message="Loading challenge..." variant="busy" />}>
+    <Suspense fallback={<ChallengeMessage message="Loading challenge..." variant="busy" />}>
       <DirectChallenge />
     </Suspense>
   );
@@ -106,7 +113,7 @@ function DirectChallenge() {
 
   if (status === 'loading') {
     return (
-      <MessagePanel
+      <ChallengeMessage
         message="Loading challenge..."
         variant="busy"
       />
@@ -115,7 +122,7 @@ function DirectChallenge() {
 
   if (status === 'expired') {
     return (
-      <MessagePanel
+      <ChallengeMessage
         message={
           errorMessage ?? 'This challenge has expired.'
         }
@@ -126,7 +133,7 @@ function DirectChallenge() {
 
   if (status === 'error') {
     return (
-      <MessagePanel
+      <ChallengeMessage
         message={
           errorMessage ??
           'Something went wrong while loading the challenge.'
@@ -138,7 +145,7 @@ function DirectChallenge() {
 
   if (!swfParams) {
     return (
-      <MessagePanel
+      <ChallengeMessage
         message="Game Params is missing."
         variant="error"
       />
@@ -150,7 +157,6 @@ function DirectChallenge() {
   return (
     <>
       <Ruffle />
-      <FullscreenToggle />
       <div className="game-container">
         <object className="game">
           <embed
@@ -158,7 +164,6 @@ function DirectChallenge() {
             className="embed"
           />
         </object>
-        <Footer />
       </div>
     </>
   );

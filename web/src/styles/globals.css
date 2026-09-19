@@ -74,18 +74,20 @@ a:hover {
 
 /* `container` collides with Tailwind */
 .game-container {
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
-  height: 100vh;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
   justify-content: space-between;
   align-items: stretch;
-  align-content: stretch;
+  overflow: hidden;
 }
 
 .game {
   flex: 1;
+  min-height: 0; /* lets the game shrink instead of pushing the footer out */
 }
 
 .embed {
@@ -97,40 +99,6 @@ a:hover {
   padding: 0.3em;
   color: #444444;
   text-align: center;
-}
-
-div.directions {
-  position: absolute;
-  right: 8px;
-  z-index: 1;
-  top: 8px;
-}
-
-#fullscreen-toggle {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 10;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 5px;
-  cursor: pointer;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.25;
-}
-
-@media (hover: none) {
-  #fullscreen-toggle {
-    display: flex;
-  }
-}
-
-#fullscreen-toggle:hover {
-  background: rgba(255, 255, 255, 0.9);
-  opacity: 0.8;
 }
 
 /* Header with background image */
@@ -210,40 +178,4 @@ div.directions {
 
 .splash-pulse {
   animation: splash-pulse 0.9s ease-in-out infinite alternate;
-}
-
-.fullscreen {
-    position: absolute;
-    left: 10px;
-    top: 10px;
-    z-index: 10;
-}
-.toggle {
-    position: relative;
-    width: 32px;
-    height: 32px;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    opacity: 0.25;
-}
-.toggle img {
-    inset: 10px;
-}
-.toggle:hover {
-    background: rgba(255, 255, 255, 0.9);
-    opacity: 0.8;
-}
-.toggle img {
-    padding: 4px;
-}
-@media (hover: none) {
-    .toggle {
-        display: flex;
-    }
 }

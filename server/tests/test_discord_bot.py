@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.password import password_verify
 from QRServer.discord.bot import DiscordBot
+import discord
 
 
 class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
@@ -389,3 +390,166 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
             "- Unbanned by: <@123>\n", '222')
 
         user_sender_mock.send.assert_not_called()
+
+    async def _setup_challenge_users(self):
+        await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
+        await self.conn.create_member('challenged', 'asd'.encode(), discord_user_id='456')
+        challenged_dc = AsyncMock()
+        self.bot.client.fetch_user = AsyncMock(return_value=challenged_dc)
+        return challenged_dc
+
+    async def test_challenge_member(self):
+        challenged_dc = await self._setup_challenge_users()
+
+        with patch('QRServer.db.connector.uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('QRServer.db.connector.random.randint', return_value=1):
+            mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            mock_uuid.side_effect = ['invite-id', 't1', 't2']
+
+            await self.bot._challenge_member(self.interaction, 'challenged')
+
+        url = 'http://localhost/challenge?id=invite-id'
+
+        challenged_dc.send.assert_called_once_with(
+            "### Match Invite\n"
+            "- You have been invited to a match!\n"
+            "- Your opponent is: <@123> - `challenger`\n"
+            f"- Match link: {url}\n"
+            "- The match link will be valid for the next 15 minutes")
+
+        self.interaction.user.send.assert_called_once_with(
+            "### Match Invite\n"
+            "- You have been invited to a match!\n"
+            "- Your opponent is: <@456> - `challenged`\n"
+            f"- Match link: {url}\n"
+            "- The match link will be valid for the next 15 minutes")
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "### Invite has been sent", ephemeral=True)
+
+        self.bot.client.fetch_user.assert_called_once_with(456)
+
+    async def test_challenge_unregistered_challenger(self):
+        await self.bot._challenge_member(self.interaction, 'someone')
+        self.interaction.response.send_message.assert_called_once_with(
+            "You need to register first.", ephemeral=True)
+
+    async def test_challenge_banned_challenger(self):
+        await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
+        challenger = await self.conn.get_user_by_username('challenger')
+        await self.conn.ban_user(challenger.user_id, 'admin', 'test')
+
+        await self.bot._challenge_member(self.interaction, 'someone')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Your account: `challenger` has been banned.", ephemeral=True)
+
+    async def test_challenge_self(self):
+        await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
+
+        await self.bot._challenge_member(self.interaction, 'challenger')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You cannot challenge a different account tied to the same Discord account.",
+            ephemeral=True)
+
+    async def test_challenge_unknown_player(self):
+        await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
+
+        await self.bot._challenge_member(self.interaction, 'ghost')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find a player with username: `ghost`. Check for typos and case.", ephemeral=True)
+
+    async def test_challenge_banned_player(self):
+        await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
+        await self.conn.create_member('challenged', 'asd'.encode(), discord_user_id='456')
+        challenged = await self.conn.get_user_by_username('challenged')
+        await self.conn.ban_user(challenged.user_id, 'admin', 'test')
+
+        await self.bot._challenge_member(self.interaction, 'challenged')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Your opponent's account: `challenged` has been banned.", ephemeral=True)
+
+    async def test_challenge_existing_active_invite(self):
+        await self._setup_challenge_users()
+        challenger = await self.conn.get_user_by_username('challenger')
+        challenged = await self.conn.get_user_by_username('challenged')
+
+        with patch('QRServer.db.connector.uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('QRServer.db.connector.random.randint', return_value=1):
+            mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            mock_uuid.side_effect = ['existing-invite', 't1', 't2']
+            await self.conn.create_match_invite(challenger.user_id, challenged.user_id)
+
+        self.interaction.reset_mock()
+
+        with patch('QRServer.db.models.datetime') as mock_models_datetime:
+            mock_models_datetime.now.return_value = datetime(2020, 1, 1, 0, 5, tzinfo=timezone.utc)
+            await self.bot._challenge_member(self.interaction, 'challenged')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You already have an active invite with this user: "
+            "http://localhost/challenge?id=existing-invite",
+            ephemeral=True)
+        self.bot.client.fetch_user.assert_not_called()
+
+    async def test_challenge_dm_to_challenged_fails(self):
+        challenged_dc = await self._setup_challenge_users()
+        challenged_dc.send.side_effect = discord.Forbidden(
+            MagicMock(status=403, reason='Forbidden'), 'Cannot send messages to this user')
+
+        with patch('QRServer.db.connector.uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('QRServer.db.connector.random.randint', return_value=1):
+            mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            mock_uuid.side_effect = ['invite-id', 't1', 't2']
+            await self.bot._challenge_member(self.interaction, 'challenged')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Created a challenge for `challenged`, but couldn't DM them "
+            "(their privacy settings may block it).\n"
+            "You can send them this link yourself: http://localhost/challenge?id=invite-id",
+            ephemeral=True)
+        self.interaction.user.send.assert_not_called()
+
+        # invite still exists in the db even though delivery failed
+        invite = await self.conn.get_match_invite('invite-id')
+        self.assertIsNotNone(invite)
+
+    async def test_challenge_dm_to_challenger_fails(self):
+        await self._setup_challenge_users()
+        self.interaction.user.send.side_effect = discord.Forbidden(
+            MagicMock(status=403, reason='Forbidden'), 'Cannot send messages to this user')
+
+        with patch('QRServer.db.connector.uuid.uuid4') as mock_uuid, \
+             patch('QRServer.db.connector.datetime') as mock_datetime, \
+             patch('QRServer.db.connector.random.randint', return_value=1):
+            mock_datetime.now.return_value = datetime(2020, 1, 1, tzinfo=timezone.utc)
+            mock_uuid.side_effect = ['invite-id', 't1', 't2']
+            await self.bot._challenge_member(self.interaction, 'challenged')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Challenge sent to `challenged`, but I couldn't DM you the link.\n"
+            "Here it is: http://localhost/challenge?id=invite-id",
+            ephemeral=True)
+
+    async def test_challenge_guest_player(self):
+        await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
+        await self.conn.create_member('Random Guest', 'asd'.encode(), discord_user_id='456')
+
+        await self.bot._challenge_member(self.interaction, 'Random Guest')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You cannot challenge guest users.", ephemeral=True)
+
+    async def test_challenge_wrong_guild(self):
+        self.interaction.user.guild.id = 999
+
+        await self.bot._challenge_member(self.interaction, 'someone')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You must be in this bot's discord server to use it.", ephemeral=True)

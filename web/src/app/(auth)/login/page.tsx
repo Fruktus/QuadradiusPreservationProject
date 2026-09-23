@@ -44,7 +44,7 @@ export default function LoginPage() {
 function LoginContent() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [status, setStatus] = useState<LoginStatus>({ message: "", variant: "idle" })
+  const [status, setStatus] = useState<LoginStatus>({ message: "waiting for user...", variant: "idle" })
 
   const router = useRouter()
   const searchParams = useSearchParams()

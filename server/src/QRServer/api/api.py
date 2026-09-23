@@ -83,6 +83,7 @@ class ApiServer:
             # OAuth2
             web.get('/.well-known/openid-configuration', self._wellknown_openid_config),
             web.post('/api/oauth/token', self._oauth_token),
+            web.get('/api/oauth/userinfo', self._oauth_userinfo),
         ])
 
     async def _v1_game_stats(self, _request: web.Request) -> web.Response:
@@ -330,4 +331,13 @@ class ApiServer:
             'access_token': access,
             'token_type': 'Bearer',
             'expires_in': self.api_access_token_lifetime_sec,
+        })
+
+    @authenticated
+    async def _oauth_userinfo(self, _request: web.Request, user: DbUser) -> web.Response:
+        """oidc userinfo endpoint. Provides extra user data, which is accessible from UserManager in web, like username.
+        Only called after successful login."""
+        return web.json_response({
+            'sub': user.user_id,
+            'username': user.username,
         })

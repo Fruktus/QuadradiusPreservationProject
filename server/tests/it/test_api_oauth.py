@@ -176,3 +176,26 @@ class ApiOauthIT(QuadradiusIntegrationTestCase):
         }) as r:
             self.assertEqual(r.status, 401)
             self.assertEqual((await r.json())['error'], 'invalid_grant')
+
+    async def test_userinfo_success(self):
+        client = await self.new_api_client('v1')
+        await self._create_test_user()
+
+        status, body = await self._login(client)
+        self.assertEqual(status, 200)
+
+        async with client.get('/api/oauth/userinfo',
+                              headers={'Authorization': f'Bearer {body["access_token"]}'}) as r:
+            self.assertEqual(r.status, 200)
+            body = await r.json()
+            self.assertEqual(body['sub'], '1234')
+            self.assertEqual(body['username'], 'testuser')
+
+    async def test_userinfo_unauthenticated(self):
+        client = await self.new_api_client('v1')
+
+        async with client.get('/api/oauth/userinfo') as r:
+            self.assertEqual(r.status, 401)
+
+        async with client.get('/api/oauth/userinfo', headers={'Authorization': 'Bearer asd'}) as r:
+            self.assertEqual(r.status, 401)

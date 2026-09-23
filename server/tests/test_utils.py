@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 import random as rnd
 from QRServer.common import utils
@@ -218,3 +219,11 @@ class FullBinaryTreeIndexerTest(unittest.TestCase):
 
         with pytest.raises(ValueError):
             tree7.get_node_parent(-1)
+
+
+class Base62IdTest(unittest.TestCase):
+    def test_get_base62_id(self):
+        with patch('QRServer.common.utils.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+            compact_id = utils.base62_id()
+            self.assertEqual(compact_id, 'rMhkpLa')

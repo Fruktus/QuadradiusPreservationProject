@@ -5,12 +5,18 @@ from hashlib import md5
 from QRServer.common import utils
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
+from QRServer.db.models import DbUser
 import discord
 
 log = logging.getLogger('qr.bot')
 
 
 class DiscordException(Exception):
+    pass
+
+
+class PreconditionFailedException(Exception):
+    # Used when required condition to carry out the command is not met
     pass
 
 
@@ -43,6 +49,7 @@ class DiscordBot:
 
         self.client = discord.Client(intents=intents)
         self.tree = discord.app_commands.CommandTree(self.client)
+        self.tree.error(self._on_command_error)
 
     async def run_bot(self):
         @self.tree.command(name="register", description="Register a new member")
@@ -110,31 +117,164 @@ class DiscordBot:
         await self.tree.sync(guild=discord.Object(id=self.guild_id))
         log.info("Discord bot is ready")
 
+    async def _on_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+        """
+        Called when a slash command raises.
+        Precondition fails are ignored, since they are already handled, the rest is propagated.
+        """
+        if (isinstance(error, discord.app_commands.CommandInvokeError)
+                and isinstance(error.original, PreconditionFailedException)):
+            return
+
+        await discord.app_commands.CommandTree.on_error(self.tree, interaction, error)
+
+    # # # # # #
+    # Helpers #
+    # # # # # #
+    async def _send_notification(self, message: str, channel: str) -> None:
+        discord_channel = self.client.get_channel(int(channel))
+        allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
+
+        if isinstance(discord_channel, allowed_channels):
+            log.debug(f"Sending notification: {repr(message)}")
+            await discord_channel.send(message)
+        else:
+            log.warning(
+                'notifications channel not found or not accepting messages: ' +
+                str(discord_channel))
+
+    # # # # # # # # #
+    # Preconditions #
+    # # # # # # # # #
+    async def _require_valid_username(self, interaction_id: str, interaction: discord.Interaction, username: str):
+        # Checks if the username is of correct length and format
+
+        if not self.username_regex.match(username):
+            log.debug(f"({interaction_id}) precondition failed: invalid_username")
+            await interaction.response.send_message(
+                "Username should:\n"
+                "- contain at least one non-whitespace character\n"
+                "- contain only letters, numbers, dots, hyphens, and underscores\n"
+                "- be no longer than 15 characters.",
+                ephemeral=True)
+            raise PreconditionFailedException('invalid_username')
+
+        if username.lower().endswith(' guest'):
+            log.debug(f"({interaction_id}) precondition failed: guest_username")
+            await interaction.response.send_message(
+                "Username cannot end with guest.",
+                ephemeral=True)
+            raise PreconditionFailedException('guest_username')
+
+    async def _require_has_available_aliases(self, interaction_id: str, interaction: discord.Interaction,
+                                             discord_user_id: int):
+        user_accounts = await self.connector.get_users_by_discord_id(str(discord_user_id))
+        if len(user_accounts) >= self.max_aliases:
+            log.debug(f"({interaction_id}) precondition failed: over_max_aliases")
+            await interaction.response.send_message(
+                    f"You have reached the maximum number of aliases: {self.max_aliases}.",
+                    ephemeral=True)
+            raise PreconditionFailedException('over_max_aliases')
+
+    async def _require_in_guild_context(self, interaction_id: str, interaction: discord.Interaction):
+        # Checks that the command was invoked from within a guild (not a DM)
+        if not hasattr(interaction.user, 'guild'):
+            log.debug(f"({interaction_id}) precondition failed: no_guild_context")
+            await interaction.response.send_message(
+                "I'm a bot, I don't respond to messages. Please use the slash command in an appropriate channel.",
+                ephemeral=True)
+            raise PreconditionFailedException('no_guild_context')
+
+    async def _require_belongs_to_bot_guild(self, interaction_id: str, interaction: discord.Interaction):
+        # Checks if the user is allowed to use the bot
+        # If the user is not part of the server, then not
+
+        if not interaction.guild or int(interaction.guild.id) != int(self.guild_id):
+            log.debug(f"({interaction_id}) precondition failed: invalid_user_guild")
+            await interaction.response.send_message(
+                "You must be in this bot's discord server to use it.",
+                ephemeral=True)
+            raise PreconditionFailedException('invalid_user_guild')
+
+    async def _require_user_by_username(self, interaction_id: str, interaction: discord.Interaction,
+                                        username: str) -> DbUser:
+        user = await self.connector.get_user_by_username(username)
+        if not user:
+            log.debug(f"({interaction_id}) precondition failed: nonexistent_user")
+            await interaction.response.send_message(
+                f"Failed to find a player with username: `{username}`. Check for typos and case.",
+                ephemeral=True)
+            raise PreconditionFailedException('nonexistent_user')
+        return user
+
+    async def _require_has_registered_aliases(self, interaction_id: str, interaction: discord.Interaction,
+                                              interaction_user_id: int) -> list[DbUser]:
+        user_account_list = await self.connector.get_users_by_discord_id(str(interaction_user_id))
+        if not user_account_list:
+            log.debug(f"({interaction_id}) precondition failed: user_not_registered")
+            await interaction.response.send_message(
+                "You need to register first.",
+                ephemeral=True)
+            raise PreconditionFailedException('user_not_registered')
+        return sorted(user_account_list, key=lambda u: u.created_at)
+
+    async def _require_user_not_banned(self, interaction_id: str, interaction: discord.Interaction, user: DbUser):
+        if user.is_banned:
+            log.debug(f"({interaction_id}) precondition failed: user_banned")
+            await interaction.response.send_message(
+                f"Account `{user.username}` is banned.",
+                ephemeral=True)
+            raise PreconditionFailedException('user_banned')
+
+    async def _require_user_not_guest(self, interaction_id: str, interaction: discord.Interaction, user: DbUser):
+        if user.is_guest:
+            log.debug(f"({interaction_id}) precondition failed: targeted_guest_user")
+            await interaction.response.send_message(
+                "You cannot interact with guest users.",
+                ephemeral=True)
+            raise PreconditionFailedException('targeted_guest_user')
+
+    async def _require_interaction_with_non_owned_account(
+        self, interaction_id: str, interaction: discord.Interaction, user: DbUser, alias_list: list[DbUser]
+    ):
+        if user.username in {alias.username for alias in alias_list}:
+            log.debug(f"({interaction_id}) precondition failed: same_discord_account_interaction")
+            await interaction.response.send_message(
+                "You cannot interact with a different account tied to the same Discord account.",
+                ephemeral=True)
+            raise PreconditionFailedException('same_discord_account_interaction')
+
+    # # # # # # # # # # #
+    # Command Handlers  #
+    # # # # # # # # # # #
     async def _register(self, interaction: discord.Interaction, username: str) -> None:
-        log.debug(f"Register command received from '{interaction.user}' for account '{username}'")
+        interaction_id = utils.base62_id()
+
+        log.debug(f"({interaction_id}) Register command received from '{interaction.user}' for account '{username}'")
         username = username.strip()
 
-        valid, error_message = await self._basic_validations_passed(
-            interaction=interaction, username=username)
-        if not valid:
-            await interaction.response.send_message(error_message, ephemeral=True)
-            return
+        await self._require_in_guild_context(interaction_id, interaction)
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        await self._require_valid_username(interaction_id, interaction, username)
+        await self._require_has_available_aliases(interaction_id, interaction, interaction.user.id)
 
         # check if the username is available
         user = await self.connector.get_user_by_username(username)
         if user:
             # Check if the user is auto-registered, if so let know that it can be claimed
             if not user.password:
+                log.debug(f"({interaction_id}) precondition failed: username_claimable")
                 await interaction.response.send_message(
                     f"Username `{username}` is in use but can be claimed.\n"
                     f"Run `/claim {username}` to claim it.",
                     ephemeral=True)
             else:
+                log.debug(f"({interaction_id}) precondition failed: username_taken")
                 await interaction.response.send_message(
                     f"Username `{username}` is taken. Please choose a different one.", ephemeral=True)
             return
 
-        log.debug(f"Registering new account for '{interaction.user}' with username '{username}'")
+        log.debug(f"({interaction_id}) Registering new account for '{interaction.user}' with username '{username}'")
 
         # if it is register the user and send temp password
         password = utils.generate_random_password(20)
@@ -165,38 +305,40 @@ class DiscordBot:
                 f"Registered account: `{username}`, credentials have been sent via DM.",
                 ephemeral=True)
         except Exception as e:
-            log.warning("Failed to send register credentials via DM", exc_info=e)
+            log.warning(f"({interaction_id}) Failed to send register credentials via DM", exc_info=e)
             await interaction.response.send_message(
                 f"Registered account: `{username}`, failed to send credentials - check privacy settings.",
                 ephemeral=True)
 
     async def _claim(self, interaction: discord.Interaction, username: str) -> None:
-        log.debug(f"Claim command received from '{interaction.user}' for account '{username}'")
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) Claim command received from '{interaction.user}' for account '{username}'")
         username = username.strip()
 
         # Run basic validations
-        valid, error_message = await self._basic_validations_passed(
-            interaction=interaction, username=username)
-        if not valid:
-            await interaction.response.send_message(error_message, ephemeral=True)
-            return
+        await self._require_in_guild_context(interaction_id, interaction)
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        await self._require_valid_username(interaction_id, interaction, username)
+        await self._require_has_available_aliases(interaction_id, interaction, interaction.user.id)
 
-        # check if the username is available for claim
+        # check if the username is available for claim - no preconditions to allow custom message
         user = await self.connector.get_user_by_username(username)
         if not user:
+            log.debug(f"({interaction_id}) precondition failed: nonexistent_user")
             await interaction.response.send_message(
                 "This username is not registered."
                 f" Please register it instead by running `/register {username}`.",
                 ephemeral=True)
             return
 
-        if user and user.password:
+        if user.password:
+            log.debug(f"({interaction_id}) precondition failed: username_taken")
             await interaction.response.send_message(
                 "This username is taken. Please choose a different one.", ephemeral=True)
             return
 
         # if it is claim the user and send temp password
-        log.debug(f"Claiming the account '{interaction.user}' with username '{username}'")
+        log.debug(f"({interaction_id}) Claiming the account '{interaction.user}' with username '{username}'")
         password = utils.generate_random_password(20)
 
         await self.connector.claim_member(
@@ -226,21 +368,26 @@ class DiscordBot:
                 f"Claimed account: `{username}`, credentials have been sent via DM.",
                 ephemeral=True)
         except Exception as e:
-            log.warning("Failed to send claim credentials via DM", exc_info=e)
+            log.warning(f"({interaction_id}) Failed to send claim credentials via DM", exc_info=e)
             await interaction.response.send_message(
                 f"Claimed account: `{username}`, failed to send credentials - check privacy settings.",
                 ephemeral=True)
 
     async def _reset_password(self, interaction: discord.Interaction, username: str) -> None:
-        log.debug(f"resetpassword command received from '{interaction.user}'")
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) resetpassword command received from '{interaction.user}'")
         username = username.strip()
+
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
 
         # Get user's accounts
         user_account_list = await self.connector.get_users_by_discord_id(str(interaction.user.id))
         user_accounts = {user.username: user for user in user_account_list}
 
         if username not in user_accounts:
-            log.debug(f"User '{interaction.user}' tried to change password for not owned account: '{username}'")
+            log.debug(
+                f"({interaction_id}) precondition failed: not_owned_account -"
+                f" '{interaction.user}' tried to change password for '{username}'")
 
             owned_usernames = ', '.join([f'`{acc}`' for acc in list(user_accounts.keys())])
             await interaction.response.send_message(
@@ -267,28 +414,26 @@ class DiscordBot:
                 f"Password for account was reset: `{username}`, credentials have been sent via DM.",
                 ephemeral=True)
         except Exception as e:
-            log.warning("Failed to send new password via DM", exc_info=e)
+            log.warning(f"({interaction_id}) Failed to send new password via DM", exc_info=e)
             await interaction.response.send_message(
                 f"Password for account was reset: `{username}`, failed to send credentials - check privacy settings.",
                 ephemeral=True)
 
     async def _ban_user(self, interaction: discord.Interaction, username: str, reason: str) -> None:
-        log.debug(f"banuser command received from '{interaction.user}'")
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) banuser command received from '{interaction.user}'")
         username = username.strip()
 
-        user = await self.connector.get_user_by_username(username)
-        if not user:
-            await interaction.response.send_message(
-                f'User with username "{username}" has not been found',
-                ephemeral=True,
-            )
-            return
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        user = await self._require_user_by_username(interaction_id, interaction, username)
 
         result = await self.connector.ban_user(user.user_id, str(interaction.user.id), reason)
         if not result:
-            warn = f'Something went wrong while banning user. Username: {username}, user_id: {user.user_id}'
-            log.warning(warn)
-            await interaction.response.send_message(warn, ephemeral=True)
+            log.warning(
+                f'({interaction_id}) Something went wrong while banning user. '
+                f'Username: {username}, user_id: {user.user_id}')
+            await interaction.response.send_message(
+                f'Something went wrong while banning user: `{username}`.', ephemeral=True)
             return
 
         await self._send_notification(
@@ -299,7 +444,10 @@ class DiscordBot:
             self.ban_notifications_channel_id,
         )
 
+        # Ban already happened at this point - this only decides whether we can also DM the user,
+        # not whether the ban itself is valid, so it's handled inline rather than as a precondition.
         if not user.discord_user_id:
+            log.debug(f"({interaction_id}) banned user '{username}' has no Discord ID, skipping DM")
             await interaction.response.send_message(
                 f"Banned user: `{username}`.\n"
                 "This user has no Discord ID",
@@ -320,19 +468,17 @@ class DiscordBot:
             )
 
     async def _unban_user(self, interaction: discord.Interaction, username: str):
-        log.debug(f"unbanuser command received from '{interaction.user}'")
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) unbanuser command received from '{interaction.user}'")
         username = username.strip()
 
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+
         # Get user's accounts
-        user = await self.connector.get_user_by_username(username)
-        if not user:
-            await interaction.response.send_message(
-                f'User with username "{username}" has not been found',
-                ephemeral=True,
-            )
-            return
+        user = await self._require_user_by_username(interaction_id, interaction, username)
 
         if not user.is_banned:
+            log.debug(f"({interaction_id}) precondition failed: user_not_banned")
             await interaction.response.send_message(
                 "This user is not currently banned",
                 ephemeral=True,
@@ -341,9 +487,11 @@ class DiscordBot:
 
         result = await self.connector.unban_user(user.user_id, str(interaction.user.id))
         if not result:
-            warn = f'Something went wrong while unbanning user. Username: {username}, user_id: {user.user_id}'
-            log.warning(warn)
-            await interaction.response.send_message(warn, ephemeral=True)
+            log.warning(
+                f'({interaction_id}) Something went wrong while unbanning user. '
+                f'Username: {username}, user_id: {user.user_id}')
+            await interaction.response.send_message(
+                f'Something went wrong while unbanning user: `{username}`.', ephemeral=True)
             return
 
         await self._send_notification(
@@ -354,6 +502,7 @@ class DiscordBot:
         )
 
         if not user.discord_user_id:
+            log.debug(f"({interaction_id}) unbanned user '{username}' has no Discord ID, skipping DM")
             await interaction.response.send_message(
                 f"Unbanned user: `{username}`.\n"
                 "This user has no Discord ID",
@@ -372,162 +521,36 @@ class DiscordBot:
             f"- Your account: `{username}` has been unbanned.\n"
         )
 
-    def _validate_username(self, username: str) -> tuple[bool, str]:
-        # Checks if the username is of correct length and format
-        # Returns a tuple of (valid, error message)
-
-        if not self.username_regex.match(username):
-            return (False,
-                    "Username should:\n"
-                    "- contain at least one non-whitespace character\n"
-                    "- contain only letters, numbers, dots, hyphens, and underscores\n"
-                    "- be no longer than 15 characters.")
-
-        if username.lower().endswith(' guest'):
-            return (False, "Username cannot end with guest.")
-
-        return (True, "")
-
-    async def _is_allowed_to_register(self, discord_user_id: str) -> tuple[bool, str]:
-        # Checks if the user meets criteria to register a new username
-        # Such as max alias count or banned status
-        # Returns a tuple of (allowed, error message)
-
-        user_accounts = await self.connector.get_users_by_discord_id(discord_user_id)
-        if len(user_accounts) >= self.max_aliases:
-            return (False, f"You have reached the maximum number of aliases: {self.max_aliases}.")
-
-        return (True, "")
-
-    def _can_use_bot(self, guild_id: str) -> tuple[bool, str]:
-        # Checks if the user is allowed to use the bot
-        # If the user is not part of the server, then not
-        # Returns a tuple of (allowed, error message)
-
-        if guild_id != self.guild_id:
-            return (False, "You must be in this bot's discord server to use it.")
-
-        return (True, "")
-
-    async def _basic_validations_passed(
-            self, interaction: discord.Interaction, username: str) -> tuple[bool, str]:
-        # Checks the basic things for registering and claiming a username
-        discord_user_id = interaction.user.id
-
-        if not hasattr(interaction.user, 'guild'):
-            return (
-                False,
-                "I'm a bot, I don't respond to messages. Please use the slash command in an appropriate channel.")
-
-        user_guild_id = str(interaction.user.guild.id)
-
-        # Check if the discord user is allowed to interact with the bot
-        can_use_bot, error_message = self._can_use_bot(user_guild_id)
-        if not can_use_bot:
-            return (False, error_message)
-
-        # Check if the username specified is valid (run this first to avoid unnecessary queries)
-        is_valid, error_message = self._validate_username(username)
-        if not is_valid:
-            return (False, error_message)
-
-        # check if the client can register new username, otherwise send error with notif
-        allowed_to_register, error_message = await self._is_allowed_to_register(
-            discord_user_id=str(discord_user_id))
-        if not allowed_to_register:
-            return (False, error_message)
-
-        return (True, "")
-
-    async def _send_notification(self, message: str, channel: str) -> None:
-        discord_channel = self.client.get_channel(int(channel))
-        allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
-
-        if isinstance(discord_channel, allowed_channels):
-            log.debug(f"Sending notification: {repr(message)}")
-            await discord_channel.send(message)
-        else:
-            log.warning(
-                'notifications channel not found or not accepting messages: ' +
-                str(discord_channel))
-
     async def _challenge_member(self, interaction: discord.Interaction, username: str) -> None:
         """
         Generates invite links for direct matches.
         """
+        interaction_id = utils.base62_id()
+
         # Note that challenger and challenged are similar, pay attention to code.
-        log.debug(f"challenge command received from '{interaction.user}'")
+        log.debug(f"({interaction_id}) challenge command received from '{interaction.user}'")
         username = username.strip()
 
-        # Run basic checks, like whether the user belongs to server
-        if not hasattr(interaction.user, 'guild'):
-            await interaction.response.send_message(
-                "I'm a bot, I don't respond to messages. Please use the slash command in an appropriate channel.",
-                ephemeral=True)
-            return
+        await self._require_in_guild_context(interaction_id, interaction)
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        user_account_list = await self._require_has_registered_aliases(interaction_id, interaction, interaction.user.id)
 
-        can_use_bot, error_message = self._can_use_bot(str(interaction.user.guild.id))
-        if not can_use_bot:
-            await interaction.response.send_message(error_message, ephemeral=True)
-            return
-
-        user_account_list = await self.connector.get_users_by_discord_id(str(interaction.user.id))
-        if not user_account_list:
-            log.debug(f"Unregistered user '{interaction.user}' tried to challenge player: '{username}'")
-
-            await interaction.response.send_message(
-                "You need to register first.",
-                ephemeral=True)
-            return
         # Get the oldest challenger alias if they have more than one
-        sorted_user_account_list = sorted(user_account_list, key=lambda u: u.created_at)
-        challenger_user = sorted_user_account_list[0]
+        challenger_user = user_account_list[0]
 
-        if challenger_user.is_banned:
-            log.debug(f"Banned user '{interaction.user}' tried to challenge player: '{username}'")
-
-            await interaction.response.send_message(
-                f"Your account: `{challenger_user.username}` has been banned.",
-                ephemeral=True)
-            return
-
-        # Check if challenger have not challenged their own account
-        user_accounts = {user.username: user for user in user_account_list}
-        if username in user_accounts:
-            log.debug(f"User '{interaction.user}' tried to challenge own account: '{username}'")
-            await interaction.response.send_message(
-                "You cannot challenge a different account tied to the same Discord account.",
-                ephemeral=True)
-            return
-
-        # Check if the challenged user exist and is not banned
-        challenged_user = await self.connector.get_user_by_username(username)
-        if not challenged_user:
-            log.debug(f"User'{interaction.user}' tried to challenge unknown player: '{username}'")
-
-            await interaction.response.send_message(
-                f"Failed to find a player with username: `{username}`. Check for typos and case.",
-                ephemeral=True)
-            return
-        elif challenged_user.is_banned:
-            log.debug(f"User '{interaction.user}' tried to challenge banned player: '{username}'")
-
-            await interaction.response.send_message(
-                f"Your opponent's account: `{challenged_user.username}` has been banned.",
-                ephemeral=True)
-            return
-        elif challenged_user.is_guest:
-            log.debug(f"User '{interaction.user}' tried to challenge guest: '{username}'")
-            await interaction.response.send_message(
-                "You cannot challenge guest users.",
-                ephemeral=True)
-            return
+        await self._require_user_not_banned(interaction_id, interaction, challenger_user)
+        challenged_user = await self._require_user_by_username(interaction_id, interaction, username)
+        await self._require_interaction_with_non_owned_account(
+            interaction_id, interaction, challenged_user, user_account_list)
+        await self._require_user_not_banned(interaction_id, interaction, challenged_user)
+        await self._require_user_not_guest(interaction_id, interaction, challenged_user)
 
         # Check if there is a pending active invite, if so do not resend
         existing_invite = await self.connector.get_latest_match_invite_between(
             challenger_user.user_id, challenged_user.user_id)
 
         if existing_invite and existing_invite.can_be_used:
+            log.debug(f"({interaction_id}) precondition failed: active_invite_exists")
             challenge_url = f'{self.config.origin.get()}/challenge?id={existing_invite.invite_id}'
             await interaction.response.send_message(
                 f"You already have an active invite with this user: {challenge_url}",
@@ -553,7 +576,8 @@ class DiscordBot:
                 f"{'s' if self.config.challenge_invite_duration.get() != 1 else ''}"
             )
         except (discord.Forbidden, discord.HTTPException) as e:
-            log.warning(f"Failed to DM challenged user '{challenged_user.username}'", exc_info=e)
+            log.warning(
+                f"({interaction_id}) Failed to DM challenged user '{challenged_user.username}'", exc_info=e)
             await interaction.response.send_message(
                 f"Created a challenge for `{username}`, but couldn't DM them (their privacy settings may block it).\n"
                 f"You can send them this link yourself: {challenge_url}",
@@ -570,7 +594,7 @@ class DiscordBot:
                 f"{'s' if self.config.challenge_invite_duration.get() != 1 else ''}"
             )
         except (discord.Forbidden, discord.HTTPException) as e:
-            log.warning("Failed to DM challenger", exc_info=e)
+            log.warning(f"({interaction_id}) Failed to DM challenger", exc_info=e)
             await interaction.response.send_message(
                 f"Challenge sent to `{username}`, but I couldn't DM you the link.\n"
                 f"Here it is: {challenge_url}",

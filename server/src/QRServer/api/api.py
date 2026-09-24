@@ -278,6 +278,8 @@ class ApiServer:
         """password is expected in swf format, provided by frontend"""
         if not username or not password:
             return web.json_response({'error': 'invalid_request'}, status=400)
+        if username.lower().endswith(' guest'):
+            return web.json_response({'error': 'invalid_grant'}, status=401)
 
         user: DbUser | None = await self.connector.authenticate_user(
             username=username,

@@ -79,7 +79,7 @@ function LoginContent() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-base-500">
+    <main className="flex-1 flex items-center justify-center bg-base-500">
       <MetalPanelScrewed className="w-[280px]">
 
         <Splash />

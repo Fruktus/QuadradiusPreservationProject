@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.messages import JoinLobbyRequest, LobbyStateResponse
@@ -26,7 +26,8 @@ class LobbyIT(QuadradiusIntegrationTestCase):
             interaction = AsyncMock()
             interaction.user.__repr__ = lambda _: username
             interaction.user.id = '123'
-            interaction.user.guild.id = self.config.get('discord.bot.guild_id')
+            interaction.user.guild = Mock()
+            interaction.guild.id = int(self.config.get('discord.bot.guild_id'))
 
             await self.bot._register(interaction, username)
 

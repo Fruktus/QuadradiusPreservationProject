@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.password import password_verify
-from QRServer.discord.bot import DiscordBot
+from QRServer.discord.bot import DiscordBot, PreconditionFailedException
 import discord
 
 
@@ -26,7 +26,7 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.interaction = AsyncMock()
         self.interaction.user.__repr__ = lambda _: 'test'
         self.interaction.user.id = '123'
-        self.interaction.user.guild.id = self.config.get('discord.bot.guild_id')
+        self.interaction.guild.id = int(self.config.get('discord.bot.guild_id'))
 
         self.username = 'test_user'
 
@@ -63,9 +63,10 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
                 )
 
     async def test_register_user_in_wrong_guild(self):
-        self.interaction.user.guild.id = '1111111'
+        self.interaction.guild.id = '1111111'
 
-        await self.bot._register(self.interaction, self.username)
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._register(self.interaction, self.username)
 
         self.interaction.response.send_message.assert_called_once_with(
             "You must be in this bot's discord server to use it.",
@@ -77,7 +78,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
         for username in usernames:
             self.interaction.reset_mock()
-            await self.bot._register(self.interaction, username)
+            with self.assertRaises(PreconditionFailedException):
+                await self.bot._register(self.interaction, username)
             self.interaction.response.send_message.assert_called_once_with(
                 "Username should:\n- contain at least one non-whitespace character\n"
                 "- contain only letters, numbers, dots, hyphens, and underscores\n"
@@ -89,7 +91,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
         for username in usernames:
             self.interaction.reset_mock()
-            await self.bot._register(self.interaction, username)
+            with self.assertRaises(PreconditionFailedException):
+                await self.bot._register(self.interaction, username)
             self.interaction.response.send_message.assert_called_once_with(
                 'Username cannot end with guest.',
                 ephemeral=True)
@@ -98,7 +101,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self.bot._register(self.interaction, self.username)
 
         self.interaction.reset_mock()
-        await self.bot._register(self.interaction, 'test_user2')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._register(self.interaction, 'test_user2')
         self.interaction.response.send_message.assert_called_once_with(
             "You have reached the maximum number of aliases: 1.",
             ephemeral=True)
@@ -148,9 +152,10 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
                 )
 
     async def test_claim_user_in_wrong_guild(self):
-        self.interaction.user.guild.id = '1111111'
+        self.interaction.guild.id = '1111111'
 
-        await self.bot._claim(self.interaction, self.username)
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._claim(self.interaction, self.username)
 
         self.interaction.response.send_message.assert_called_once_with(
             "You must be in this bot's discord server to use it.",
@@ -162,7 +167,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
         for username in usernames:
             self.interaction.reset_mock()
-            await self.bot._claim(self.interaction, username)
+            with self.assertRaises(PreconditionFailedException):
+                await self.bot._claim(self.interaction, username)
             self.interaction.response.send_message.assert_called_once_with(
                 "Username should:\n- contain at least one non-whitespace character\n"
                 "- contain only letters, numbers, dots, hyphens, and underscores\n"
@@ -174,7 +180,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
         for username in usernames:
             self.interaction.reset_mock()
-            await self.bot._claim(self.interaction, username)
+            with self.assertRaises(PreconditionFailedException):
+                await self.bot._claim(self.interaction, username)
             self.interaction.response.send_message.assert_called_once_with(
                 'Username cannot end with guest.',
                 ephemeral=True)
@@ -183,7 +190,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self.bot._register(self.interaction, self.username)
 
         self.interaction.reset_mock()
-        await self.bot._claim(self.interaction, 'test_user2')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._claim(self.interaction, 'test_user2')
         self.interaction.response.send_message.assert_called_once_with(
             "You have reached the maximum number of aliases: 1.",
             ephemeral=True)
@@ -260,10 +268,11 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
     async def test_ban_nonexistent_user(self):
         self.bot._send_notification = AsyncMock()
 
-        await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
 
         self.interaction.response.send_message.assert_called_once_with(
-            'User with username "test_user" has not been found', ephemeral=True)
+            "Failed to find a player with username: `test_user`. Check for typos and case.", ephemeral=True)
         self.interaction.user.send.assert_not_called()
 
         self.bot._send_notification.assert_not_called()
@@ -320,10 +329,11 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
     async def test_unban_nonexistent_user(self):
         self.bot._send_notification = AsyncMock()
 
-        await self.bot._unban_user(self.interaction, self.username)
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._unban_user(self.interaction, self.username)
 
         self.interaction.response.send_message.assert_called_once_with(
-            'User with username "test_user" has not been found', ephemeral=True)
+            "Failed to find a player with username: `test_user`. Check for typos and case.", ephemeral=True)
         self.interaction.user.send.assert_not_called()
 
         self.bot._send_notification.assert_not_called()
@@ -431,7 +441,8 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.bot.client.fetch_user.assert_called_once_with(456)
 
     async def test_challenge_unregistered_challenger(self):
-        await self.bot._challenge_member(self.interaction, 'someone')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'someone')
         self.interaction.response.send_message.assert_called_once_with(
             "You need to register first.", ephemeral=True)
 
@@ -440,24 +451,27 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         challenger = await self.conn.get_user_by_username('challenger')
         await self.conn.ban_user(challenger.user_id, 'admin', 'test')
 
-        await self.bot._challenge_member(self.interaction, 'someone')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'someone')
 
         self.interaction.response.send_message.assert_called_once_with(
-            "Your account: `challenger` has been banned.", ephemeral=True)
+            "Account `challenger` is banned.", ephemeral=True)
 
     async def test_challenge_self(self):
         await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
 
-        await self.bot._challenge_member(self.interaction, 'challenger')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'challenger')
 
         self.interaction.response.send_message.assert_called_once_with(
-            "You cannot challenge a different account tied to the same Discord account.",
+            "You cannot interact with a different account tied to the same Discord account.",
             ephemeral=True)
 
     async def test_challenge_unknown_player(self):
         await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
 
-        await self.bot._challenge_member(self.interaction, 'ghost')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'ghost')
 
         self.interaction.response.send_message.assert_called_once_with(
             "Failed to find a player with username: `ghost`. Check for typos and case.", ephemeral=True)
@@ -468,10 +482,11 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         challenged = await self.conn.get_user_by_username('challenged')
         await self.conn.ban_user(challenged.user_id, 'admin', 'test')
 
-        await self.bot._challenge_member(self.interaction, 'challenged')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'challenged')
 
         self.interaction.response.send_message.assert_called_once_with(
-            "Your opponent's account: `challenged` has been banned.", ephemeral=True)
+            "Account `challenged` is banned.", ephemeral=True)
 
     async def test_challenge_existing_active_invite(self):
         await self._setup_challenge_users()
@@ -541,15 +556,200 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self.conn.create_member('challenger', 'asd'.encode(), discord_user_id='123')
         await self.conn.create_member('Random Guest', 'asd'.encode(), discord_user_id='456')
 
-        await self.bot._challenge_member(self.interaction, 'Random Guest')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'Random Guest')
 
         self.interaction.response.send_message.assert_called_once_with(
-            "You cannot challenge guest users.", ephemeral=True)
+            "You cannot interact with guest users.", ephemeral=True)
 
     async def test_challenge_wrong_guild(self):
-        self.interaction.user.guild.id = 999
+        self.interaction.guild.id = 999
 
-        await self.bot._challenge_member(self.interaction, 'someone')
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._challenge_member(self.interaction, 'someone')
 
         self.interaction.response.send_message.assert_called_once_with(
             "You must be in this bot's discord server to use it.", ephemeral=True)
+
+    # Guild restriction on admin / account commands
+
+    async def test_reset_password_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._reset_password(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You must be in this bot's discord server to use it.", ephemeral=True)
+
+    async def test_reset_password_outside_guild(self):
+        self.interaction.guild = None
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._reset_password(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You must be in this bot's discord server to use it.", ephemeral=True)
+
+    async def test_ban_user_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You must be in this bot's discord server to use it.", ephemeral=True)
+
+    async def test_unban_user_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._unban_user(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You must be in this bot's discord server to use it.", ephemeral=True)
+
+    async def test_unban_guest_user(self):
+        self.bot._send_notification = AsyncMock()
+        user_id = await self.conn.create_member('Random Guest', 'asd'.encode())
+        await self.conn.ban_user(user_id, 'admin', 'test')
+
+        await self.bot._unban_user(self.interaction, 'Random Guest')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Unbanned user: `Random Guest`.\nThis user has no Discord ID", ephemeral=True)
+
+    # Failure messages must not leak internal ids
+
+    async def test_ban_failure_message_has_no_internal_ids(self):
+        self.bot._send_notification = AsyncMock()
+        await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='456')
+
+        with patch.object(self.conn, 'ban_user', AsyncMock(return_value=False)):
+            await self.bot._ban_user(self.interaction, self.username, 'Test Ban')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Something went wrong while banning user: `test_user`.", ephemeral=True)
+        self.bot._send_notification.assert_not_called()
+
+    async def test_unban_failure_message_has_no_internal_ids(self):
+        self.bot._send_notification = AsyncMock()
+        user_id = await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='456')
+        await self.conn.ban_user(user_id, 'admin', 'test')
+
+        with patch.object(self.conn, 'unban_user', AsyncMock(return_value=False)):
+            await self.bot._unban_user(self.interaction, self.username)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Something went wrong while unbanning user: `test_user`.", ephemeral=True)
+        self.bot._send_notification.assert_not_called()
+
+    # Every failed precondition must be logged with its code
+
+    async def _assert_precondition_logged(self, code: str, call) -> None:
+        with self.assertLogs('qr.bot', level='DEBUG') as logs:
+            try:
+                await call
+            except PreconditionFailedException:
+                pass
+        self.assertTrue(
+            any(f'precondition failed: {code}' in line for line in logs.output),
+            f'expected "precondition failed: {code}" in {logs.output}')
+
+    async def test_logged_invalid_user_guild(self):
+        self.interaction.guild.id = '1111111'
+        await self._assert_precondition_logged(
+            'invalid_user_guild', self.bot._register(self.interaction, self.username))
+
+    async def test_logged_invalid_username(self):
+        await self._assert_precondition_logged(
+            'invalid_username', self.bot._register(self.interaction, 'asd#^&*,'))
+
+    async def test_logged_guest_username(self):
+        await self._assert_precondition_logged(
+            'guest_username', self.bot._register(self.interaction, 'asd guest'))
+
+    async def test_logged_over_max_aliases(self):
+        await self.conn.create_member('other', 'asd'.encode(), discord_user_id='123')
+        await self._assert_precondition_logged(
+            'over_max_aliases', self.bot._register(self.interaction, self.username))
+
+    async def test_logged_username_taken(self):
+        await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='456')
+        await self._assert_precondition_logged(
+            'username_taken', self.bot._register(self.interaction, self.username))
+        await self._assert_precondition_logged(
+            'username_taken', self.bot._claim(self.interaction, self.username))
+
+    async def test_logged_username_claimable(self):
+        await self.conn.authenticate_user(self.username, None, verify_password=False, auto_create=True)
+        await self._assert_precondition_logged(
+            'username_claimable', self.bot._register(self.interaction, self.username))
+
+    async def test_logged_nonexistent_user(self):
+        await self._assert_precondition_logged(
+            'nonexistent_user', self.bot._claim(self.interaction, self.username))
+        await self._assert_precondition_logged(
+            'nonexistent_user', self.bot._ban_user(self.interaction, self.username, 'Test Ban'))
+        await self._assert_precondition_logged(
+            'nonexistent_user', self.bot._unban_user(self.interaction, self.username))
+
+    async def test_logged_not_owned_account(self):
+        await self.conn.create_member('other', 'asd'.encode(), discord_user_id='123')
+        await self._assert_precondition_logged(
+            'not_owned_account', self.bot._reset_password(self.interaction, self.username))
+
+    async def test_logged_user_not_banned(self):
+        await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='456')
+        await self._assert_precondition_logged(
+            'user_not_banned', self.bot._unban_user(self.interaction, self.username))
+
+    async def test_logged_challenge_preconditions(self):
+        await self._assert_precondition_logged(
+            'user_not_registered', self.bot._challenge_member(self.interaction, 'challenged'))
+
+        await self._setup_challenge_users()
+        await self._assert_precondition_logged(
+            'same_discord_account_interaction', self.bot._challenge_member(self.interaction, 'challenger'))
+        await self._assert_precondition_logged(
+            'nonexistent_user', self.bot._challenge_member(self.interaction, 'ghost'))
+
+        await self.conn.create_member('Random Guest', 'asd'.encode(), discord_user_id='789')
+        await self._assert_precondition_logged(
+            'targeted_guest_user', self.bot._challenge_member(self.interaction, 'Random Guest'))
+
+        challenged = await self.conn.get_user_by_username('challenged')
+        await self.conn.ban_user(challenged.user_id, 'admin', 'test')
+        await self._assert_precondition_logged(
+            'user_banned', self.bot._challenge_member(self.interaction, 'challenged'))
+
+    async def test_logged_active_invite_exists(self):
+        await self._setup_challenge_users()
+        challenger = await self.conn.get_user_by_username('challenger')
+        challenged = await self.conn.get_user_by_username('challenged')
+        await self.conn.create_match_invite(challenger.user_id, challenged.user_id)
+
+        await self._assert_precondition_logged(
+            'active_invite_exists', self.bot._challenge_member(self.interaction, 'challenged'))
+
+    # Command error handling
+
+    async def test_command_error_handler_ignores_failed_preconditions(self):
+        error = discord.app_commands.CommandInvokeError(MagicMock(), PreconditionFailedException('test'))
+
+        with patch.object(discord.app_commands.CommandTree, 'on_error', new_callable=AsyncMock) as default_handler:
+            await self.bot._on_command_error(self.interaction, error)
+
+        default_handler.assert_not_called()
+        self.interaction.response.send_message.assert_not_called()
+
+    async def test_command_error_handler_delegates_other_errors(self):
+        error = discord.app_commands.CommandInvokeError(MagicMock(), ValueError('boom'))
+
+        with patch.object(discord.app_commands.CommandTree, 'on_error', new_callable=AsyncMock) as default_handler:
+            await self.bot._on_command_error(self.interaction, error)
+
+        default_handler.assert_called_once_with(self.bot.tree, self.interaction, error)
+
+    async def test_command_error_handler_is_registered_on_tree(self):
+        self.assertEqual(self.bot.tree.on_error, self.bot._on_command_error)

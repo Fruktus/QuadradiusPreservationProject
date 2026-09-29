@@ -1436,6 +1436,15 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(tournament.cancelled_reason, 'test cancel')
         self.assertEqual(tournament.cancelled_by_dc_id, '123')
 
+    async def test_get_active_tournament(self):
+        tournament = await self.dbconn.get_active_tournament()
+        self.assertIsNone(tournament)
+
+        await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+        tournament = await self.dbconn.get_active_tournament()
+        self.assertIsNotNone(tournament)
+        self.assertEqual(tournament.name, 'test_tournament')
+
     async def test_duels(self):
         participants_count = 4
         active_until = datetime(2020, 1, 5, 12, 0, 0, tzinfo=timezone.utc)

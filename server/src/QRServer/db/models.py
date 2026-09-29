@@ -78,9 +78,9 @@ class TournamentParticipant:
 class TournamentDuel:
     tournament_id: str
     duel_idx: int
-    active_until: datetime
-    user1_id: str
-    user2_id: str
+    active_until: datetime | None
+    user1_id: str | None
+    user2_id: str | None
 
 
 @dataclass

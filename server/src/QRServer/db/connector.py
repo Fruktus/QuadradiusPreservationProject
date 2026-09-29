@@ -820,6 +820,36 @@ class DbConnector:
             )
             return bool(c.rowcount)
 
+    async def get_active_tournament(self) -> Tournament | None:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select id, name, created_by_dc_id, tournament_msg_dc_id,"
+                " required_matches_per_duel, created_at,"
+                " started_at, finished_at, cancelled_at, cancelled_reason, cancelled_by_dc_id"
+                " from tournaments"
+                " where finished_at is null and cancelled_at is null"
+                " order by created_at limit 1"
+            )
+
+            row = await c.fetchone()
+            if not row:
+                # There is no active tournament
+                return None
+
+            return Tournament(
+                tournament_id=row[0],
+                name=row[1],
+                created_by_dc_id=row[2],
+                tournament_msg_dc_id=row[3],
+                required_matches_per_duel=row[4],
+                created_at=row[5],
+                started_at=timestamp_to_datetime(row[6]),
+                finished_at=timestamp_to_datetime(row[7]),
+                cancelled_at=timestamp_to_datetime(row[8]),
+                cancelled_reason=row[9],
+                cancelled_by_dc_id=row[10],
+            )
+
     async def add_participant(self, tournament_id: str, user_id: str) -> bool:
         """
         Returns:

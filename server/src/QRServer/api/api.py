@@ -144,7 +144,7 @@ class ApiServer:
         for duel in duels:
             duels_view.append({
                 'idx': duel.duel_idx,
-                'active_until': duel.active_until.isoformat(),
+                'active_until': duel.active_until.isoformat() if duel.active_until else None,
                 'user1_id': duel.user1_id,
                 'user2_id': duel.user2_id,
             })

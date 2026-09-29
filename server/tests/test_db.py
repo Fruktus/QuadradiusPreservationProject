@@ -1482,6 +1482,27 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
         duels = await self.dbconn.list_duels(tournament_id)
         self.assertEqual(len(duels), 3)
 
+    async def test_update_duel_without_deadline(self):
+        active_until = datetime(2020, 1, 5, 12, 0, 0, tzinfo=timezone.utc)
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+        member_ids = [await self.dbconn.create_member(f'user_{i}', f'password_{i}'.encode()) for i in range(3)]
+
+        # A duel can be created without a deadline and without users
+        self.assertTrue(await self.dbconn.add_duel(tournament_id, 0, None, member_ids[0], None))
+        duel = await self.dbconn.get_duel(tournament_id, 0)
+        self.assertIsNone(duel.active_until)
+        self.assertIsNone(duel.user2_id)
+        self.assertEqual((await self.dbconn.list_duels(tournament_id))[0], duel)
+
+        # These can be filled out later - when the previous round ended for ex.
+        self.assertTrue(await self.dbconn.update_duel(tournament_id, 0, active_until, member_ids[0], member_ids[1]))
+        duel = await self.dbconn.get_duel(tournament_id, 0)
+        self.assertEqual(duel.active_until, active_until)
+        self.assertEqual(duel.user2_id, member_ids[1])
+
+        # Updating a duel that does not exist changes nothing
+        self.assertFalse(await self.dbconn.update_duel(tournament_id, 5, active_until, member_ids[0], member_ids[2]))
+
     async def test_add_duel_matches(self):
         participants_count = 2
         active_until = datetime(2020, 1, 5, 12, 0, 0, tzinfo=timezone.utc)

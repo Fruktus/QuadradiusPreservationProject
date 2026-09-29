@@ -236,6 +236,12 @@ class Config:
             cli_args=[],
             description='Maximum number of aliases per user',
             default_value=1)
+        self.discord_bot_channel_tournament_notifications_id = ConfigKey(
+            config=self,
+            name='discord.bot.channel_tournament_notifications.id',
+            cli_args=[],
+            description='Discord Channel ID for tournament lifecycle notifications such as tournament or round start',
+            default_value='')
         self.discord_bot_channel_ban_notifications_id = ConfigKey(
             config=self,
             name='discord.bot.channel_ban_notifications.id',

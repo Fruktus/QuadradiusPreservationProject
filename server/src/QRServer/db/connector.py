@@ -13,7 +13,7 @@ from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common import utils
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, TournamentDuel, TournamentMatch, \
-     TournamentParticipant, Tournament, UserRating
+     TournamentParticipant, Tournament, Trophy, UserRating
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -1113,6 +1113,87 @@ class DbConnector:
             )
 
         return True
+
+    async def create_trophy(self, name: str, svg: bytes, tournament_id: str | None) -> str | None:
+        trophy_id = str(uuid.uuid4())
+        async with self._transaction("w") as c:
+            try:
+                await c.execute(
+                    "insert into trophies ("
+                    " id, name, tournament_id, svg"
+                    ") values (?, ?, ?, ?)",
+                    (
+                        trophy_id,
+                        name,
+                        tournament_id,
+                        svg,
+                    ),
+                )
+
+                return trophy_id
+            except aiosqlite.IntegrityError:
+                return None
+
+    async def award_trophy(self, trophy_id: str, user_id: str) -> bool:
+        async with self._transaction("w") as c:
+            await c.execute(
+                "update trophies"
+                " set user_id = ?,"
+                " awarded_at = ?"
+                " where id = ? and user_id is null",
+                (
+                    user_id,
+                    int(datetime.now(timezone.utc).timestamp()),
+                    trophy_id
+                )
+            )
+            return bool(c.rowcount)
+
+    async def get_user_trophies(self, user_id: str) -> list[Trophy]:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select id, user_id, tournament_id, name, svg, awarded_at"
+                " from trophies"
+                " where user_id = ?",
+                (user_id,)
+            )
+            rows = list(await c.fetchall())
+            if not rows:
+                return []
+
+            result = []
+            for row in rows:
+                trophy = Trophy(
+                    trophy_id=row[0],
+                    user_id=row[1],
+                    tournament_id=row[2],
+                    name=row[3],
+                    svg=row[4],
+                    awarded_at=timestamp_to_datetime(row[5]),
+                )
+                result.append(trophy)
+            return result
+
+    async def get_tournament_trophy(self, tournament_id: str) -> Trophy | None:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select id, user_id, tournament_id, name, svg, awarded_at"
+                " from trophies"
+                " where tournament_id = ?",
+                (tournament_id,)
+            )
+            row = await c.fetchone()
+            if not row:
+                return None
+
+            return Trophy(
+                trophy_id=row[0],
+                user_id=row[1],
+                tournament_id=row[2],
+                name=row[3],
+                svg=row[4],
+                awarded_at=timestamp_to_datetime(row[5]),
+            )
 
 
 async def create_connector(config) -> DbConnector:

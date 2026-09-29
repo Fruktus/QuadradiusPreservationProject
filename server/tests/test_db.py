@@ -1150,6 +1150,31 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[10][:3], (10, 'used_at', 'INTEGER'))
         self.assertEqual(table_info[11][:3], (11, 'match_id', 'varchar'))
 
+    async def test_migration_v13(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 12)
+
+        table_info = await self.get_table_info('tournaments')
+        self.assertEqual(len(table_info), 8)
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 13)
+
+        table_info = await self.get_table_info('tournaments')
+        self.assertEqual(len(table_info), 11)
+        ver = await self.get_db_version()
+        self.assertEqual(ver, 13)
+
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'name', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'created_by_dc_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'tournament_msg_dc_id', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'required_matches_per_duel', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'created_at', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'started_at', 'INTEGER'))
+        self.assertEqual(table_info[7][:3], (7, 'finished_at', 'INTEGER'))
+        self.assertEqual(table_info[8][:3], (8, 'cancelled_at', 'INTEGER'))
+        self.assertEqual(table_info[9][:3], (9, 'cancelled_reason', 'varchar'))
+        self.assertEqual(table_info[10][:3], (10, 'cancelled_by_dc_id', 'varchar'))
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -1173,7 +1198,10 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
             required_matches_per_duel=3,
             created_at=datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             started_at=None,
-            finished_at=None
+            finished_at=None,
+            cancelled_at=None,
+            cancelled_reason=None,
+            cancelled_by_dc_id=None,
         )
         tournament = await self.dbconn.get_tournament(tournament_id)
         self.assertEqual(tournament, expected_tournament)
@@ -1204,7 +1232,10 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
                     required_matches_per_duel=3,
                     created_at=datetime(2020, 1, 1, 12, i, 0, tzinfo=timezone.utc),
                     started_at=None,
-                    finished_at=None
+                    finished_at=None,
+                    cancelled_at=None,
+                    cancelled_reason=None,
+                    cancelled_by_dc_id=None,
                 ))
 
         tournaments = await self.dbconn.list_tournaments()
@@ -1294,6 +1325,49 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
         result = await self.dbconn.start_tournament(str(uuid.uuid4()))
 
         self.assertFalse(result)
+
+    async def test_cancel_tournament(self):
+        # Test cancel existing tournament
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+        tournament = await self.dbconn.get_tournament(tournament_id)
+        self.assertIsNone(tournament.cancelled_at)
+        self.assertIsNone(tournament.cancelled_reason)
+        self.assertIsNone(tournament.cancelled_by_dc_id)
+        self.assertFalse(tournament.is_cancelled)
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 3, 12, 0, 0, tzinfo=timezone.utc)
+            res = await self.dbconn.cancel_tournament(tournament.tournament_id, 'test cancel', '123')
+            self.assertTrue(res)
+
+        tournament = await self.dbconn.get_tournament(tournament_id)
+        self.assertTrue(tournament.is_cancelled)
+        self.assertEqual(tournament.cancelled_at, datetime(2020, 1, 3, 12, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(tournament.cancelled_reason, 'test cancel')
+        self.assertEqual(tournament.cancelled_by_dc_id, '123')
+
+    async def test_cancel_tournament_twice(self):
+        # Test cancel existing tournament twice - second one should not modify the tournament
+        tournament_id = await self.dbconn.create_tournament('test_tournament', '123', '456', 3)
+        tournament = await self.dbconn.get_tournament(tournament_id)
+        self.assertIsNone(tournament.cancelled_at)
+        self.assertIsNone(tournament.cancelled_reason)
+        self.assertIsNone(tournament.cancelled_by_dc_id)
+        self.assertFalse(tournament.is_cancelled)
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 3, 12, 0, 0, tzinfo=timezone.utc)
+            res = await self.dbconn.cancel_tournament(tournament.tournament_id, 'test cancel', '123')
+            self.assertTrue(res)
+
+        res = await self.dbconn.cancel_tournament(tournament.tournament_id, 'test cancel two', '123123')
+        self.assertFalse(res)
+
+        tournament = await self.dbconn.get_tournament(tournament_id)
+        self.assertTrue(tournament.is_cancelled)
+        self.assertEqual(tournament.cancelled_at, datetime(2020, 1, 3, 12, 0, 0, tzinfo=timezone.utc))
+        self.assertEqual(tournament.cancelled_reason, 'test cancel')
+        self.assertEqual(tournament.cancelled_by_dc_id, '123')
 
     async def test_duels(self):
         participants_count = 4

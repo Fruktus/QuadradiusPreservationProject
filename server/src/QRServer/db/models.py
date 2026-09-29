@@ -59,6 +59,13 @@ class Tournament:
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    cancelled_at: datetime | None
+    cancelled_reason: str | None
+    cancelled_by_dc_id: str | None
+
+    @property
+    def is_cancelled(self) -> bool:
+        return bool(self.cancelled_at)
 
 
 @dataclass

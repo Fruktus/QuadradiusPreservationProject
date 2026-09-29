@@ -704,7 +704,7 @@ class DbConnector:
             await c.execute(
                 "select id, name, created_by_dc_id, tournament_msg_dc_id,"
                 " required_matches_per_duel, created_at,"
-                " started_at, finished_at"
+                " started_at, finished_at, cancelled_at, cancelled_reason, cancelled_by_dc_id"
                 " from tournaments"
                 " where id = ?",
                 (tournament_id,)
@@ -722,6 +722,9 @@ class DbConnector:
                 created_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
                 started_at=timestamp_to_datetime(row[6]),
                 finished_at=timestamp_to_datetime(row[7]),
+                cancelled_at=timestamp_to_datetime(row[8]),
+                cancelled_reason=row[9],
+                cancelled_by_dc_id=row[10],
             )
 
     async def list_tournaments(self) -> list[Tournament] | None:
@@ -729,7 +732,7 @@ class DbConnector:
             await c.execute(
                 "select id, name, created_by_dc_id, tournament_msg_dc_id,"
                 " required_matches_per_duel, created_at,"
-                " started_at, finished_at"
+                " started_at, finished_at, cancelled_at, cancelled_reason, cancelled_by_dc_id"
                 " from tournaments"
             )
 
@@ -748,6 +751,9 @@ class DbConnector:
                     created_at=datetime.fromtimestamp(row[5], tz=timezone.utc),
                     started_at=timestamp_to_datetime(row[6]),
                     finished_at=timestamp_to_datetime(row[7]),
+                    cancelled_at=timestamp_to_datetime(row[8]),
+                    cancelled_reason=row[9],
+                    cancelled_by_dc_id=row[10],
                 ))
             return result
 
@@ -798,6 +804,19 @@ class DbConnector:
                 " set started_at = ?"
                 " where id = ? and started_at is null",
                 (now_ts, tournament_id)
+            )
+            return bool(c.rowcount)
+
+    async def cancel_tournament(self, tournament_id: str, reason: str, discord_id: str) -> bool:
+        async with self._transaction("w") as c:
+            now_ts = int(datetime.now(timezone.utc).timestamp())
+            await c.execute(
+                "update tournaments"
+                " set cancelled_at = ?,"
+                " cancelled_reason = ?,"
+                " cancelled_by_dc_id = ?"
+                " where id = ? and started_at is null and cancelled_at is null",
+                (now_ts, reason, discord_id, tournament_id)
             )
             return bool(c.rowcount)
 

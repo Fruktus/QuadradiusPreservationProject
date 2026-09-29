@@ -6,11 +6,13 @@ import uuid
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant
+from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant, Trophy
 from QRServer.common.classes import RankingEntry
 from QRServer.common import utils
 from QRServer.config import Config
 from QRServer.db.password import password_hash
+
+TROPHY_SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M2 1h6v3a3 3 0 0 1-6 0z"/></svg>'
 
 
 class DbTest(unittest.IsolatedAsyncioTestCase):
@@ -659,6 +661,53 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         result = await self.conn.get_latest_match_invite_between(user_1.user_id, user_3.user_id)
         self.assertIsNone(result)
 
+    async def test_trophy(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        other_id = await self.conn.create_member('other_user', b'password', '22222222222')
+        tournament_id = await self.conn.create_tournament('test_tournament', '123', '456', 3)
+
+        trophy_id = await self.conn.create_trophy('trophy', TROPHY_SVG, tournament_id)
+        expected = Trophy(
+            trophy_id=trophy_id,
+            user_id=None,
+            tournament_id=tournament_id,
+            name='trophy',
+            svg=TROPHY_SVG,
+            awarded_at=None,
+        )
+        self.assertEqual(await self.conn.get_tournament_trophy(tournament_id), expected)
+        self.assertEqual(await self.conn.get_user_trophies(user_id), [])
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            self.assertTrue(await self.conn.award_trophy(trophy_id, user_id))
+
+        expected.user_id = user_id
+        expected.awarded_at = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        self.assertEqual(await self.conn.get_tournament_trophy(tournament_id), expected)
+        self.assertEqual(await self.conn.get_user_trophies(user_id), [expected])
+
+        # already awarded / nonexistent trophies cannot be awarded
+        self.assertFalse(await self.conn.award_trophy(trophy_id, other_id))
+        self.assertFalse(await self.conn.award_trophy('missing', other_id))
+        self.assertEqual(await self.conn.get_tournament_trophy(tournament_id), expected)
+        self.assertEqual(await self.conn.get_user_trophies(other_id), [])
+
+    async def test_create_trophy_duplicates(self):
+        tournament_id = await self.conn.create_tournament('test_tournament', '123', '456', 3)
+
+        self.assertIsNotNone(await self.conn.create_trophy('trophy', TROPHY_SVG, tournament_id))
+        self.assertIsNone(await self.conn.create_trophy('trophy', TROPHY_SVG, None))
+        self.assertIsNone(await self.conn.create_trophy('other', TROPHY_SVG, tournament_id))
+
+        # trophies without a tournament do not conflict with each other
+        self.assertIsNotNone(await self.conn.create_trophy('no_tournament_1', TROPHY_SVG, None))
+        self.assertIsNotNone(await self.conn.create_trophy('no_tournament_2', TROPHY_SVG, None))
+
+    async def test_get_nonexistent_trophies(self):
+        self.assertIsNone(await self.conn.get_tournament_trophy('missing'))
+        self.assertEqual(await self.conn.get_user_trophies('missing'), [])
+
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -1174,6 +1223,24 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[8][:3], (8, 'cancelled_at', 'INTEGER'))
         self.assertEqual(table_info[9][:3], (9, 'cancelled_reason', 'varchar'))
         self.assertEqual(table_info[10][:3], (10, 'cancelled_by_dc_id', 'varchar'))
+
+    async def test_migration_v14(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 13)
+        self.assertNotIn('trophies', await self.get_table_names())
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 14)
+
+        self.assertIn('trophies', await self.get_table_names())
+        self.assertEqual(await self.get_db_version(), 14)
+
+        table_info = await self.get_table_info('trophies')
+        self.assertEqual(len(table_info), 6)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'user_id', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'tournament_id', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'name', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'svg', 'BLOB'))
+        self.assertEqual(table_info[5][:3], (5, 'awarded_at', 'INTEGER'))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

@@ -111,3 +111,13 @@ class MatchInvite:
     @property
     def can_be_used(self):
         return not self.is_used and self.active_until > datetime.now(timezone.utc)
+
+
+@dataclass
+class Trophy:
+    trophy_id: str
+    user_id: str | None
+    tournament_id: str | None
+    name: str
+    svg: bytes
+    awarded_at: datetime | None

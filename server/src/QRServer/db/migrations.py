@@ -35,6 +35,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v11,
         _migration_upgrade_to_v12,
         _migration_upgrade_to_v13,
+        _migration_upgrade_to_v14,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -354,3 +355,20 @@ async def _migration_upgrade_to_v13(c, _config):
     await c.execute("alter table tournaments add column cancelled_reason varchar")
     await c.execute("alter table tournaments add column cancelled_by_dc_id varchar")
     await _set_version(c, 13)
+
+
+async def _migration_upgrade_to_v14(c, _config):
+    await c.execute(
+        "create table trophies ("
+        " id varchar primary key,"
+        " user_id varchar,"
+        " tournament_id varchar unique,"
+        " name varchar unique not null,"
+        " svg blob not null,"
+        " awarded_at integer,"
+        " foreign key(user_id) references users (id),"
+        " foreign key(tournament_id) references tournaments (id)"
+        ")"
+    )
+
+    await _set_version(c, 14)

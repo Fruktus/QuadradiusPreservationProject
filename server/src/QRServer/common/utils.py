@@ -1,7 +1,8 @@
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import secrets
 import string
+from itertools import zip_longest
 
 
 BASE62 = string.digits + string.ascii_letters
@@ -97,3 +98,28 @@ def base62_id() -> str:
         result.append(BASE62[remainder])
 
     return ''.join(reversed(result))
+
+
+def tz_aoe() -> timezone:
+    """
+    Returns:
+        'Anywhere on Earth' timezone
+    """
+    return timezone(timedelta(hours=-12), name='AOE')
+
+
+def pairwise(seq: list) -> list[tuple]:
+    """
+    Group elements from a sequence into consecutive pairs.
+
+    Elements are taken two at a time in order:
+        [a, b, c, d] -> [(a, b), (c, d)]
+
+    If the sequence contains an odd number of elements, the final pair
+    is padded with `None`:
+        [a, b, c] -> [(a, b), (c, None)]
+
+    Returns:
+        A list of 2-tuples containing consecutive elements from `seq`.
+    """
+    return list(zip_longest(seq[::2], seq[1::2]))

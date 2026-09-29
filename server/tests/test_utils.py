@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import random as rnd
 from QRServer.common import utils
 from QRServer.common.full_binary_tree_indexer import FullBinaryTreeIndexer
@@ -227,3 +227,20 @@ class Base62IdTest(unittest.TestCase):
             mock_datetime.now.return_value = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
             compact_id = utils.base62_id()
             self.assertEqual(compact_id, 'rMhkpLa')
+
+
+class TzAoeTest(unittest.TestCase):
+    def test_tz_aoe(self):
+        self.assertEqual(utils.tz_aoe().utcoffset(None), timedelta(hours=-12))
+
+        # 23:59 AOE is noon UTC the next day
+        deadline = datetime(2026, 1, 1, 23, 59, tzinfo=utils.tz_aoe())
+        self.assertEqual(deadline.astimezone(timezone.utc), datetime(2026, 1, 2, 11, 59, tzinfo=timezone.utc))
+
+
+class PairwiseTest(unittest.TestCase):
+    def test_pairwise(self):
+        self.assertEqual(utils.pairwise([]), [])
+        self.assertEqual(utils.pairwise(['a', 'b', 'c', 'd']), [('a', 'b'), ('c', 'd')])
+        self.assertEqual(utils.pairwise(['a', 'b', 'c']), [('a', 'b'), ('c', None)])
+        self.assertEqual(utils.pairwise(['a']), [('a', None)])

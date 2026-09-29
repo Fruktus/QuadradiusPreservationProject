@@ -34,6 +34,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v10,
         _migration_upgrade_to_v11,
         _migration_upgrade_to_v12,
+        _migration_upgrade_to_v13,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -346,3 +347,10 @@ async def _migration_upgrade_to_v12(c, _config):
     )
 
     await _set_version(c, 12)
+
+
+async def _migration_upgrade_to_v13(c, _config):
+    await c.execute("alter table tournaments add column cancelled_at integer")
+    await c.execute("alter table tournaments add column cancelled_reason varchar")
+    await c.execute("alter table tournaments add column cancelled_by_dc_id varchar")
+    await _set_version(c, 13)

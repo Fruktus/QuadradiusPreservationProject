@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import FullscreenToggle from '@/components/ui/fullscreen-toggle';
+import DiscordButton from '@/components/ui/topbar/discord-button';
 import UserStatus from '@/components/ui/topbar/user-status';
 import { topbarBtn } from '@/components/ui/topbar/topbar-button';
 import { cn } from '@/lib/utils';
@@ -47,6 +48,7 @@ export default function Topbar() {
         >
           Manual
         </a>
+        <DiscordButton />
       </div>
       <div className="relative flex min-w-0 items-center">
         <UserStatus />

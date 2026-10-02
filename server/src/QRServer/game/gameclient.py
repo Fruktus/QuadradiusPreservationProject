@@ -24,8 +24,8 @@ class GameClientHandler(ClientHandler, MatchParty):
     opponent_handler: Optional['GameClientHandler']
     _invite_sentinel_task: None | Task
 
-    def __init__(self, config, connector, reader, writer, game_server):
-        super().__init__(config, connector, reader, writer)
+    def __init__(self, config, connector, reader, writer, game_server, addr):
+        super().__init__(config, connector, reader, writer, addr)
         self.webhook = Webhook(config)
         self.opponent_handler = None
         self.game_server = game_server
@@ -168,9 +168,9 @@ class GameClientHandler(ClientHandler, MatchParty):
             db_user = my_db_user
         else:
             db_user = await self.authenticate_user(username, password)
-
             if not db_user:
-                log.debug(f'Player {username} tried to connect to a game, but failed to authenticate')
+                log.debug(f'Player {username!r}@[{self.addr[0]}]:{self.addr[1]} tried to connect'
+                          ' to a game, but failed to authenticate')
                 # according to my analysis, there's no way to tell the client
                 # it failed to authenticate, so just close the connection
                 self.close_and_stop()

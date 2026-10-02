@@ -19,8 +19,8 @@ log = logging.getLogger('qr.lobby_client_handler')
 class LobbyClientHandler(ClientHandler):
     player: LobbyPlayer
 
-    def __init__(self, config, connector, reader, writer, lobby_server):
-        super().__init__(config, connector, reader, writer)
+    def __init__(self, config, connector, reader, writer, lobby_server, addr):
+        super().__init__(config, connector, reader, writer, addr)
         self.webhook = Webhook(config)
         self.lobby_server = lobby_server
 
@@ -71,7 +71,8 @@ class LobbyClientHandler(ClientHandler):
 
         db_user = await self.authenticate_user(username, password)
         if not db_user:
-            log.debug(f'Player {username} tried to connect, but failed to authenticate')
+            log.debug(f'Player {username!r}@[{self.addr[0]}]:{self.addr[1]} tried to connect,'
+                      ' but failed to authenticate')
             await self._error_bad_member()
             self.close_and_stop()
             return

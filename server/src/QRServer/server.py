@@ -1,8 +1,11 @@
 import asyncio
 import logging
 import signal
-from asyncio import Task, Server, StreamReader, StreamWriter, CancelledError
+from asyncio import Task, Server, CancelledError
 from typing import Coroutine
+import ipaddress
+from proxyprotocol.detect import ProxyProtocolDetect
+from proxyprotocol.reader import ProxyProtocolReader
 
 from QRServer.api.api import ApiServer
 from QRServer.common.clienthandler import ClientHandler
@@ -159,8 +162,8 @@ class QRServer:
         await self._lobby_listener_task(self.config, self.connector, self._lobby_server)
 
     async def _lobby_listener_task(self, config, connector, lobby_server):
-        def handler_factory(reader, writer):
-            return LobbyClientHandler(config, connector, reader, writer, lobby_server)
+        def handler_factory(reader, writer, addr):
+            return LobbyClientHandler(config, connector, reader, writer, lobby_server, addr)
 
         try:
             await self._listen_for_connections(config.lobby_port.get(), handler_factory, True)
@@ -169,8 +172,8 @@ class QRServer:
             await self.stop()
 
     async def _game_listener_task(self, config, connector, game_server):
-        def handler_factory(reader, writer):
-            return GameClientHandler(config, connector, reader, writer, game_server)
+        def handler_factory(reader, writer, addr):
+            return GameClientHandler(config, connector, reader, writer, game_server, addr)
 
         try:
             await self._listen_for_connections(config.game_port.get(), handler_factory, False)
@@ -180,19 +183,40 @@ class QRServer:
 
     async def _listen_for_connections(self, conn_port, handler_factory, is_lobby):
         conn_host = self.config.address.get()
+        use_proxy = self.config.use_proxy_protocol.get()
 
         if is_lobby:
             log.info(f'Lobby starting on {conn_host}:{conn_port}')
         else:
             log.info(f'Game starting on {conn_host}:{conn_port}')
 
-        def handle_client(reader: StreamReader, writer: StreamWriter):
-            handler: ClientHandler = handler_factory(reader, writer)
-            addr = writer.get_extra_info('peername')
+        def start_handler(reader, writer, addr):
+            handler: ClientHandler = handler_factory(reader, writer, addr)
             name = f'Lobby client {addr}' if is_lobby else f'Game client {addr}'
             self.start_task(name, handler.run())
 
-        server = await asyncio.start_server(handle_client, conn_host, conn_port)
+        async def on_direct_client_connection(reader, writer):
+            start_handler(reader, writer, writer.get_extra_info('peername'))
+
+        async def on_proxied_client_connection(reader, writer, info):
+            if writer.is_closing():
+                log.warning(f'Rejected loopback peer {writer.get_extra_info("peername")}: bad or missing PROXY header')
+                return
+
+            start_handler(reader, writer, (info.peername or writer.get_extra_info('peername'))[:2])
+
+        if use_proxy:
+            pp = ProxyProtocolReader(ProxyProtocolDetect()).get_callback(on_proxied_client_connection, timeout=5)
+
+            def on_client_connected(reader, writer):
+                peer = writer.get_extra_info('peername')
+                if peer and self._is_loopback(peer[0]):
+                    return pp(reader, writer)
+                return on_direct_client_connection(reader, writer)
+        else:
+            on_client_connected = on_direct_client_connection
+
+        server = await asyncio.start_server(on_client_connected, conn_host, conn_port)
         if is_lobby:
             self._lobby_sock_server = server
         else:
@@ -222,3 +246,12 @@ class QRServer:
             if lobby_count > 0 or game_count > 0:
                 log.info(f'There are currently {lobby_count} players in the lobby, '
                          f'and {game_count} players playing')
+
+    @staticmethod
+    def _is_loopback(host: str) -> bool:
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            return False
+        ip = getattr(ip, 'ipv4_mapped', None) or ip
+        return ip.is_loopback

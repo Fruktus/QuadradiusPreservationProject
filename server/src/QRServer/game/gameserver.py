@@ -92,17 +92,18 @@ class GameServer:
             except Exception:
                 log.exception(f'Failed to generate report from results {match.match_stats}')
 
-    async def remove_client(self, client: GameClientHandler):
+    async def remove_client(self, client: GameClientHandler) -> bool:
         pairing_id = client.pairing_id()
         if pairing_id not in self.matches:
-            return
+            return False
 
         match = self.matches[pairing_id]
         if client not in match.parties:
-            return  # already cleaned up
+            return False
 
         match.remove_party(client)
 
         if not match.created or match.empty():
             del self.matches[pairing_id]
-            return
+
+        return True

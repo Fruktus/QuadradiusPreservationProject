@@ -205,7 +205,21 @@ class GameClientHandler(ClientHandler, MatchParty):
         if not isinstance(message, ResponseMessage):
             raise Exception('Trying to send a non-response message')
         if self.opponent_handler:
-            await self.opponent_handler.send_msg(message)
+            try:
+                await self.opponent_handler.send_msg(message)
+            except SendMessageException:
+                dead_opponent = self.opponent_handler
+                log.debug(f'Opponent {dead_opponent.username} already gone, notifying {self.username}')
+                await self._handle_opponent_gone(dead_opponent)
+
+    async def _handle_opponent_gone(self, dead_opponent: 'GameClientHandler'):
+        removed = await self.game_server.remove_client(dead_opponent)
+        if not removed:
+            return
+        try:
+            await self.send_msg(OpponentDeadResponse.new())
+        except SendMessageException:
+            log.debug(f'{self.username} also already gone, nothing to notify')
 
     async def _handle_ping(self, message: ServerPingRequest):
         await self.send_msg(ServerAliveResponse.new())
@@ -229,12 +243,9 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')
         if self.opponent_handler is not None:
-            try:
-                await self.opponent_handler.send_msg(OpponentDeadResponse.new())
-            except SendMessageException:
-                log.debug(f'Opponent {self.opponent_handler.username} already gone, skipping notify')
-
-        await self.game_server.remove_client(self)
+            await self.opponent_handler._handle_opponent_gone(self)
+        else:
+            await self.game_server.remove_client(self)
         self.close_and_stop()
 
     async def _invite_sentinel(self, timeout_s: float):

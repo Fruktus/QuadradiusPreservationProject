@@ -13,7 +13,7 @@ from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common.utils import utils
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, TournamentDuel, TournamentMatch, \
-     TournamentParticipant, Tournament, Trophy, UserRating
+     TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -1246,6 +1246,50 @@ class DbConnector:
                 name=row[3],
                 svg=row[4],
                 awarded_at=timestamp_to_datetime(row[5]),
+            )
+
+    async def get_player_stats(self, user_id: str, nemesis_min_losses: int = 5) -> PlayerStats:
+        """Lifetime stats of a player. Only finished, ranked and non-void matches are counted."""
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select"
+                " count(*),"
+                " coalesce(sum(r.winner_id = :uid), 0),"
+                " coalesce(sum(r.loser_id = :uid), 0),"
+                " max(cast(r.finished_at as integer) - m.started_at),"
+                " max(r.move_counter),"
+                " max(case when r.winner_id = :uid then r.winner_pieces_left - r.loser_pieces_left end)"
+                " from match_results r"
+                " inner join matches m on m.id = r.match_id"
+                " where (r.winner_id = :uid or r.loser_id = :uid)"
+                " and r.is_void = 0 and m.is_ranked = 1",
+                {'uid': user_id})
+            row = await c.fetchone()
+
+            # Get nonbanned, nonguest user who beat the current one most times (at least min)
+            await c.execute(
+                "select u.username, count(*) as losses"
+                " from match_results r"
+                " inner join matches m on m.id = r.match_id"
+                " inner join users u on u.id = r.winner_id"
+                " left join bans b on b.user_id = u.id"
+                " where r.loser_id = ? and r.is_void = 0 and m.is_ranked = 1"
+                " and b.user_id is null and lower(u.username) not like '% guest'"
+                " group by r.winner_id"
+                " having count(*) >= ?"
+                " order by losses desc, max(r.finished_at) desc"
+                " limit 1",
+                (user_id, nemesis_min_losses))
+            nemesis_row = await c.fetchone()
+
+            return PlayerStats(
+                total_matches=row[0],
+                wins=row[1],
+                losses=row[2],
+                longest_match_seconds=row[3],
+                most_moves=row[4],
+                biggest_win_margin=row[5],
+                nemesis=Nemesis(username=nemesis_row[0], losses=nemesis_row[1]) if nemesis_row else None,
             )
 
 

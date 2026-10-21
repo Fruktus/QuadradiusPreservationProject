@@ -1,17 +1,23 @@
 import asyncio
+import base64
+from datetime import datetime, timezone
 from enum import Enum
 import logging
 from urllib.parse import quote
 
 from QRServer.api.auth import authenticated, decode_token, make_access_token, make_refresh_token
+from QRServer.common.utils.cache import ttl_cache
 from QRServer.config import Config
-from QRServer.db.connector import DbConnector
+from QRServer.db.connector import DbConnector, timestamp_to_datetime
 from QRServer.db.models import DbUser, MatchInvite, Tournament, TournamentDuel, TournamentMatch
 from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyserver import LobbyServer
 from aiohttp import web
 
 log = logging.getLogger('qr.api')
+
+# How long a player profile is served from memory
+PROFILE_CACHE_TTL_SEC = 10 * 60  # 10 minutes
 
 _routes = web.RouteTableDef()
 
@@ -76,6 +82,9 @@ class ApiServer:
             web.get('/api/v1/tournaments/{id}/duels', self._v1_tournament_duels),
             web.get('/api/v1/tournaments/{id}/matches', self._v1_tournament_matches),
             web.get('/api/v1/tournaments/{id}/users', self._v1_tournament_users),
+
+            # Players
+            web.get('/api/v1/players/{username}', self._v1_player_profile),
 
             # Invites
             web.get('/api/v1/invites/{id}/make-params', self._v1_invites_make_params),
@@ -176,6 +185,62 @@ class ApiServer:
             })
 
         return web.json_response(data={'tournament_matches': tournament_matches_view}, status=200)
+
+    @authenticated
+    async def _v1_player_profile(self, request: web.Request, _user: DbUser) -> web.Response:
+        # We want to auth first, then cache, hence no decorator here
+        status, body = await self._player_profile(request.match_info['username'])
+        if status != 200:
+            return web.json_response(body, status=status)
+
+        return web.json_response(
+            body,
+            status=200,
+            headers={
+                # private so only the user's browser may cache the response (and not intermediaries)
+                'Cache-Control': f'private, max-age={PROFILE_CACHE_TTL_SEC}',
+                'Vary': 'Authorization',
+            },
+        )
+
+    @ttl_cache(ttl=PROFILE_CACHE_TTL_SEC, maxsize=1000)
+    async def _player_profile(self, username: str) -> tuple[int, dict]:
+        player: DbUser | None = await self.connector.get_user_by_username(username)
+        if player is None or player.is_guest or player.is_banned:
+            return 404, {'error': 'this player does not exist', 'error_code': 'player_not_found'}
+
+        stats = await self.connector.get_player_stats(player.user_id)
+        trophies = await self.connector.get_user_trophies(player.user_id)
+
+        created_at = timestamp_to_datetime(player.created_at)  # type: ignore[arg-type]
+        return 200, {
+            'player': {
+                'username': player.username,
+                'member_since': created_at.isoformat() if created_at else None,
+            },
+            'stats': {
+                'total_matches': stats.total_matches,
+                'wins': stats.wins,
+                'losses': stats.losses,
+                'win_rate': stats.win_rate,
+                'longest_match_seconds': stats.longest_match_seconds,
+                'most_moves': stats.most_moves,
+                'biggest_win_margin': stats.biggest_win_margin,
+                'nemesis': {
+                    'username': stats.nemesis.username,
+                    'losses': stats.nemesis.losses,
+                } if stats.nemesis else None,
+            },
+            'trophies': [
+                {
+                    'id': trophy.trophy_id,
+                    'name': trophy.name,
+                    'awarded_at': trophy.awarded_at.isoformat() if trophy.awarded_at else None,
+                    'image': 'data:image/svg+xml;base64,' + base64.b64encode(trophy.svg).decode('ascii'),
+                }
+                for trophy in sorted(trophies, key=lambda t: t.awarded_at or datetime.min.replace(tzinfo=timezone.utc))
+            ],
+        }
 
     @authenticated
     async def _v1_invites_make_params(self, request, user: DbUser) -> web.Response:

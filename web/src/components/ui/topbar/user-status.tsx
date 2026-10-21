@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { getLoggedInUsername, getUserManager, loginUrlWithRedirect } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import ProfileButton from '@/components/ui/topbar/profile-button';
 import { topbarBtn, topbarItemSize } from '@/components/ui/topbar/topbar-button';
 
 export default function UserStatus() {
@@ -51,6 +52,7 @@ export default function UserStatus() {
       >
         <span className="truncate">{loggedIn ? username : 'not logged in'}</span>
       </span>
+      {loggedIn && <ProfileButton username={username} />}
       <button type="button" className={topbarBtn} onClick={loggedIn ? () => void logout() : login}>
         {loggedIn ? 'Logout' : 'Login'}
       </button>

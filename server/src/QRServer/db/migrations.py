@@ -1,5 +1,5 @@
 from datetime import datetime as dt
-from QRServer.common import utils
+from QRServer.common.utils import utils
 from QRServer.common.classes import RankingEntry
 from QRServer.config import Config
 

@@ -2,7 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
-from QRServer.common import utils
+from QRServer.common.utils import utils
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.clienthandler import ClientHandler
 from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, LobbyDuplicateResponse, \

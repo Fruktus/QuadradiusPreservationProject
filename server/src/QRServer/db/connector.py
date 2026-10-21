@@ -10,7 +10,7 @@ from QRServer.config import Config
 import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, RankingEntry
-from QRServer.common import utils
+from QRServer.common.utils import utils
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, TournamentDuel, TournamentMatch, \
      TournamentParticipant, Tournament, Trophy, UserRating

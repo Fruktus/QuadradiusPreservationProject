@@ -2,7 +2,7 @@ import logging
 import re
 from hashlib import md5
 
-from QRServer.common import utils
+from QRServer.common.utils import utils
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbUser

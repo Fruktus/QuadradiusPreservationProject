@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import patch
 
 from QRServer.common.classes import LobbyPlayer
@@ -147,7 +146,7 @@ class LobbyIT(QuadradiusIntegrationTestCase):
         await client_over_limit.send_message(
             SetCommentRequest.new(0, 'test communique'))
 
-    @patch('asyncio.sleep', return_value=asyncio.sleep(0))
+    @patch('asyncio.sleep')
     async def test_lobby_name_taken(self, mock_sleep):
         # Create a member
         member = await self.new_lobby_client()

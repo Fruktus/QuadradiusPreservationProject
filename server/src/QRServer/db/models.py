@@ -121,3 +121,24 @@ class Trophy:
     name: str
     svg: bytes
     awarded_at: datetime | None
+
+
+@dataclass
+class Nemesis:
+    username: str
+    losses: int
+
+
+@dataclass
+class PlayerStats:
+    total_matches: int
+    wins: int
+    losses: int
+    longest_match_seconds: int | None
+    most_moves: int | None
+    biggest_win_margin: int | None
+    nemesis: Nemesis | None
+
+    @property
+    def win_rate(self) -> float | None:
+        return self.wins / self.total_matches if self.total_matches else None

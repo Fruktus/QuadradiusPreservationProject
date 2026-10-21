@@ -1,6 +1,6 @@
 import asyncio
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 import uuid
 from QRServer.common.classes import GameResultHistory
@@ -8,7 +8,7 @@ from QRServer.db import migrations
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant, Trophy
 from QRServer.common.classes import RankingEntry
-from QRServer.common import utils
+from QRServer.common.utils import utils
 from QRServer.config import Config
 from QRServer.db.password import password_hash
 
@@ -742,6 +742,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         async with self.transaction('r') as c:
             return await migrations._select_version(c)
 
+    async def get_index_names(self, table_name: str) -> list[str]:
+        async with self.transaction('r') as c:
+            await c.execute(
+                "select name from sqlite_master where type='index' and tbl_name=?", (table_name,))
+            return [i[0] for i in await c.fetchall()]
+
     async def test_migration_v1(self):
         self.assertNotIn('users', await self.get_table_names())
 
@@ -1242,6 +1248,18 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[4][:3], (4, 'svg', 'BLOB'))
         self.assertEqual(table_info[5][:3], (5, 'awarded_at', 'INTEGER'))
 
+    async def test_migration_v15(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 14)
+        self.assertNotIn('idx_match_results_winner_id', await self.get_index_names('match_results'))
+        self.assertNotIn('idx_match_results_loser_id', await self.get_index_names('match_results'))
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 15)
+
+        self.assertEqual(await self.get_db_version(), 15)
+        indexes = await self.get_index_names('match_results')
+        self.assertIn('idx_match_results_winner_id', indexes)
+        self.assertIn('idx_match_results_loser_id', indexes)
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -1554,3 +1572,127 @@ class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
 
         duel_matches = await self.dbconn.get_duel_matches(tournament_id, 0)
         self.assertEqual(len(duel_matches), 2)
+
+
+class PlayerStatsTest(unittest.IsolatedAsyncioTestCase):
+    START = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    async def asyncSetUp(self):
+        self.conn = DbConnector(':memory:', Config())
+        await self.conn.connect()
+        self.me = await self._get_or_create_user('me')
+        self.rival_user = await self._get_or_create_user('rival')
+        self.other_user = await self._get_or_create_user('other')
+        self.datetime_helper = self.START
+
+    async def asyncTearDown(self):
+        await self.conn.close()
+
+    async def _get_or_create_user(self, name):
+        user = await self.conn.authenticate_user(name, b'password', auto_create=True)
+        assert user is not None
+        return user
+
+    async def _create_match(self, winner, loser, *, moves=20, minutes=10, winner_left=10, loser_left=4,
+                            ranked=True, void=False):
+        self.datetime_helper += timedelta(hours=1)
+        await self.conn.create_match_and_add_result(DbMatchReport(
+            match_id=str(uuid.uuid4()),
+            winner_id=winner.user_id,
+            loser_id=loser.user_id,
+            winner_pieces_left=winner_left,
+            loser_pieces_left=loser_left,
+            move_counter=moves,
+            grid_size='standard',
+            squadron_size='standard',
+            started_at=self.datetime_helper,
+            finished_at=self.datetime_helper + timedelta(minutes=minutes),
+            is_ranked=ranked,
+            is_void=void,
+        ))
+
+    async def test_no_matches(self):
+        stats = await self.conn.get_player_stats(self.me.user_id)
+        self.assertEqual(stats.total_matches, 0)
+        self.assertEqual((stats.wins, stats.losses), (0, 0))
+        self.assertIsNone(stats.win_rate)
+        self.assertIsNone(stats.longest_match_seconds)
+        self.assertIsNone(stats.most_moves)
+        self.assertIsNone(stats.biggest_win_margin)
+        self.assertIsNone(stats.nemesis)
+
+    async def test_totals_and_records(self):
+        await self._create_match(self.me, self.rival_user, moves=30, minutes=5, winner_left=12, loser_left=2)
+        await self._create_match(self.me, self.other_user, moves=80, minutes=20, winner_left=6, loser_left=5)
+        await self._create_match(self.rival_user, self.me, moves=50, minutes=45, winner_left=9, loser_left=0)
+        await self._create_match(self.other_user, self.rival_user)  # not mine
+
+        stats = await self.conn.get_player_stats(self.me.user_id)
+        self.assertEqual(stats.total_matches, 3)
+        self.assertEqual((stats.wins, stats.losses), (2, 1))
+        self.assertAlmostEqual(stats.win_rate, 2 / 3)
+        self.assertEqual(stats.longest_match_seconds, 45 * 60)
+        self.assertEqual(stats.most_moves, 80)
+        self.assertEqual(stats.biggest_win_margin, 10)
+
+    async def test_biggest_win_margin_ignores_losses(self):
+        await self._create_match(self.rival_user, self.me, winner_left=20, loser_left=0)
+        stats = await self.conn.get_player_stats(self.me.user_id)
+        self.assertIsNone(stats.biggest_win_margin)
+
+    async def test_unranked_and_void_matches_are_not_counted(self):
+        await self._create_match(self.me, self.rival_user, ranked=False, moves=999)
+        await self._create_match(self.me, self.rival_user, void=True, moves=998)
+        await self._create_match(self.me, self.rival_user, moves=10)
+
+        stats = await self.conn.get_player_stats(self.me.user_id)
+        self.assertEqual(stats.total_matches, 1)
+        self.assertEqual(stats.most_moves, 10)
+
+    async def test_unfinished_matches_are_not_counted(self):
+        await self.conn.create_match(str(uuid.uuid4()), self.START, self.me.user_id, self.rival_user.user_id, True)
+        stats = await self.conn.get_player_stats(self.me.user_id)
+        self.assertEqual(stats.total_matches, 0)
+
+    async def test_nemesis_needs_enough_losses(self):
+        for _ in range(4):
+            await self._create_match(self.rival_user, self.me)
+        self.assertIsNone((await self.conn.get_player_stats(self.me.user_id)).nemesis)
+
+        await self._create_match(self.rival_user, self.me)
+        nemesis = (await self.conn.get_player_stats(self.me.user_id)).nemesis
+        self.assertIsNotNone(nemesis)
+        self.assertEqual((nemesis.username, nemesis.losses), ('rival', 5))
+
+    async def test_nemesis_is_the_one_with_most_wins(self):
+        for _ in range(5):
+            await self._create_match(self.rival_user, self.me)
+        for _ in range(6):
+            await self._create_match(self.other_user, self.me)
+        nemesis = (await self.conn.get_player_stats(self.me.user_id)).nemesis
+        self.assertEqual((nemesis.username, nemesis.losses), ('other', 6))
+
+    async def test_nemesis_tie_goes_to_most_recent_winner(self):
+        for _ in range(5):
+            await self._create_match(self.rival_user, self.me)
+        for _ in range(5):
+            await self._create_match(self.other_user, self.me)
+        self.assertEqual((await self.conn.get_player_stats(self.me.user_id)).nemesis.username, 'other')
+        await self._create_match(self.rival_user, self.me)
+        self.assertEqual((await self.conn.get_player_stats(self.me.user_id)).nemesis.username, 'rival')
+
+    async def test_nemesis_ignores_unranked_void_and_own_wins(self):
+        for _ in range(5):
+            await self._create_match(self.rival_user, self.me, ranked=False)
+            await self._create_match(self.rival_user, self.me, void=True)
+            await self._create_match(self.me, self.rival_user)
+        self.assertIsNone((await self.conn.get_player_stats(self.me.user_id)).nemesis)
+
+    async def test_nemesis_skips_banned_players(self):
+        for _ in range(7):
+            await self._create_match(self.rival_user, self.me)
+        for _ in range(5):
+            await self._create_match(self.other_user, self.me)
+        await self.conn.ban_user(self.rival_user.user_id, '1', 'cheating')
+        nemesis = (await self.conn.get_player_stats(self.me.user_id)).nemesis
+        self.assertEqual(nemesis.username, 'other')

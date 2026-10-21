@@ -1,5 +1,5 @@
 from datetime import datetime as dt
-from QRServer.common import utils
+from QRServer.common.utils import utils
 from QRServer.common.classes import RankingEntry
 from QRServer.config import Config
 
@@ -36,6 +36,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v12,
         _migration_upgrade_to_v13,
         _migration_upgrade_to_v14,
+        _migration_upgrade_to_v15,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -372,3 +373,10 @@ async def _migration_upgrade_to_v14(c, _config):
     )
 
     await _set_version(c, 14)
+
+
+async def _migration_upgrade_to_v15(c, _config):
+    # Player profiles look up every result of a given user
+    await c.execute("create index idx_match_results_winner_id on match_results (winner_id)")
+    await c.execute("create index idx_match_results_loser_id on match_results (loser_id)")
+    await _set_version(c, 15)

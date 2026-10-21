@@ -4,7 +4,8 @@ from asyncio import CancelledError, StreamWriter, StreamReader, IncompleteReadEr
 from datetime import datetime, timezone
 from typing import Any, Callable, TypeVar, Type, AsyncIterable, Coroutine
 
-from QRServer.common import messages, utils
+from QRServer.common import messages
+from QRServer.common.utils import utils
 from QRServer.common.messages import ResponseMessage, RequestMessage, Message
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector

@@ -74,7 +74,9 @@ class Webhook:
 
     @webhook('lobby_left')
     async def invoke_webhook_lobby_left(self, username, total_players):
-        if total_players == 1:
+        if total_players == 0:
+            description = 'The lobby is now empty.'
+        elif total_players == 1:
             description = f'There is {total_players} player waiting in the lobby.'
         else:
             description = f'There are {total_players} players waiting in the lobby.'

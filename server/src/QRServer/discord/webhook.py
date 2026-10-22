@@ -10,6 +10,7 @@ _DISCORD_WEBHOOK_PREFIX = 'https://discord.com/api/webhooks/'
 
 _COLOR_GREEN = 0x00ff00
 _COLOR_RED = 0xff0000
+_COLOR_YELLOW = 0xffff00
 
 
 def _validate_webhook_url(url: str) -> bool:
@@ -81,7 +82,7 @@ class Webhook:
         return {'embeds': [{
             'title': f'{username} left the lobby!',
             'description': description,
-            'color': _COLOR_RED,
+            'color': _COLOR_RED if total_players == 0 else _COLOR_YELLOW,
         }]}
 
     @webhook('lobby_set_comment')

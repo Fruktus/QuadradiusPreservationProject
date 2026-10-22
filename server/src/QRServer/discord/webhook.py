@@ -8,6 +8,9 @@ log = logging.getLogger('qr.webhook')
 
 _DISCORD_WEBHOOK_PREFIX = 'https://discord.com/api/webhooks/'
 
+_COLOR_GREEN = 0x00ff00
+_COLOR_RED = 0xff0000
+
 
 def _validate_webhook_url(url: str) -> bool:
     return url.startswith(_DISCORD_WEBHOOK_PREFIX)
@@ -65,7 +68,7 @@ class Webhook:
         return {'embeds': [{
             'title': f'{username} joined the lobby!',
             'description': description,
-            'color': 0x00ff00,
+            'color': _COLOR_GREEN,
         }]}
 
     @webhook('lobby_left')
@@ -78,7 +81,7 @@ class Webhook:
         return {'embeds': [{
             'title': f'{username} left the lobby!',
             'description': description,
-            'color': 0xff0000,
+            'color': _COLOR_RED,
         }]}
 
     @webhook('lobby_set_comment')

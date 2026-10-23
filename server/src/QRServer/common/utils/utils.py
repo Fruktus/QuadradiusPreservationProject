@@ -64,7 +64,34 @@ def make_month_dates_range(start_date: datetime, end_date: datetime) -> list[dat
             current_month = (current_month % 12) + 1
 
 
-def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int = 64
+# K factor is on the lower side to account for randomness
+K_FACTOR = 20
+# The more often the same two players play each other in a month, the smaller the change to their rating
+# The first PAIR_FREE_GAMES games count fully, every further one halves K,
+# down to PAIR_DECAY_FLOOR of the base value.
+PAIR_FREE_GAMES = 8
+PAIR_DECAY = 0.5
+PAIR_DECAY_FLOOR = 0.1
+
+
+def get_k_factor(pair_games: int) -> float:
+    """
+    Calculates the K-factor to use when modifying winner/loser rating based on how
+    many games the players have played vs each other this month.
+
+    Args:
+        pair_games: number of games already played this month between the two opponents
+            (the game being rated excluded)
+
+    Returns:
+        K factor to be used for both players
+    """
+    if pair_games < PAIR_FREE_GAMES:
+        return K_FACTOR
+    return K_FACTOR * max(PAIR_DECAY_FLOOR, PAIR_DECAY ** (pair_games - PAIR_FREE_GAMES + 1))
+
+
+def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: float = K_FACTOR
                           ) -> tuple[int, int]:
     """
     Calculates new ratings according to ELO equation. The default values are meant for case when

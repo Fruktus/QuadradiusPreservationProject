@@ -301,10 +301,10 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
                 await self.conn.create_match_and_add_result(test_match)
 
             ranking_entries = [
-                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7, rating=640),
-                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5, rating=575),
-                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22, rating=538),
-                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10, rating=247),
+                RankingEntry(username='test_user_0', user_id='0', wins=7, games=7, rating=571),
+                RankingEntry(username='test_user_1', user_id='1', wins=5, games=5, rating=556),
+                RankingEntry(username='test_user_2', user_id='2', wins=10, games=22, rating=472),
+                RankingEntry(username='test_user_3', user_id='3', wins=0, games=10, rating=401),
             ]
 
             start_date, end_date = utils.make_month_dates(month=1, year=2020)
@@ -365,8 +365,8 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
                 await self.conn.create_match_and_add_result(test_match)
 
-            # Generate 5 matches for user_0 (winner) vs user_1 (loser) - user_1 lost some rating on user_2
-            for i in range(1, 6):
+            # Generate 4 matches for user_0 (winner) vs user_1 (loser) - user_1 lost some rating on user_2
+            for i in range(1, 5):
                 test_match = DbMatchReport(
                     match_id=f'0{i}',
                     winner_id=user0.user_id,
@@ -384,13 +384,13 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
                 await self.conn.create_match_and_add_result(test_match)
 
-            # user_2 played less games than user_1,
-            # but played against different players, therefore should have higher rating
+            # user_0 and user_2 both won 4 games,
+            # but user_2 beat different players, therefore should have higher rating
             ranking_entries_default = [
-                RankingEntry(user_id='2', username='test_user_2', wins=4, games=4, rating=607),
-                RankingEntry(user_id='0', username='test_user_0', wins=5, games=5, rating=600),
-                RankingEntry(user_id='3', username='test_user_3', wins=0, games=2, rating=442),
-                RankingEntry(user_id='1', username='test_user_1', wins=0, games=7, rating=351),
+                RankingEntry(user_id='2', username='test_user_2', wins=4, games=4, rating=591),
+                RankingEntry(user_id='0', username='test_user_0', wins=4, games=4, rating=556),
+                RankingEntry(user_id='3', username='test_user_3', wins=0, games=2, rating=451),
+                RankingEntry(user_id='1', username='test_user_1', wins=0, games=6, rating=402),
             ]
 
             start_date, end_date = utils.make_month_dates(month=1, year=2020)

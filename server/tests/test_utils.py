@@ -5,6 +5,7 @@ import random as rnd
 from QRServer.common.utils import utils
 from QRServer.common.full_binary_tree_indexer import FullBinaryTreeIndexer
 import pytest
+from sys import maxsize
 
 
 class MakeMonthDatesTest(unittest.TestCase):
@@ -154,6 +155,23 @@ class CalculateNewRatingsTest(unittest.TestCase):
 
         self.assertEqual(round(rating_ratio_10, 2), 0.49)
         self.assertEqual(round(rating_ratio_100, 2), 0.44)
+
+
+class GetKFactorTest(unittest.TestCase):
+    def test_k_factor_decreases_as_difference_increases(self):
+        self.assertEqual(utils.get_k_factor(0), utils.K_FACTOR)
+        self.assertEqual(utils.get_k_factor(1), utils.K_FACTOR * utils.PAIR_DECAY)
+        self.assertEqual(utils.get_k_factor(2), utils.K_FACTOR * utils.PAIR_DECAY ** 2)
+
+    def test_sign_of_the_difference_does_not_matter(self):
+        for difference in range(0, 15):
+            self.assertEqual(utils.get_k_factor(difference), utils.get_k_factor(-difference))
+
+    def test_trailing_player_winning_back_raises_k_factor(self):
+        self.assertGreater(utils.get_k_factor(1), utils.get_k_factor(2))
+
+    def test_k_factor_converges_to_zero(self):
+        self.assertAlmostEqual(utils.get_k_factor(maxsize), 0.0)
 
 
 class FullBinaryTreeIndexerTest(unittest.TestCase):

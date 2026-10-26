@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
+from enum import Enum
 import logging
 
 log = logging.getLogger('qr.db_models')
@@ -142,3 +143,27 @@ class PlayerStats:
     @property
     def win_rate(self) -> float | None:
         return self.wins / self.total_matches if self.total_matches else None
+
+
+class ScheduledTaskStatus(Enum):
+    PENDING = 'pending'
+    RUNNING = 'running'
+    DONE = 'done'
+    FAILED = 'failed'
+
+
+@dataclass
+class ScheduledTask:
+    id: str
+    handler: str
+    payload: dict
+    run_at: datetime
+    status: ScheduledTaskStatus
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    finished_at: datetime | None
+
+    @property
+    def has_finished(self):
+        return bool(self.finished_at)

@@ -1,5 +1,6 @@
 from asyncio import Lock
 import contextlib
+import json
 import logging
 import os
 import random
@@ -12,8 +13,8 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, RankingEntry
 from QRServer.common.utils import utils
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, TournamentDuel, TournamentMatch, \
-     TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats
+from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
+    TournamentMatch, TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats, ScheduledTask
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -1291,6 +1292,70 @@ class DbConnector:
                 biggest_win_margin=row[5],
                 nemesis=Nemesis(username=nemesis_row[0], losses=nemesis_row[1]) if nemesis_row else None,
             )
+
+    async def get_scheduled_tasks(self) -> list[ScheduledTask]:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select id, handler, payload, run_at, status, error, created_at, started_at, finished_at"
+                " from scheduled_tasks order by run_at, created_at")
+            return [
+                ScheduledTask(
+                    id=row[0],
+                    handler=row[1],
+                    payload=json.loads(row[2]) if row[2] else {},
+                    run_at=datetime.fromtimestamp(row[3], tz=timezone.utc),
+                    status=ScheduledTaskStatus(row[4]),
+                    error=row[5],
+                    created_at=datetime.fromtimestamp(row[6], tz=timezone.utc),
+                    started_at=timestamp_to_datetime(row[7]),
+                    finished_at=timestamp_to_datetime(row[8]),
+                )
+                for row in await c.fetchall()
+            ]
+
+    async def create_scheduled_task(self, task_id: str, handler: str, run_at: datetime,
+                                    payload: dict | None = None) -> bool:
+        """
+        Returns:
+            bool: False if a task with the given id already exists, True otherwise
+        """
+        async with self._transaction("w") as c:
+            await c.execute(
+                "insert or ignore into scheduled_tasks (id, handler, payload, run_at, status, created_at)"
+                " values (?, ?, ?, ?, ?, ?)", (
+                    task_id,
+                    handler,
+                    json.dumps(payload) if payload is not None else None,
+                    int(run_at.timestamp()),
+                    ScheduledTaskStatus.PENDING.value,
+                    int(datetime.now(timezone.utc).timestamp()),
+                )
+            )
+            return bool(c.rowcount)
+
+    async def update_scheduled_task_status(self, task_id: str, status: ScheduledTaskStatus,
+                                           error: str | None = None) -> None:
+        """
+        Moves the task to the given status, recording when it started or finished.
+        """
+        async with self._transaction("w") as c:
+            await c.execute(
+                "update scheduled_tasks set"
+                " status = :status,"
+                " error = :error,"
+                " started_at = case when :status = 'running' then :now else started_at end,"
+                " finished_at = case when :status in ('done', 'failed') then :now else finished_at end"
+                " where id = :task_id", {
+                    'status': status.value,
+                    'error': error,
+                    'now': int(datetime.now(timezone.utc).timestamp()),
+                    'task_id': task_id,
+                })
+
+    async def delete_scheduled_task(self, task_id: str) -> bool:
+        async with self._transaction("w") as c:
+            await c.execute("delete from scheduled_tasks where id = ?", (task_id,))
+            return bool(c.rowcount)
 
 
 async def create_connector(config) -> DbConnector:

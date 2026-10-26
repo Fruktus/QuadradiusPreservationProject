@@ -6,7 +6,7 @@ import uuid
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport, Tournament, TournamentParticipant, Trophy
+from QRServer.db.models import DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, Trophy
 from QRServer.common.classes import RankingEntry
 from QRServer.common.utils import utils
 from QRServer.config import Config
@@ -708,6 +708,64 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.conn.get_tournament_trophy('missing'))
         self.assertEqual(await self.conn.get_user_trophies('missing'), [])
 
+    async def test_create_scheduled_task(self):
+        run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+
+        self.assertTrue(await self.conn.create_scheduled_task('a', 'handler', run_at, {'x': 1}))
+
+        tasks = await self.conn.get_scheduled_tasks()
+        self.assertEqual(len(tasks), 1)
+        task = tasks[0]
+        self.assertEqual((task.id, task.handler, task.payload, task.run_at, task.status),
+                         ('a', 'handler', {'x': 1}, run_at, ScheduledTaskStatus.PENDING))
+        self.assertIsNone(task.error)
+        self.assertIsNone(task.started_at)
+        self.assertIsNone(task.finished_at)
+
+    async def test_create_scheduled_task_without_payload(self):
+        await self.conn.create_scheduled_task('a', 'handler', datetime(2026, 11, 1, tzinfo=timezone.utc))
+
+        self.assertEqual((await self.conn.get_scheduled_tasks())[0].payload, {})
+
+    async def test_create_scheduled_task_with_existing_id_is_ignored(self):
+        run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        await self.conn.create_scheduled_task('a', 'handler', run_at)
+
+        self.assertFalse(await self.conn.create_scheduled_task('a', 'other', run_at + timedelta(days=1)))
+
+        tasks = await self.conn.get_scheduled_tasks()
+        self.assertEqual([(t.handler, t.run_at) for t in tasks], [('handler', run_at)])
+
+    async def test_get_scheduled_tasks_ordered_by_run_at(self):
+        run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        await self.conn.create_scheduled_task('late', 'handler', run_at + timedelta(days=1))
+        await self.conn.create_scheduled_task('early', 'handler', run_at)
+
+        self.assertEqual([t.id for t in await self.conn.get_scheduled_tasks()], ['early', 'late'])
+
+    async def test_update_scheduled_task_status(self):
+        await self.conn.create_scheduled_task('a', 'handler', datetime(2026, 11, 1, tzinfo=timezone.utc))
+
+        await self.conn.update_scheduled_task_status('a', ScheduledTaskStatus.RUNNING)
+        task = (await self.conn.get_scheduled_tasks())[0]
+        self.assertEqual(task.status, ScheduledTaskStatus.RUNNING)
+        self.assertIsNotNone(task.started_at)
+        self.assertIsNone(task.finished_at)
+
+        await self.conn.update_scheduled_task_status('a', ScheduledTaskStatus.FAILED, 'boom')
+        task = (await self.conn.get_scheduled_tasks())[0]
+        self.assertEqual((task.status, task.error), (ScheduledTaskStatus.FAILED, 'boom'))
+        self.assertIsNotNone(task.started_at)
+        self.assertIsNotNone(task.finished_at)
+
+    async def test_delete_scheduled_task(self):
+        await self.conn.create_scheduled_task('a', 'handler', datetime(2026, 11, 1, tzinfo=timezone.utc))
+
+        self.assertTrue(await self.conn.delete_scheduled_task('a'))
+        self.assertFalse(await self.conn.delete_scheduled_task('a'))
+
+        self.assertEqual(await self.conn.get_scheduled_tasks(), [])
+
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
@@ -1259,6 +1317,28 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         indexes = await self.get_index_names('match_results')
         self.assertIn('idx_match_results_winner_id', indexes)
         self.assertIn('idx_match_results_loser_id', indexes)
+
+    async def test_migration_v16(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 15)
+        self.assertNotIn('scheduled_tasks', await self.get_table_names())
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 16)
+
+        self.assertIn('scheduled_tasks', await self.get_table_names())
+        self.assertEqual(await self.get_db_version(), 16)
+
+        table_info = await self.get_table_info('scheduled_tasks')
+        self.assertEqual(len(table_info), 9)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'handler', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'payload', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'run_at', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'status', 'varchar'))
+        self.assertEqual(table_info[5][:3], (5, 'error', 'varchar'))
+        self.assertEqual(table_info[6][:3], (6, 'created_at', 'INTEGER'))
+        self.assertEqual(table_info[7][:3], (7, 'started_at', 'INTEGER'))
+        self.assertEqual(table_info[8][:3], (8, 'finished_at', 'INTEGER'))
+        self.assertIn('idx_scheduled_tasks_status', await self.get_index_names('scheduled_tasks'))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

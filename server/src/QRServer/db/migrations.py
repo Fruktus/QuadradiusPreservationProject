@@ -37,6 +37,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v13,
         _migration_upgrade_to_v14,
         _migration_upgrade_to_v15,
+        _migration_upgrade_to_v16,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -380,3 +381,21 @@ async def _migration_upgrade_to_v15(c, _config):
     await c.execute("create index idx_match_results_winner_id on match_results (winner_id)")
     await c.execute("create index idx_match_results_loser_id on match_results (loser_id)")
     await _set_version(c, 15)
+
+
+async def _migration_upgrade_to_v16(c, _config):
+    await c.execute(
+        "create table scheduled_tasks ("
+        " id varchar primary key,"
+        " handler varchar not null,"
+        " payload varchar,"
+        " run_at integer not null,"
+        " status varchar not null default 'pending' check( status in ('pending','running','done','failed')),"
+        " error varchar,"
+        " created_at integer not null,"
+        " started_at integer,"
+        " finished_at integer"
+        ")"
+    )
+    await c.execute("create index idx_scheduled_tasks_status on scheduled_tasks (status)")
+    await _set_version(c, 16)

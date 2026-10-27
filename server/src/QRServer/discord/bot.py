@@ -31,7 +31,7 @@ class DiscordBot:
         self.ban_notifications_channel_id = self.config.discord_bot_channel_ban_notifications_id.get()
         self.max_aliases = self.config.discord_bot_max_aliases.get()
 
-        self.username_regex = re.compile(r'^[a-zA-Z0-9.\-_][a-zA-Z0-9.\-_\s]{,14}$')
+        self.username_regex = re.compile(r'[a-zA-Z0-9.\-_][a-zA-Z0-9.\-_ ]{,14}')
 
         if not self.token:
             raise DiscordException('Discord bot token is not set. Bot will not be started.')
@@ -149,7 +149,7 @@ class DiscordBot:
     async def _require_valid_username(self, interaction_id: str, interaction: discord.Interaction, username: str):
         # Checks if the username is of correct length and format
 
-        if not self.username_regex.match(username):
+        if not self.username_regex.fullmatch(username):
             log.debug(f"({interaction_id}) precondition failed: invalid_username")
             await interaction.response.send_message(
                 "Username should:\n"

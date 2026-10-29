@@ -550,6 +550,19 @@ class ChangePasswordResponseOk(ResponseMessage):
         return cls(cls.prefix)
 
 
+class ServerMessage(ResponseMessage):
+    message_type_id = 62
+    prefix: list[str] = ['<S>', '<SERVER>', '<MESSAGE>']
+    argc = [4]
+
+    @classmethod
+    def new(cls, text: str):
+        return cls([*cls.prefix, text])
+
+    def get_text(self) -> str:
+        return self.args[3]
+
+
 ################################################################################
 # GENERIC MESSAGES
 ################################################################################
@@ -1083,3 +1096,9 @@ def _valid(args: list[str], prefix: Sequence[str | None] | None, argc: list[int]
 
 def get_message_type_from_id(message_type_id: int) -> Type[Message] | None:
     return __message_classes_mapping.get(message_type_id)
+
+
+################################################################################
+# STRINGS
+################################################################################
+GUEST_COMMUNICATION_DISABLED_MESSAGE = 'SERVER: Guest communication is disabled due to abuse.'

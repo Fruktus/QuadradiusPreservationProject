@@ -5,15 +5,16 @@ from typing import Optional
 
 from QRServer.common.classes import PairingId, MatchParty
 from QRServer.common.clienthandler import ClientHandler, SendMessageException
-from QRServer.common.messages import PlayerCountResponse, HelloGameRequest, JoinGameRequest, UsePowerMessage, \
-    RequestMessage, ResponseMessage, GameChatMessage, GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, \
-    RecursiveDoneMessage, RemovePlayerMessage, PowerNoEffectMessage, NukeMessage, JumpOnPieceMessage, \
-    GetPowerSquareMessage, SettingsLoadedMessage, AssignPowerSquareMessage, AssignNextPowerCountMessage, \
-    NewGridCoordMessage, ResignMessage, ServerPingRequest, SettingsArenaSizeMessage, \
-    SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, SettingsTopBottomMessage, \
-    SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, SettingsReadyOnAgainMessage, PolicyFileRequest, \
-    CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, VoidScoreRequest, VoidScoreResponse, AddStatsRequest, \
-    SwitcherooMessage, RemoveOneWayWallMessage, BankruptActionMessage, ServerAliveResponse
+from QRServer.common.messages import GUEST_COMMUNICATION_DISABLED_MESSAGE, ServerMessage, PlayerCountResponse, \
+    HelloGameRequest, JoinGameRequest, UsePowerMessage, RequestMessage, ResponseMessage, GameChatMessage, \
+    GrabPieceMessage, ReleasePieceMessage, SwitchPlayerMessage, RecursiveDoneMessage, RemovePlayerMessage, \
+    PowerNoEffectMessage, NukeMessage, JumpOnPieceMessage, GetPowerSquareMessage, SettingsLoadedMessage, \
+    AssignPowerSquareMessage, AssignNextPowerCountMessage, NewGridCoordMessage, ResignMessage, ServerPingRequest, \
+    SettingsArenaSizeMessage, SettingsReadyOffMessage, SettingsSquadronSizeMessage, SettingsTimerMessage, \
+    SettingsTopBottomMessage, SettingsColorMessage, DisconnectRequest, SettingsReadyOnMessage, \
+    SettingsReadyOnAgainMessage, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, OpponentDeadResponse, \
+    VoidScoreRequest, VoidScoreResponse, AddStatsRequest, SwitcherooMessage, RemoveOneWayWallMessage, \
+    BankruptActionMessage, ServerAliveResponse
 from QRServer.db.models import DbUser
 from QRServer.discord.webhook import Webhook
 
@@ -55,7 +56,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         self.register_message_handler(SwitcherooMessage, self._handle_forward)
         self.register_message_handler(RemoveOneWayWallMessage, self._handle_forward)
         self.register_message_handler(BankruptActionMessage, self._handle_forward)
-        self.register_message_handler(GameChatMessage, self._handle_forward)
+        self.register_message_handler(GameChatMessage, self._handle_chat)
         self.register_message_handler(GrabPieceMessage, self._handle_forward)
         self.register_message_handler(ReleasePieceMessage, self._handle_forward)
         self.register_message_handler(SwitchPlayerMessage, self._handle_forward)
@@ -225,6 +226,17 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_ready_off(self, message):
         await self.game_server.set_ready(self, False)
         await self._handle_forward(message)
+
+    async def _handle_chat(self, message: GameChatMessage):
+        if not isinstance(message, ResponseMessage):
+            raise Exception('Trying to send a non-response message')
+
+        if self.is_guest:
+            await self.send_msg(ServerMessage.new(GUEST_COMMUNICATION_DISABLED_MESSAGE))
+            return
+
+        if self.opponent_handler:
+            await self.opponent_handler.send_msg(message)
 
     async def _handle_disconnect(self, _: DisconnectRequest):
         log.debug('Connection closed by client')

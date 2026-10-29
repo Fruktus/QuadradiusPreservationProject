@@ -1,5 +1,6 @@
 from QRServer.common.classes import LobbyPlayer
-from QRServer.common.messages import JoinLobbyRequest, BroadcastCommentResponse, LobbyStateResponse, SetCommentRequest
+from QRServer.common.messages import GUEST_COMMUNICATION_DISABLED_MESSAGE, JoinLobbyRequest, BroadcastCommentResponse, \
+    LobbyChatMessage, LobbyStateResponse, SetCommentRequest
 from . import QuadradiusIntegrationTestCase
 
 
@@ -80,4 +81,18 @@ class LobbyCommuniqueIT(QuadradiusIntegrationTestCase):
             LobbyPlayer(username='Robert'),
             LobbyPlayer(username='Bobert'),
         ]))
+        await client2.assert_no_more_messages()
+
+    async def test_communique_blocked_for_guests(self):
+        client1 = await self.new_lobby_client()
+        await client1.join_lobby('Robert GUEST', '24f380279d84e2e715f80ed14b1db063')
+
+        client2 = await self.new_lobby_client()
+        await client2.join_lobby('Bobert', 'cf585d509bf09ce1d2ff5d4226b7dacb')
+        await client1.assert_received_message_type(LobbyStateResponse)
+
+        await client1.send_message(
+            SetCommentRequest.new(0, 'test communique'))
+        await client1.assert_received_message(
+            LobbyChatMessage.new(None, GUEST_COMMUNICATION_DISABLED_MESSAGE))
         await client2.assert_no_more_messages()

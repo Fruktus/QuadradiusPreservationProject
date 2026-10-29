@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 from QRServer.common.utils import utils
 from QRServer.common.classes import LobbyPlayer
 from QRServer.common.clienthandler import ClientHandler
-from QRServer.common.messages import BroadcastCommentResponse, OldSwfResponse, LobbyDuplicateResponse, \
-    ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, ServerRankingThisMonthResponse, \
-    HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, ServerAliveRequest, \
-    LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, ChallengeAuthMessage, \
-    DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, NameTakenRequest, \
+from QRServer.common.messages import GUEST_COMMUNICATION_DISABLED_MESSAGE, BroadcastCommentResponse, OldSwfResponse, \
+    LobbyDuplicateResponse, ServerAliveResponse, LobbyBadMemberResponse, LastPlayedResponse, \
+    ServerRankingThisMonthResponse, HelloLobbyRequest, JoinLobbyRequest, ServerRecentRequest, ServerRankingRequest, \
+    ServerAliveRequest, LobbyStateResponse, LobbyChatMessage, SetCommentRequest, ChallengeMessage, \
+    ChallengeAuthMessage, DisconnectRequest, PolicyFileRequest, CrossDomainPolicyAllowAllResponse, NameTakenRequest, \
     NameTakenResponseYes, NameTakenResponseNo, ChangePasswordRequest, ChangePasswordResponseOk
 from QRServer.discord.webhook import Webhook
 
@@ -154,6 +154,10 @@ class LobbyClientHandler(ClientHandler):
         await self.send_msg(ServerAliveResponse.new())
 
     async def _handle_set_comment(self, message: SetCommentRequest):
+        if self.player.is_guest:
+            await self.send_msg(LobbyChatMessage.new(None, GUEST_COMMUNICATION_DISABLED_MESSAGE))
+            return
+
         who = message.get_idx()
         comment = message.get_comment()
         if who != self.player.idx:
@@ -164,6 +168,10 @@ class LobbyClientHandler(ClientHandler):
         await self.webhook.invoke_webhook_lobby_set_comment(self.player.username, comment)
 
     async def _handle_chat_message(self, message: LobbyChatMessage):
+        if self.player.is_guest:
+            await self.send_msg(LobbyChatMessage.new(None, GUEST_COMMUNICATION_DISABLED_MESSAGE))
+            return
+
         await self.lobby_server.broadcast_msg(message)
         text = message.get_text()
         _, sep, after = text.partition(':')

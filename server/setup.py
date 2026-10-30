@@ -10,7 +10,6 @@ setup(
     python_requires='>=3.12',
     install_requires=[
         'dataclasses',
-        'toml',
         'asyncio',
         'aiosqlite',
         'aiohttp',
@@ -24,7 +23,6 @@ setup(
             'pytest',
             'flake8',
             'mypy',
-            'types-toml',
         ],
     },
 )

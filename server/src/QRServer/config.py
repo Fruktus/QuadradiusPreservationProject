@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-import toml
+import tomllib
 
 from QRServer import config_handlers
 log = logging.getLogger('qr.config')
@@ -373,5 +373,6 @@ class Config:
                 self.set(prefix + key, value)
 
     def load_from_toml(self, file):
-        d = toml.load(file)
+        with open(file, "rb") as f:
+            d = tomllib.load(f)
         self.__load_dict(d, '')

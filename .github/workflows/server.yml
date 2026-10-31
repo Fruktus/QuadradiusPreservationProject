@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Python 3.12.8
+      - name: Setup Python 3.12
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12.8'
+          python-version: '3.12'
       - name: Install
         working-directory: server
         run: pip install '.[dev]'
@@ -33,7 +33,7 @@ jobs:
   test:
     strategy:
       matrix:
-        python-version: [ '3.12.8' ]
+        python-version: [ '3.12' ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

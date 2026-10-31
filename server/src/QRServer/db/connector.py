@@ -274,7 +274,8 @@ class DbConnector:
         if (match_result.is_ranked or not ranked_only) and (not match_result.is_void or include_void):
             await self._update_users_rating(
                 match_result.winner_id, match_result.loser_id,
-                match_result.finished_at.month, match_result.finished_at.year)
+                match_result.finished_at.month, match_result.finished_at.year,
+                match_id=match_result.match_id)
 
         new_ranking = await self._generate_ranking(
             start_date, end_date)
@@ -492,7 +493,48 @@ class DbConnector:
                 return UserRating(user_id, month, year, rating=row[0], revision=row[1])
             return None
 
-    async def _update_users_rating(self, winner_id: str, loser_id: str, month: int, year: int, on_before_update=None):
+    async def _count_pair_wins(self, c, month: int, year: int, user_a_id: str, user_b_id: str,
+                               exclude_match_id: str | None = None) -> tuple[int, int]:
+        """
+        Counts wins of each of the two users against the other in the given month.
+        Only non-void ranked games are counted.
+        Skip the newest match passed via exclude_match_id.
+
+        Returns:
+            a tuple of (wins of user_a, wins of user_b)
+        """
+        start_date, end_date = utils.make_month_dates(month, year)
+        ranked_only = self.config.leaderboards_ranked_only.get()
+        include_void = self.config.leaderboards_include_void.get()
+
+        await c.execute(
+            "select"
+            " coalesce(sum(mr.winner_id = :user_a_id), 0),"
+            " coalesce(sum(mr.winner_id = :user_b_id), 0)"
+            " from match_results mr"
+            " inner join matches m on m.id = mr.match_id"
+            " where mr.finished_at >= :start"
+            " and mr.finished_at < :end"
+            " and (case when :ranked_only = 1 then m.is_ranked = 1 else 1=1 end)"
+            " and (case when :include_void = 0 then mr.is_void = 0 else 1=1 end)"
+            " and ((mr.winner_id = :user_a_id and mr.loser_id = :user_b_id)"
+            " or (mr.winner_id = :user_b_id and mr.loser_id = :user_a_id))"
+            " and (:exclude_match_id is null or mr.match_id != :exclude_match_id)", {
+                "user_a_id": user_a_id,
+                "user_b_id": user_b_id,
+                "start": start_date.timestamp(),
+                "end": end_date.timestamp(),
+                "ranked_only": 1 if ranked_only else 0,
+                "include_void": 1 if include_void else 0,
+                "exclude_match_id": exclude_match_id,
+            }
+        )
+
+        row = await c.fetchone()
+        return row[0], row[1]
+
+    async def _update_users_rating(self, winner_id: str, loser_id: str, month: int, year: int, on_before_update=None,
+                                   match_id: str | None = None):
         async with self._transaction("w") as c:
             winner = await self.get_user_rating(winner_id, month, year)
             winner_exists = True
@@ -506,7 +548,10 @@ class DbConnector:
                 loser_exists = False
                 loser = UserRating(loser_id, month, year)
 
-            new_winner_rating, new_loser_rating = utils.calculate_new_ratings(winner.rating, loser.rating)
+            winner_wins, loser_wins = await self._count_pair_wins(
+                c, month, year, winner_id, loser_id, exclude_match_id=match_id)
+            new_winner_rating, new_loser_rating = utils.calculate_new_ratings(
+                winner.rating, loser.rating, k_factor=utils.get_k_factor(winner_wins - loser_wins))
 
             if on_before_update:
                 await on_before_update()

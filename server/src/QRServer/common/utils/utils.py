@@ -6,6 +6,10 @@ from itertools import zip_longest
 
 
 BASE62 = string.digits + string.ascii_letters
+K_FACTOR = 64
+# Increased lead in repeated games for a single pair increases the ELO decay.
+# When the person in the lead loses, the difference reduces.
+PAIR_DECAY = 0.64
 
 
 def is_guest(username: str, password: str) -> bool:
@@ -83,7 +87,19 @@ def make_month_dates_range(start_date: datetime, end_date: datetime) -> list[dat
             current_month = (current_month % 12) + 1
 
 
-def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: int = 64
+def get_k_factor(pair_win_difference: int) -> float:
+    """
+    Args:
+        pair_win_difference: wins of one of the opponents minus wins of the other for given month.
+
+    Returns:
+        K factor to be used for both players
+    """
+    lead = abs(pair_win_difference)
+    return K_FACTOR * (PAIR_DECAY ** lead)
+
+
+def calculate_new_ratings(winner_rating: int, loser_rating: int, k_factor: float = K_FACTOR
                           ) -> tuple[int, int]:
     """
     Calculates new ratings according to ELO equation. The default values are meant for case when

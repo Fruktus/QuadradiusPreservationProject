@@ -19,6 +19,47 @@ class MakeMonthDatesTest(unittest.TestCase):
         )
 
 
+class FirstOfNextMonthTest(unittest.TestCase):
+    def test_first_of_next_month(self):
+        self.assertEqual(
+            utils.first_of_next_month(datetime(2026, 10, 15, 12, tzinfo=timezone.utc)),
+            datetime(2026, 11, 1, tzinfo=timezone.utc))
+
+    def test_first_of_next_month_on_the_first(self):
+        self.assertEqual(
+            utils.first_of_next_month(datetime(2026, 10, 1, tzinfo=timezone.utc)),
+            datetime(2026, 11, 1, tzinfo=timezone.utc))
+
+    def test_first_of_next_month_rolls_over_the_year(self):
+        self.assertEqual(
+            utils.first_of_next_month(datetime(2026, 12, 31, 23, 59, tzinfo=timezone.utc)),
+            datetime(2027, 1, 1, tzinfo=timezone.utc))
+
+    def test_first_of_next_month_goes_by_utc(self):
+        # still October at UTC-5, but already November in UTC
+        t = datetime(2026, 10, 31, 22, tzinfo=timezone(timedelta(hours=-5)))
+
+        self.assertEqual(utils.first_of_next_month(t), datetime(2026, 12, 1, tzinfo=timezone.utc))
+
+
+class PreviousMonthTest(unittest.TestCase):
+    def test_previous_month(self):
+        self.assertEqual(
+            utils.previous_month(datetime(2026, 11, 1, tzinfo=timezone.utc)),
+            datetime(2026, 10, 1, tzinfo=timezone.utc))
+
+    def test_previous_month_of_january_is_december_of_previous_year(self):
+        self.assertEqual(
+            utils.previous_month(datetime(2027, 1, 1, tzinfo=timezone.utc)),
+            datetime(2026, 12, 1, tzinfo=timezone.utc))
+
+    def test_previous_month_goes_by_utc(self):
+        # already January at UTC+2, but still December in UTC
+        t = datetime(2027, 1, 1, 1, tzinfo=timezone(timedelta(hours=2)))
+
+        self.assertEqual(utils.previous_month(t), datetime(2026, 11, 1, tzinfo=timezone.utc))
+
+
 class GenerateRandomPasswordatetimeest(unittest.TestCase):
     def test_generate_random_password(self):
         for i in range(0, 100, 10):

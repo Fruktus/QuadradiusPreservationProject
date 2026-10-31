@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.password import password_verify
-from QRServer.discord.bot import DiscordBot, PreconditionFailedException
+from QRServer.discord.bot import DiscordBot, DiscordException, PreconditionFailedException
 import discord
 
 
@@ -753,3 +753,62 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_command_error_handler_is_registered_on_tree(self):
         self.assertEqual(self.bot.tree.on_error, self.bot._on_command_error)
+
+
+class DiscordBotSendEmbedTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self) -> None:
+        self.config = Config()
+        self.config.set('discord.bot.token', 'test_token')
+        self.config.set('discord.bot.guild_id', '123')
+
+        self.bot = DiscordBot(self.config, MagicMock(spec=DbConnector))
+        self.bot.client = MagicMock()
+        self.bot.client.wait_until_ready = AsyncMock()
+        self.channel = MagicMock(spec=discord.TextChannel)
+        self.channel.send = AsyncMock()
+        self.bot.client.get_channel.return_value = self.channel
+
+    async def test_send_embed_looks_up_channel_by_id(self):
+        await self.bot.send_embed('555', {'title': 'hello'})
+
+        self.bot.client.get_channel.assert_called_once_with(555)
+
+    async def test_send_embed_waits_for_the_bot_to_be_ready(self):
+        # the channel cache is only filled once the bot is logged in
+        async def become_ready():
+            self.bot.client.get_channel.return_value = self.channel
+
+        self.bot.client.get_channel.return_value = None
+        self.bot.client.wait_until_ready.side_effect = become_ready
+
+        await self.bot.send_embed('555', {'title': 'hello'})
+
+        self.channel.send.assert_awaited_once()
+
+    async def test_send_embed_sends_embed_built_from_dict(self):
+        await self.bot.send_embed('555', {
+            'title': 'hello',
+            'color': 0xFFD700,
+            'fields': [{'name': 'a', 'value': 'b', 'inline': True}],
+        })
+
+        embed = self.channel.send.call_args.kwargs['embed']
+        self.assertIsInstance(embed, discord.Embed)
+        self.assertEqual(embed.title, 'hello')
+        self.assertEqual(embed.colour.value, 0xFFD700)
+        self.assertEqual(len(embed.fields), 1)
+        self.assertEqual(embed.fields[0].name, 'a')
+        self.assertEqual(embed.fields[0].value, 'b')
+        self.assertTrue(embed.fields[0].inline)
+
+    async def test_send_embed_raises_when_channel_is_missing(self):
+        self.bot.client.get_channel.return_value = None
+
+        with self.assertRaises(DiscordException):
+            await self.bot.send_embed('555', {'title': 'hello'})
+
+    async def test_send_embed_raises_when_channel_does_not_accept_messages(self):
+        self.bot.client.get_channel.return_value = MagicMock(spec=discord.CategoryChannel)
+
+        with self.assertRaises(DiscordException):
+            await self.bot.send_embed('555', {'title': 'hello'})

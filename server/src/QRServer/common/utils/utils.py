@@ -30,6 +30,25 @@ def make_month_dates(month: int, year: int) -> tuple[datetime, datetime]:
         datetime(year + month // 12, (month % 12) + 1, 1, tzinfo=timezone.utc)
 
 
+def first_of_next_month(t: datetime) -> datetime:
+    """
+    Returns:
+        Midnight UTC of the 1st day of the month following the one `t` falls in (as seen in UTC)
+    """
+    t = t.astimezone(timezone.utc)
+    return make_month_dates(t.month, t.year)[1]
+
+
+def previous_month(t: datetime) -> datetime:
+    """
+    Returns:
+        Midnight UTC of the 1st day of the month preceding the one `t` falls in (as seen in UTC)
+    """
+    t = t.astimezone(timezone.utc)
+    year, month = (t.year - 1, 12) if t.month == 1 else (t.year, t.month - 1)
+    return make_month_dates(month, year)[0]
+
+
 def generate_random_password(length: int) -> str:
     """
     Returns:

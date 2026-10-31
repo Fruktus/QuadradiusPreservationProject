@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from QRServer.config import Config
 import aiosqlite
 
-from QRServer.common.classes import GameResultHistory, RankingEntry
+from QRServer.common.classes import GameResultHistory, MonthlySummary, RankingEntry
 from QRServer.common.utils import utils
 from QRServer.db import migrations
 from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
@@ -1292,6 +1292,78 @@ class DbConnector:
                 biggest_win_margin=row[5],
                 nemesis=Nemesis(username=nemesis_row[0], losses=nemesis_row[1]) if nemesis_row else None,
             )
+
+    async def get_monthly_summary(self, year: int, month: int) -> MonthlySummary:
+        """
+        Everything the monthly summary needs.
+        Only ranked non-void matches are used, same as in ranking.
+        """
+        start_date, end_date = utils.make_month_dates(month, year)
+        ranking = await self.get_ranking(start_date, end_date)
+
+        async with self._transaction("r") as c:
+            # Consecutive months the no. 1 was no. 1, the given one included
+            await c.execute(
+                "with recursive streak(month_index, user_id) as ("
+                "  select year * 12 + month, user_id from rankings"
+                "  where year = ? and month = ? and position = 1"
+                "  union all"
+                "  select r.year * 12 + r.month, r.user_id from rankings r"
+                "  inner join streak s on r.user_id = s.user_id and r.position = 1"
+                "   and r.year * 12 + r.month = s.month_index - 1"
+                ") select count(*) from streak", (year, month))
+            champion_streak = (await c.fetchone())[0]
+
+            # The longest and the busiest match of those finished in the month, both in a single pass
+            await c.execute(
+                "with finished as ("
+                "  select"
+                "   r.match_id as match_id,"
+                "   u1.username as player_won,"
+                "   u2.username as player_lost,"
+                "   r.winner_pieces_left as won_score,"
+                "   r.loser_pieces_left as lost_score,"
+                "   m.started_at as started_at,"
+                "   r.finished_at as finished_at,"
+                "   r.move_counter as moves"
+                "  from matches m"
+                "  inner join match_results r on m.id = r.match_id"
+                "  left join users u1 on r.winner_id = u1.id"
+                "  left join users u2 on r.loser_id = u2.id"
+                "  where r.finished_at >= ? and r.finished_at < ?"
+                "  and (? = 0 or m.is_ranked = 1)"
+                "  and (? = 1 or r.is_void = 0)"
+                ")"
+                " select * from ("
+                "  select 'longest' as kind, player_won, player_lost, won_score, lost_score,"
+                "   started_at, finished_at, moves from finished"
+                "  order by finished_at - started_at desc, match_id limit 1)"
+                " union all"
+                " select * from ("
+                "  select 'most_moves' as kind, player_won, player_lost, won_score, lost_score,"
+                "   started_at, finished_at, moves from finished"
+                "  order by moves desc, match_id limit 1)", (
+                    start_date.timestamp(),
+                    end_date.timestamp(),
+                    1 if self.config.leaderboards_ranked_only.get() else 0,
+                    1 if self.config.leaderboards_include_void.get() else 0,
+                ))
+            matches = {row[0]: GameResultHistory(
+                player_won=row[1],
+                player_lost=row[2],
+                won_score=row[3],
+                lost_score=row[4],
+                start=datetime.fromtimestamp(row[5], tz=timezone.utc),
+                finish=datetime.fromtimestamp(row[6], tz=timezone.utc),
+                moves=row[7],
+            ) for row in await c.fetchall()}
+
+        return MonthlySummary(
+            ranking=ranking,
+            champion_streak=champion_streak,
+            longest_match=matches.get('longest'),
+            most_moves_match=matches.get('most_moves'),
+        )
 
     async def get_scheduled_tasks(self) -> list[ScheduledTask]:
         async with self._transaction("r") as c:

@@ -708,6 +708,195 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.conn.get_tournament_trophy('missing'))
         self.assertEqual(await self.conn.get_user_trophies('missing'), [])
 
+    async def create_users(self, *usernames: str):
+        return [await self.conn.authenticate_user(name, b'password', auto_create=True) for name in usernames]
+
+    async def report_match(self, match_id: str, winner, loser, finished_at: datetime, duration_s=600, moves=20,
+                           is_ranked=True, is_void=False):
+        await self.conn.create_match_and_add_result(DbMatchReport(
+            match_id=match_id,
+            winner_id=winner.user_id,
+            loser_id=loser.user_id,
+            winner_pieces_left=5,
+            loser_pieces_left=0,
+            move_counter=moves,
+            grid_size='small',
+            squadron_size='medium',
+            started_at=finished_at - timedelta(seconds=duration_s),
+            finished_at=finished_at,
+            is_ranked=is_ranked,
+            is_void=is_void,
+        ))
+
+    async def report_win_in_month(self, winner, loser, year: int, month: int):
+        await self.report_match(f'{year}-{month}', winner, loser, datetime(year, month, 5, 12, tzinfo=timezone.utc))
+
+    async def test_get_monthly_summary_without_games(self):
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        self.assertEqual(summary.ranking, [])
+        self.assertEqual(summary.champion_streak, 0)
+        self.assertIsNone(summary.longest_match)
+        self.assertIsNone(summary.most_moves_match)
+
+    async def test_get_monthly_summary_includes_ranking_of_the_month(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_win_in_month(bob, alice, 2020, 2)
+        await self.report_win_in_month(alice, bob, 2020, 3)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        self.assertEqual([entry.username for entry in summary.ranking], ['alice', 'bob'])
+        self.assertEqual(summary.ranking[0].wins, 1)
+
+    async def test_get_monthly_summary_champion_streak_counts_consecutive_months(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        for month in (1, 2, 3):
+            await self.report_win_in_month(alice, bob, 2020, month)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        self.assertEqual(summary.champion_streak, 3)
+
+    async def test_get_monthly_summary_champion_streak_restarts_when_champion_changes(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_win_in_month(alice, bob, 2020, 1)
+        await self.report_win_in_month(alice, bob, 2020, 2)
+        await self.report_win_in_month(bob, alice, 2020, 3)
+
+        self.assertEqual((await self.conn.get_monthly_summary(2020, 3)).champion_streak, 1)
+        self.assertEqual((await self.conn.get_monthly_summary(2020, 2)).champion_streak, 2)
+
+    async def test_get_monthly_summary_champion_streak_is_broken_by_month_without_games(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_win_in_month(alice, bob, 2020, 1)
+        await self.report_win_in_month(alice, bob, 2020, 3)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        self.assertEqual(summary.champion_streak, 1)
+
+    async def test_get_monthly_summary_champion_streak_spans_year_boundary(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_win_in_month(alice, bob, 2019, 12)
+        await self.report_win_in_month(alice, bob, 2020, 1)
+
+        summary = await self.conn.get_monthly_summary(2020, 1)
+
+        self.assertEqual(summary.champion_streak, 2)
+
+    async def test_get_monthly_summary_champion_streak_is_zero_for_month_without_games(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_win_in_month(alice, bob, 2020, 1)
+
+        summary = await self.conn.get_monthly_summary(2020, 2)
+
+        self.assertEqual(summary.champion_streak, 0)
+
+    async def test_get_monthly_summary_match_details(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        finished_at = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('a', alice, bob, finished_at, duration_s=600, moves=42)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        self.assertEqual(summary.longest_match, GameResultHistory(
+            player_won='alice',
+            player_lost='bob',
+            won_score=5,
+            lost_score=0,
+            start=finished_at - timedelta(seconds=600),
+            finish=finished_at,
+            moves=42,
+        ))
+
+    async def test_get_monthly_summary_longest_match(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        day = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('regular', alice, bob, day, duration_s=600)
+        await self.report_match('long', bob, alice, day + timedelta(hours=1), duration_s=3000)
+        await self.report_match('short', alice, bob, day + timedelta(hours=2), duration_s=60)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.longest_match is not None
+        self.assertEqual(summary.longest_match.finish - summary.longest_match.start, timedelta(seconds=3000))
+
+    async def test_get_monthly_summary_most_moves_match(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        day = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('regular', alice, bob, day, moves=40)
+        await self.report_match('busy', bob, alice, day + timedelta(hours=1), moves=120)
+        await self.report_match('short', alice, bob, day + timedelta(hours=2), moves=10)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.most_moves_match is not None
+        self.assertEqual(summary.most_moves_match.moves, 120)
+
+    async def test_get_monthly_summary_ignores_void_matches(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        day = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('regular', alice, bob, day, moves=40)
+        await self.report_match('void', alice, bob, day + timedelta(hours=1), moves=500, is_void=True)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.most_moves_match is not None
+        self.assertEqual(summary.most_moves_match.moves, 40)
+
+    async def test_get_monthly_summary_ignores_unranked_matches(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        day = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('regular', alice, bob, day, moves=40)
+        await self.report_match('unranked', alice, bob, day + timedelta(hours=1), moves=500, is_ranked=False)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.most_moves_match is not None
+        self.assertEqual(summary.most_moves_match.moves, 40)
+
+    async def test_get_monthly_summary_includes_void_matches_when_configured(self):
+        self.conn.config.set('leaderboards.include_void', True)
+        alice, bob = await self.create_users('alice', 'bob')
+        day = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('regular', alice, bob, day, moves=40)
+        await self.report_match('void', alice, bob, day + timedelta(hours=1), moves=500, is_void=True)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.most_moves_match is not None
+        self.assertEqual(summary.most_moves_match.moves, 500)
+
+    async def test_get_monthly_summary_includes_unranked_matches_when_configured(self):
+        self.conn.config.set('leaderboards.ranked_only', False)
+        alice, bob = await self.create_users('alice', 'bob')
+        day = datetime(2020, 3, 5, 12, tzinfo=timezone.utc)
+        await self.report_match('regular', alice, bob, day, moves=40)
+        await self.report_match('unranked', alice, bob, day + timedelta(hours=1), moves=500, is_ranked=False)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.most_moves_match is not None
+        self.assertEqual(summary.most_moves_match.moves, 500)
+
+    async def test_get_monthly_summary_includes_match_finished_at_the_start_of_the_month(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_match('first', alice, bob, datetime(2020, 3, 1, tzinfo=timezone.utc), moves=77)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        assert summary.most_moves_match is not None
+        self.assertEqual(summary.most_moves_match.moves, 77)
+
+    async def test_get_monthly_summary_excludes_match_finished_at_the_start_of_next_month(self):
+        alice, bob = await self.create_users('alice', 'bob')
+        await self.report_match('next', alice, bob, datetime(2020, 4, 1, tzinfo=timezone.utc), moves=77)
+
+        summary = await self.conn.get_monthly_summary(2020, 3)
+
+        self.assertIsNone(summary.most_moves_match)
+
     async def test_create_scheduled_task(self):
         run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
 

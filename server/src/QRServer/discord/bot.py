@@ -10,6 +10,8 @@ import discord
 
 log = logging.getLogger('qr.bot')
 
+_MESSAGEABLE_CHANNELS = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
+
 
 class DiscordException(Exception):
     pass
@@ -29,6 +31,7 @@ class DiscordBot:
         self.guild_id = self.config.guild_id.get()
         self.user_notifications_channel_id = self.config.discord_bot_channel_user_notifications_id.get()
         self.ban_notifications_channel_id = self.config.discord_bot_channel_ban_notifications_id.get()
+        self.leaderboard_channel_id = self.config.discord_bot_channel_leaderboard_id.get()
         self.max_aliases = self.config.discord_bot_max_aliases.get()
 
         self.username_regex = re.compile(r'[a-zA-Z0-9.\-_][a-zA-Z0-9.\-_ ]{,14}')
@@ -131,11 +134,25 @@ class DiscordBot:
     # # # # # #
     # Helpers #
     # # # # # #
+    async def send_embed(self, channel_id: str, embed: dict) -> None:
+        """
+        Args:
+            embed: the embed in the shape of Discord's embed object
+
+        Raises:
+            DiscordException: if the channel is not found or does not accept messages
+        """
+        # Ensure that the bot is ready before messaging
+        await self.client.wait_until_ready()
+        channel = self.client.get_channel(int(channel_id))
+        if not isinstance(channel, _MESSAGEABLE_CHANNELS):
+            raise DiscordException(f'Channel {channel_id} not found or not accepting messages: {channel}')
+        await channel.send(embed=discord.Embed.from_dict(embed))
+
     async def _send_notification(self, message: str, channel: str) -> None:
         discord_channel = self.client.get_channel(int(channel))
-        allowed_channels = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
 
-        if isinstance(discord_channel, allowed_channels):
+        if isinstance(discord_channel, _MESSAGEABLE_CHANNELS):
             log.debug(f"Sending notification: {repr(message)}")
             await discord_channel.send(message)
         else:

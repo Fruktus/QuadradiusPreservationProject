@@ -222,3 +222,11 @@ class LobbyPlayer:
     awards: list[int] = field(default_factory=lambda: [0] * 10)
     idx: int | None = None
     joined_at: datetime | None = None
+
+
+@dataclass
+class MonthlySummary:
+    ranking: list[RankingEntry]  # sorted from best player
+    champion_streak: int  # #1's streak in consecutive months, this one included
+    longest_match: GameResultHistory | None
+    most_moves_match: GameResultHistory | None

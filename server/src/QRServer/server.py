@@ -17,6 +17,7 @@ from QRServer.game.gameclient import GameClientHandler
 from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyclient import LobbyClientHandler
 from QRServer.lobby.lobbyserver import LobbyServer
+from QRServer.scheduler.scheduler import Scheduler
 
 log = logging.getLogger('qr.server')
 
@@ -37,6 +38,8 @@ class QRServer:
     _lobby_ready: asyncio.Event
     _game_ready: asyncio.Event
     _server_stopped: asyncio.Event
+
+    _scheduler: Scheduler
 
     # extensions
     _discord_bot: DiscordBot | None
@@ -79,6 +82,10 @@ class QRServer:
     @property
     def lobby_server(self):
         return self._lobby_server
+
+    @property
+    def scheduler(self):
+        return self._scheduler
 
     async def start(self):
         try:
@@ -143,6 +150,9 @@ class QRServer:
         if self.config.discord_bot_enabled.get():
             self._discord_bot = DiscordBot(self.config, self.connector)
             self.start_task("Discord Bot", self._discord_bot.run_bot())
+
+        self._scheduler = Scheduler(self.connector, self.config)
+        self.start_task("Scheduler", self._scheduler.run())
 
         self._game_server = GameServer(self.config, self.connector)
         self._lobby_server = LobbyServer()

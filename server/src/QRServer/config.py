@@ -254,6 +254,25 @@ class Config:
             cli_args=[],
             description='Discord Channel ID for sending notifications about user bans/unbans',
             default_value='')
+        self.scheduler_poll_interval = ConfigKey(
+            config=self,
+            name='scheduler.poll_interval',
+            cli_args=[],
+            description='How often (in seconds) the scheduler checks whether any task is due',
+            default_value=30)
+        self.scheduler_refresh_interval = ConfigKey(
+            config=self,
+            name='scheduler.refresh_interval',
+            cli_args=[],
+            description='How often (in seconds) the scheduler reloads the task list from the database, '
+                        'picking up tasks which were added there by other means',
+            default_value=60 * 15)
+        self.scheduler_retention_days = ConfigKey(
+            config=self,
+            name='scheduler.retention_days',
+            cli_args=[],
+            description='For how many days finished and failed tasks are kept in the database',
+            default_value=30)
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

@@ -1560,6 +1560,17 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('idx_match_recordings_match_id', await self.get_index_names('match_recordings'))
 
+    async def test_migration_v18(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 17)
+
+        self.assertNotIn('idx_trophies_name_nocase', await self.get_index_names('trophies'))
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 18)
+
+        self.assertEqual(await self.get_db_version(), 18)
+
+        self.assertIn('idx_trophies_name_nocase', await self.get_index_names('trophies'))
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

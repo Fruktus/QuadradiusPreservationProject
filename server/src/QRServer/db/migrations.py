@@ -39,6 +39,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v15,
         _migration_upgrade_to_v16,
         _migration_upgrade_to_v17,
+        _migration_upgrade_to_v18,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -429,3 +430,11 @@ async def _migration_upgrade_to_v17(c, _config):
     )
 
     await _set_version(c, 17)
+
+
+async def _migration_upgrade_to_v18(c, _config):
+    await c.execute(
+        "create unique index idx_trophies_name_nocase on trophies (name collate nocase)"
+    )
+
+    await _set_version(c, 18)

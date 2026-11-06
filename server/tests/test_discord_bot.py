@@ -5,8 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.password import password_verify
-from QRServer.discord.bot import DiscordBot, DiscordException, PreconditionFailedException
+from QRServer.discord.bot import DiscordBot, DiscordException, PreconditionFailedException, MAX_SVG_BYTES
 import discord
+
+
+TROPHY_SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M2 1h6v3a3 3 0 0 1-6 0z"/></svg>'
 
 
 class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
@@ -29,6 +32,10 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.interaction.guild.id = int(self.config.get('discord.bot.guild_id'))
 
         self.username = 'test_user'
+
+        response = self.interaction.response
+        response.is_done = MagicMock(
+            side_effect=lambda: response.defer.called or response.send_message.called)
 
     async def asyncTearDown(self):
         await self.conn.close()
@@ -732,7 +739,155 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self._assert_precondition_logged(
             'active_invite_exists', self.bot._challenge_member(self.interaction, 'challenged'))
 
-    # Command error handling
+    # Trophies
+    def _svg_attachment(self, data: bytes = TROPHY_SVG, size: int | None = None) -> AsyncMock:
+        attachment = AsyncMock()
+        attachment.size = len(data) if size is None else size
+        attachment.read.return_value = data
+        return attachment
+
+    async def test_create_trophy(self):
+        await self.bot._create_trophy(self.interaction, '  Season 1 Champion ', self._svg_attachment())
+
+        trophy = await self.conn.get_trophy_by_name('Season 1 Champion')
+        self.assertIsNotNone(trophy)
+        self.assertEqual(trophy.svg, TROPHY_SVG)
+        self.assertIsNone(trophy.user_id)
+        self.assertIsNone(trophy.tournament_id)
+        self.interaction.response.defer.assert_called_once_with(ephemeral=True)
+        self.interaction.followup.send.assert_called_once_with(
+            "Created trophy: `Season 1 Champion`. Use `/awardtrophy` to award it to a player.", ephemeral=True)
+
+    async def test_create_trophy_in_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment())
+
+        self.assertIsNone(await self.conn.get_trophy_by_name('trophy'))
+
+    async def test_create_trophy_with_taken_name(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment())
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Failed to create trophy `trophy`. "
+            "The name may be taken, or the tournament may already have a trophy.", ephemeral=True)
+
+        with self.assertRaises(PreconditionFailedException):
+            # Handle different case as well
+            await self.bot._create_trophy(self.interaction, 'Trophy', self._svg_attachment())
+
+    async def test_create_trophy_with_invalid_name(self):
+        for name in ['', '   ', 'a' * 65, 'bad`name', 'two\nlines']:
+            self.interaction.reset_mock()
+            with self.assertRaises(PreconditionFailedException, msg=name):
+                await self.bot._create_trophy(self.interaction, name, self._svg_attachment())
+            self.interaction.response.send_message.assert_called_once_with(
+                "Trophy name should be 1-64 printable characters and not contain backticks.", ephemeral=True)
+
+    async def test_create_trophy_with_invalid_svg(self):
+        # The exhaustive cases live in ValidateSvgTest, here we only check that the message is forwarded
+        self.interaction.reset_mock()
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment(b'not xml at all'))
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Invalid trophy SVG: The file is not valid XML.", ephemeral=True)
+        self.assertIsNone(await self.conn.get_trophy_by_name('trophy'))
+
+    async def test_create_trophy_with_too_big_svg(self):
+        # Rejected based on the reported size, without deferring or downloading
+        attachment = self._svg_attachment(size=MAX_SVG_BYTES + 1)
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', attachment)
+        attachment.read.assert_not_called()
+        self.interaction.response.defer.assert_not_called()
+
+        # Reported size can not be trusted either
+        self.interaction.reset_mock()
+        attachment = self._svg_attachment(TROPHY_SVG + b' ' * MAX_SVG_BYTES, size=10)
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', attachment)
+        self.assertIsNone(await self.conn.get_trophy_by_name('trophy'))
+
+    async def test_create_trophy_when_download_fails(self):
+        attachment = self._svg_attachment()
+        attachment.read.side_effect = discord.HTTPException(MagicMock(), 'fail')
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', attachment)
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Invalid trophy SVG: Could not download the file, please try again.", ephemeral=True)
+        self.assertIsNone(await self.conn.get_trophy_by_name('trophy'))
+
+    async def test_award_trophy(self):
+        user_id = await self.conn.create_member(self.username, 'asd'.encode(), discord_user_id='456')
+        trophy_id = await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        trophies = await self.conn.get_user_trophies(user_id)
+        self.assertEqual([t.trophy_id for t in trophies], [trophy_id])
+        self.interaction.response.send_message.assert_called_once_with(
+            "Awarded trophy `trophy` to: `test_user`.", ephemeral=True)
+
+    async def test_award_trophy_to_nonexistent_user(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find a player with username: `test_user`. Check for typos and case.", ephemeral=True)
+
+    async def test_award_trophy_to_guest(self):
+        await self.conn.authenticate_user('test_user GUEST', None, verify_password=False, auto_create=True)
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._award_trophy(self.interaction, 'test_user GUEST', 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You cannot interact with guest users.", ephemeral=True)
+
+    async def test_award_nonexistent_trophy(self):
+        await self.conn.create_member(self.username, 'asd'.encode())
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find a trophy with name: `trophy`. Check for typos.", ephemeral=True)
+
+    async def test_award_already_awarded_trophy(self):
+        user_id = await self.conn.create_member(self.username, 'asd'.encode())
+        other_id = await self.conn.create_member('other_user', 'asd'.encode())
+        trophy_id = await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        await self.conn.award_trophy(trophy_id, other_id)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Trophy `trophy` has already been awarded.", ephemeral=True)
+        self.assertEqual(await self.conn.get_user_trophies(user_id), [])
+        self.assertEqual(len(await self.conn.get_user_trophies(other_id)), 1)
+
+    async def test_award_tournament_trophy(self):
+        user_id = await self.conn.create_member(self.username, 'asd'.encode())
+        tournament_id = await self.conn.create_tournament('test_tournament', '123', '456', 3)
+        await self.conn.create_trophy('trophy', TROPHY_SVG, tournament_id)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Trophy `trophy` belongs to a tournament and cannot be awarded manually.", ephemeral=True)
+        self.assertEqual(await self.conn.get_user_trophies(user_id), [])
 
     async def test_command_error_handler_ignores_failed_preconditions(self):
         error = discord.app_commands.CommandInvokeError(MagicMock(), PreconditionFailedException('test'))
@@ -753,6 +908,178 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_command_error_handler_is_registered_on_tree(self):
         self.assertEqual(self.bot.tree.on_error, self.bot._on_command_error)
+
+    async def test_update_trophy(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        new_svg = TROPHY_SVG + b' '
+
+        await self.bot._update_trophy(self.interaction, ' trophy ', self._svg_attachment(new_svg))
+
+        self.assertEqual((await self.conn.get_trophy_by_name('trophy')).svg, new_svg)
+        self.interaction.followup.send.assert_called_once_with(
+            "Updated graphic of trophy: `trophy`.", ephemeral=True)
+
+    async def test_update_trophy_in_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._update_trophy(self.interaction, 'trophy', self._svg_attachment(TROPHY_SVG + b' '))
+
+        self.assertEqual((await self.conn.get_trophy_by_name('trophy')).svg, TROPHY_SVG)
+
+    async def test_update_nonexistent_trophy(self):
+        attachment = self._svg_attachment()
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._update_trophy(self.interaction, 'trophy', attachment)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find a trophy with name: `trophy`. Check for typos.", ephemeral=True)
+        attachment.read.assert_not_called()
+
+    async def test_update_trophy_with_too_big_svg(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        attachment = self._svg_attachment(size=MAX_SVG_BYTES + 1)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._update_trophy(self.interaction, 'trophy', attachment)
+
+        attachment.read.assert_not_called()
+        self.assertEqual((await self.conn.get_trophy_by_name('trophy')).svg, TROPHY_SVG)
+
+    async def test_trophy_choices(self):
+        user_id = await self.conn.create_member(self.username, b'asd')
+        await self.conn.create_trophy('Alpha', TROPHY_SVG, None)
+        awarded = await self.conn.create_trophy('Awarded', TROPHY_SVG, None)
+        await self.conn.award_trophy(awarded, user_id)
+
+        def names(choices):
+            return [c.value for c in choices]
+
+        self.assertEqual(names(await self.bot._trophy_choices('', unawarded_only=True)), ['Alpha'])
+        self.assertEqual(names(await self.bot._trophy_choices('', unawarded_only=False)), ['Alpha', 'Awarded'])
+        self.assertEqual(names(await self.bot._trophy_choices('AWA', unawarded_only=False)), ['Awarded'])
+
+    async def test_trophy_choices_are_cached_and_invalidated_on_create(self):
+        self.assertEqual(await self.bot._trophy_choices('', True), [])
+        await self.conn.create_trophy('late', TROPHY_SVG, None)
+        self.assertEqual(await self.bot._trophy_choices('', True), [])  # cached
+        self.bot._invalidate_trophy_names()
+        self.assertEqual([c.value for c in await self.bot._trophy_choices('', True)], ['late'])
+
+    async def test_create_trophy_with_taken_name_different_case(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'Trophy', self._svg_attachment())
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Failed to create trophy `Trophy`. "
+            "The name may be taken, or the tournament may already have a trophy.", ephemeral=True)
+
+    async def test_award_trophy_to_user_without_discord_id(self):
+        await self.conn.create_member(self.username, 'asd'.encode())
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Awarded trophy `trophy` to: `test_user`.\nThis user has no Discord ID", ephemeral=True)
+
+    async def test_award_trophy_failure(self):
+        await self.conn.create_member(self.username, 'asd'.encode())
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with patch.object(self.conn, 'award_trophy', AsyncMock(return_value=False)):
+            await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Something went wrong while awarding trophy `trophy` to: `test_user`.", ephemeral=True)
+
+    async def test_award_trophy_to_banned_user(self):
+        user_id = await self.conn.create_member(self.username, 'asd'.encode())
+        await self.conn.ban_user(user_id, '1111', 'asd')
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._award_trophy(self.interaction, self.username, 'trophy')
+
+        trophy = await self.conn.get_trophy_by_name('trophy')
+        self.interaction.response.send_message.assert_called_once()
+        self.assertEqual(trophy.user_id, None)
+
+    async def test_update_trophy_with_invalid_svg(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._update_trophy(self.interaction, 'trophy', self._svg_attachment(b'not xml at all'))
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Invalid trophy SVG: The file is not valid XML.", ephemeral=True)
+        self.assertEqual((await self.conn.get_trophy_by_name('trophy')).svg, TROPHY_SVG)
+
+    async def test_update_trophy_failure(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        with patch.object(self.conn, 'update_trophy_svg', AsyncMock(return_value=False)):
+            await self.bot._update_trophy(self.interaction, 'trophy', self._svg_attachment())
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Something went wrong while updating trophy `trophy`.", ephemeral=True)
+
+    async def test_logged_nonexistent_trophy(self):
+        await self._assert_precondition_logged(
+            'nonexistent_trophy', self.bot._update_trophy(self.interaction, 'missing', self._svg_attachment()))
+
+    async def test_logged_invalid_trophy_name(self):
+        await self._assert_precondition_logged(
+            'invalid_trophy_name', self.bot._create_trophy(self.interaction, '', self._svg_attachment()))
+
+    async def test_logged_invalid_trophy_svg(self):
+        await self._assert_precondition_logged(
+            'invalid_trophy_svg',
+            self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment(b'not xml')))
+
+    async def test_logged_trophy_name_taken(self):
+        await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        await self._assert_precondition_logged(
+            'trophy_name_taken', self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment()))
+
+    async def test_logged_tournament_trophy(self):
+        await self.conn.create_member(self.username, 'asd'.encode())
+        tournament_id = await self.conn.create_tournament('test_tournament', '123', '456', 3)
+        await self.conn.create_trophy('trophy', TROPHY_SVG, tournament_id)
+        await self._assert_precondition_logged(
+            'tournament_trophy', self.bot._award_trophy(self.interaction, self.username, 'trophy'))
+
+    async def test_logged_trophy_already_awarded(self):
+        await self.conn.create_member(self.username, 'asd'.encode())
+        other_id = await self.conn.create_member('other_user', 'asd'.encode())
+        trophy_id = await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        await self.conn.award_trophy(trophy_id, other_id)
+        await self._assert_precondition_logged(
+            'trophy_already_awarded', self.bot._award_trophy(self.interaction, self.username, 'trophy'))
+
+    async def test_create_trophy_for_tournament(self):
+        tournament_id = await self.conn.create_tournament('test_tournament', '123', '456', 3)
+
+        await self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment(), tournament_id)
+
+        trophy = await self.conn.get_tournament_trophy(tournament_id)
+        self.assertEqual(trophy.name, 'trophy')
+
+    async def test_create_trophy_for_nonexistent_tournament(self):
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment(), 'missing')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find a tournament with ID: `missing`.", ephemeral=True)
+        self.assertIsNone(await self.conn.get_trophy_by_name('trophy'))
+
+    async def test_logged_nonexistent_tournament(self):
+        await self._assert_precondition_logged(
+            'nonexistent_tournament',
+            self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment(), 'missing'))
 
 
 class DiscordBotSendEmbedTest(unittest.IsolatedAsyncioTestCase):

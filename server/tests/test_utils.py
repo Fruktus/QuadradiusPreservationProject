@@ -303,3 +303,38 @@ class PairwiseTest(unittest.TestCase):
         self.assertEqual(utils.pairwise(['a', 'b', 'c', 'd']), [('a', 'b'), ('c', 'd')])
         self.assertEqual(utils.pairwise(['a', 'b', 'c']), [('a', 'b'), ('c', None)])
         self.assertEqual(utils.pairwise(['a']), [('a', None)])
+
+
+class ValidateSvgTest(unittest.TestCase):
+    def test_validate_svg_with_valid_svg(self):
+        self.assertIsNone(utils.validate_svg(
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M2 1h6v3a3 3 0 0 1-6 0z"/></svg>'))
+
+    def test_validate_svg_accepts_doctype_without_entities(self):
+        self.assertIsNone(utils.validate_svg(
+            b'<!DOCTYPE svg SYSTEM "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">'
+            b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>'))
+
+    def test_validate_svg_detects_invalid_svg(self):
+        ns = 'xmlns="http://www.w3.org/2000/svg"'
+        cases = [
+            (b'not xml at all', 'The file is not valid XML.'),
+            (b'\xff\xfe<\x00s\x00', 'The file must be UTF-8 encoded.'),
+            (b'<html xmlns="http://www.w3.org/2000/svg"></html>', 'The root element must be'),
+            (b'<svg></svg>', 'The root element must be'),  # missing namespace
+            (f'<svg {ns} viewBox="0 0 1 1"><script>alert(1)</script></svg>'.encode(),
+             'Scripts and foreign objects are not allowed.'),
+            (f'<svg {ns} viewBox="0 0 1 1"><foreignObject/></svg>'.encode(),
+             'Scripts and foreign objects are not allowed.'),
+            (f'<svg {ns} viewBox="0 0 1 1" onload="alert(1)"/>'.encode(),
+             'Event handlers and javascript links are not allowed.'),
+            (f'<svg {ns} xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1 1">'
+             '<a xlink:href="java&#9;script:alert(1)"/></svg>'.encode(),
+             'Event handlers and javascript links are not allowed.'),
+            (f'<!DOCTYPE svg [<!ENTITY a "aaaa">]><svg {ns} viewBox="0 0 1 1">&a;</svg>'.encode(),
+             'Entity declarations are not allowed.'),
+            (f'<svg {ns}/>'.encode(), 'needs a `viewBox`'),
+        ]
+        for data, expected in cases:
+            with self.subTest(data=data):
+                self.assertIn(expected, utils.validate_svg(data) or '')

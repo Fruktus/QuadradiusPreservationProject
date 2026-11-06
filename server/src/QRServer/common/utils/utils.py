@@ -3,7 +3,10 @@ from datetime import datetime, timedelta, timezone
 import secrets
 import string
 from itertools import zip_longest
+from xml.etree import ElementTree
+import re
 
+_SVG_DISALLOWED_URL_CHARS = re.compile(r'[\x00-\x20]')
 
 BASE62 = string.digits + string.ascii_letters
 K_FACTOR = 64
@@ -158,3 +161,39 @@ def pairwise(seq: list) -> list[tuple]:
         A list of 2-tuples containing consecutive elements from `seq`.
     """
     return list(zip_longest(seq[::2], seq[1::2]))
+
+
+def validate_svg(data: bytes) -> str | None:
+    """Validates svg, returns error message if something is wrong or None if svg is valid"""
+    svg_namespace = 'http://www.w3.org/2000/svg'
+    forbidden_svg_elements = {'script', 'foreignobject'}
+
+    try:
+        text = data.decode('utf-8')
+    except UnicodeDecodeError:
+        return 'The file must be UTF-8 encoded.'
+
+    # Entity declarations allow entity expansion attacks, no legitimate trophy/achievement needs them
+    if re.search(r'<!entity', text, re.IGNORECASE):
+        return 'Entity declarations are not allowed.'
+
+    try:
+        root = ElementTree.fromstring(data)
+    except ElementTree.ParseError:
+        return 'The file is not valid XML.'
+
+    if root.tag != f'{{{svg_namespace}}}svg':
+        return f'The root element must be `<svg xmlns="{svg_namespace}">`.'
+
+    if not root.get('viewBox') and not (root.get('width') and root.get('height')):
+        return 'The root element needs a `viewBox` or both `width` and `height`.'
+
+    for element in root.iter():
+        if element.tag.rpartition('}')[2].lower() in forbidden_svg_elements:
+            return 'Scripts and foreign objects are not allowed.'
+        for attribute, value in element.attrib.items():
+            if (attribute.rpartition('}')[2].lower().startswith('on')
+                    or _SVG_DISALLOWED_URL_CHARS.sub('', value).lower().startswith('javascript:')):
+                return 'Event handlers and javascript links are not allowed.'
+
+    return None

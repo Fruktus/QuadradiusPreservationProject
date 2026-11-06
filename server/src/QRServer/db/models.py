@@ -42,6 +42,15 @@ class DbMatchReport:
 
 
 @dataclass
+class DbRecordedMessage:
+    timestamp: datetime
+    sender_id: str | None
+    receiver_id: str | None
+    message_type: int  # message_type_id from messages.py
+    message: bytes  # wire format without the trailing null byte
+
+
+@dataclass
 class UserRating:
     user_id: str
     month: int

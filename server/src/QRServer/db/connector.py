@@ -1248,6 +1248,13 @@ class DbConnector:
             )
             return bool(c.rowcount)
 
+    async def update_trophy_svg(self, trophy_id: str, svg: bytes) -> bool:
+        async with self._transaction("w") as c:
+            await c.execute(
+                "update trophies set svg = ? where id = ?",
+                (svg, trophy_id))
+            return bool(c.rowcount)
+
     async def get_user_trophies(self, user_id: str) -> list[Trophy]:
         async with self._transaction("r") as c:
             await c.execute(
@@ -1272,6 +1279,48 @@ class DbConnector:
                 )
                 result.append(trophy)
             return result
+
+    async def get_trophy_by_name(self, name: str) -> Trophy | None:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select id, user_id, tournament_id, name, svg, awarded_at"
+                " from trophies"
+                " where name = ? collate nocase",
+                (name,)
+            )
+            row = await c.fetchone()
+            if not row:
+                return None
+
+            return Trophy(
+                trophy_id=row[0],
+                user_id=row[1],
+                tournament_id=row[2],
+                name=row[3],
+                svg=row[4],
+                awarded_at=timestamp_to_datetime(row[5]),
+            )
+
+    async def get_trophy_names(self, search: str = '', unawarded_only: bool = False,
+                               limit: int = 25) -> list[str]:
+        """Trophy names containing `search` (case-insensitive).
+        With `unawarded_only`, only trophies that can still be awarded manually are returned."""
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select"
+                " name"
+                " from trophies"
+                " where instr(lower(name), lower(?)) > 0"
+                " and (case when ? = 1 then user_id is null and tournament_id is null else 1=1 end)"
+                " order by lower(name), name"
+                " limit ?",
+                (
+                    search,
+                    1 if unawarded_only else 0,
+                    limit
+                )
+            )
+            return [row[0] for row in await c.fetchall()]
 
     async def get_tournament_trophy(self, tournament_id: str) -> Trophy | None:
         async with self._transaction("r") as c:

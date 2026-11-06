@@ -280,6 +280,25 @@ class Config:
             cli_args=[],
             description='For how many days finished and failed tasks are kept in the database',
             default_value=30)
+        self.recordings_enabled = ConfigKey(
+            config=self,
+            name='recordings.enabled',
+            cli_args=[],
+            description='Whether to enable match recording',
+            default_value=True)
+        self.recordings_members_only = ConfigKey(
+            config=self,
+            name='recordings.members_only',
+            cli_args=[],
+            description='Whether to only record matches between two members. '
+                        'When disabled, matches involving guests are recorded as well',
+            default_value=True)
+        self.recordings_include_chat = ConfigKey(
+            config=self,
+            name='recordings.include_chat',
+            cli_args=[],
+            description='Whether to include chat messages in the match recording',
+            default_value=False)
 
     def get_key(self, name: str):
         by_name = self.keys_by_name()

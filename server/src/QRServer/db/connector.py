@@ -13,8 +13,9 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, MonthlySummary, RankingEntry
 from QRServer.common.utils import utils
 from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
-    TournamentMatch, TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats, ScheduledTask
+from QRServer.db.models import DbUser, DbMatchReport, DbRecordedMessage, MatchInvite, ScheduledTaskStatus, \
+    TournamentDuel, TournamentMatch, TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats, \
+    ScheduledTask
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -311,6 +312,74 @@ class DbConnector:
                 is_ranked=bool(row[10]),
                 is_void=bool(row[11]),
             )
+
+    async def add_match_recording(self, match_id: str, messages: list[DbRecordedMessage]) -> str:
+        """
+        Saves the messages of a match in the given order.
+
+        Returns:
+            str: id of the created recording
+        """
+        recording_id = str(uuid.uuid4())
+        async with self._transaction("w") as c:
+            await c.execute(
+                "insert into match_recordings ("
+                "  id,"
+                "  match_id"
+                ") values ("
+                "?, ?"
+                ")", (
+                    recording_id,
+                    match_id,
+                ))
+
+            await c.executemany(
+                "insert into match_recording_messages ("
+                "  recording_id,"
+                "  seq,"
+                "  timestamp,"
+                "  sender_id,"
+                "  receiver_id,"
+                "  message_type,"
+                "  message"
+                ") values ("
+                "?, ?, ?, ?, ?, ?, ?"
+                ")", [(
+                    recording_id,
+                    seq,
+                    int(msg.timestamp.timestamp()),
+                    msg.sender_id,
+                    msg.receiver_id,
+                    msg.message_type,
+                    msg.message,
+                ) for seq, msg in enumerate(messages)])
+
+        return recording_id
+
+    async def get_match_recording(self, match_id: str) -> list[DbRecordedMessage]:
+        """
+        Returns:
+            list[DbRecordedMessage]: messages in the order they were recorded,
+            empty if the match has no recording or doesn't exist
+        """
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select m.timestamp, m.sender_id, m.receiver_id, m.message_type, m.message"
+                " from match_recordings r"
+                " inner join match_recording_messages m on r.id = m.recording_id"
+                " where r.match_id = ?"
+                " order by m.seq", (
+                    match_id,
+                ))
+            return [
+                DbRecordedMessage(
+                    timestamp=datetime.fromtimestamp(row[0], tz=timezone.utc),
+                    sender_id=row[1],
+                    receiver_id=row[2],
+                    message_type=row[3],
+                    message=row[4],
+                ) for row in await c.fetchall()
+            ]
 
     async def get_match_result(self, match_id: str) -> GameResultHistory | None:
         async with self._transaction("r") as c:

@@ -206,6 +206,7 @@ class GameClientHandler(ClientHandler, MatchParty):
         if not isinstance(message, ResponseMessage):
             raise Exception('Trying to send a non-response message')
         if self.opponent_handler:
+            self.game_server.record_message(self, message)
             await self.opponent_handler.send_msg(message)
 
     async def _handle_ping(self, message: ServerPingRequest):
@@ -214,7 +215,9 @@ class GameClientHandler(ClientHandler, MatchParty):
     async def _handle_void_score(self, _: VoidScoreRequest):
         self._is_void_score = True
         if self.opponent_handler:
-            await self.opponent_handler.send_msg(VoidScoreResponse.new())
+            response = VoidScoreResponse.new()
+            self.game_server.record_message(self, response)
+            await self.opponent_handler.send_msg(response)
 
     async def _handle_add_stats(self, message: AddStatsRequest):
         await self.game_server.add_match_stats(self, message.to_stats())
@@ -236,6 +239,7 @@ class GameClientHandler(ClientHandler, MatchParty):
             return
 
         if self.opponent_handler:
+            self.game_server.record_message(self, message)
             await self.opponent_handler.send_msg(message)
 
     async def _handle_disconnect(self, _: DisconnectRequest):

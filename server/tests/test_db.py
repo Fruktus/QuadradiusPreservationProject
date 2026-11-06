@@ -1623,6 +1623,47 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn('idx_trophies_name_nocase', await self.get_index_names('trophies'))
 
+    async def test_migration_v19(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 18)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('achievements', table_names)
+        self.assertNotIn('user_achievements', table_names)
+        self.assertNotIn('challenge_progress', table_names)
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 19)
+
+        table_names = await self.get_table_names()
+        self.assertIn('achievements', table_names)
+        self.assertIn('user_achievements', table_names)
+        self.assertIn('challenge_progress', table_names)
+        self.assertEqual(await self.get_db_version(), 19)
+
+        table_info = await self.get_table_info('achievements')
+        self.assertEqual(len(table_info), 5)
+        self.assertEqual(table_info[0][:3], (0, 'key', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'name', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'description', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'created_at', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'svg', 'BLOB'))
+
+        table_info = await self.get_table_info('user_achievements')
+        self.assertEqual(len(table_info), 3)
+        self.assertEqual(table_info[0][:3], (0, 'user_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'achievement_key', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'awarded_at', 'INTEGER'))
+
+        self.assertIn('user_achievements_by_achievement', await self.get_index_names('user_achievements'))
+
+        table_info = await self.get_table_info('challenge_progress')
+        self.assertEqual(len(table_info), 6)
+        self.assertEqual(table_info[0][:3], (0, 'user_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'challenge_key', 'varchar'))
+        self.assertEqual(table_info[2][:3], (2, 'progress', 'varchar'))
+        self.assertEqual(table_info[3][:3], (3, 'completed_at', 'INTEGER'))
+        self.assertEqual(table_info[4][:3], (4, 'updated_at', 'INTEGER'))
+        self.assertEqual(table_info[5][:3], (5, 'expires_at', 'INTEGER'))
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

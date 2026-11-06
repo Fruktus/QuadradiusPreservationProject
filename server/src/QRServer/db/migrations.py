@@ -40,6 +40,7 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v16,
         _migration_upgrade_to_v17,
         _migration_upgrade_to_v18,
+        _migration_upgrade_to_v19,
     ]
 
     for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
@@ -438,3 +439,45 @@ async def _migration_upgrade_to_v18(c, _config):
     )
 
     await _set_version(c, 18)
+
+
+async def _migration_upgrade_to_v19(c, _config):
+    # Stores achievement definitions
+    await c.execute(
+        "create table achievements ("
+        " key varchar primary key collate nocase,"
+        " name varchar not null collate nocase unique,"
+        " description varchar not null,"
+        " created_at integer,"
+        " svg blob"  # Nullable on purpose since these will be provided via Discord bot
+        ")"
+    )
+
+    # Junction
+    await c.execute(
+        "create table user_achievements ("
+        " user_id varchar not null,"
+        " achievement_key varchar not null collate nocase,"
+        " awarded_at integer not null,"
+        " primary key(user_id, achievement_key),"
+        " foreign key(user_id) references users (id),"
+        " foreign key(achievement_key) references achievements (key)"
+        ")"
+    )
+    await c.execute("create index user_achievements_by_achievement on user_achievements (achievement_key)")
+
+    # Related but somewhat separate - used for tracking progress made towards achievement
+    await c.execute(
+        "create table challenge_progress ("
+        " user_id varchar not null,"
+        " challenge_key varchar not null,"  # Separate from achievement_key, configured per challenge
+        " progress varchar not null,"  # Challenge class decides how it wants to treat this (json, int, other)
+        " completed_at integer,"  # For cleanup, user-facing time is already in junction
+        " updated_at integer not null,"
+        " expires_at integer,"  # If user abandons timed challenge this will let us easily clean it
+        " primary key (user_id, challenge_key),"
+        " foreign key (user_id) references users (id)"
+        ")"
+    )
+
+    await _set_version(c, 19)

@@ -1529,6 +1529,37 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[8][:3], (8, 'finished_at', 'INTEGER'))
         self.assertIn('idx_scheduled_tasks_status', await self.get_index_names('scheduled_tasks'))
 
+    async def test_migration_v17(self):
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 16)
+
+        table_names = await self.get_table_names()
+        self.assertNotIn('match_recordings', table_names)
+        self.assertNotIn('match_recording_messages', table_names)
+
+        await migrations.execute_migrations(self.transaction, self.dbconn.config, 17)
+
+        table_names = await self.get_table_names()
+        self.assertIn('match_recordings', table_names)
+        self.assertIn('match_recording_messages', table_names)
+        self.assertEqual(await self.get_db_version(), 17)
+
+        table_info = await self.get_table_info('match_recordings')
+        self.assertEqual(len(table_info), 2)
+        self.assertEqual(table_info[0][:3], (0, 'id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'match_id', 'varchar'))
+
+        table_info = await self.get_table_info('match_recording_messages')
+        self.assertEqual(len(table_info), 7)
+        self.assertEqual(table_info[0][:3], (0, 'recording_id', 'varchar'))
+        self.assertEqual(table_info[1][:3], (1, 'seq', 'INTEGER'))
+        self.assertEqual(table_info[2][:3], (2, 'timestamp', 'INTEGER'))
+        self.assertEqual(table_info[3][:3], (3, 'sender_id', 'varchar'))
+        self.assertEqual(table_info[4][:3], (4, 'receiver_id', 'varchar'))
+        self.assertEqual(table_info[5][:3], (5, 'message_type', 'INTEGER'))
+        self.assertEqual(table_info[6][:3], (6, 'message', 'BLOB'))
+
+        self.assertIn('idx_match_recordings_match_id', await self.get_index_names('match_recordings'))
+
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

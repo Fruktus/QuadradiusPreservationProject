@@ -2,7 +2,7 @@ import abc
 from datetime import datetime, timezone
 from dataclasses import dataclass, field
 import uuid
-from QRServer.db.models import DbMatchReport
+from QRServer.db.models import DbMatchReport, DbRecordedMessage
 
 
 class PairingId:
@@ -77,6 +77,7 @@ class Match:
     match_stats: dict[str, MatchStats]
     created: bool
     ready_user_ids: set[str]
+    recording: list[DbRecordedMessage]
 
     def __init__(self, pairing_id: PairingId) -> None:
         super().__init__()
@@ -92,6 +93,7 @@ class Match:
         self.start_time = datetime.now(timezone.utc)
         self.created = False
         self.ready_user_ids: set[str] = set()
+        self.recording = []
 
     def empty(self):
         return len(self.parties) == 0

@@ -704,6 +704,46 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(await self.conn.create_trophy('no_tournament_1', TROPHY_SVG, None))
         self.assertIsNotNone(await self.conn.create_trophy('no_tournament_2', TROPHY_SVG, None))
 
+    async def test_get_trophy_by_name(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        trophy_id = await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+
+        expected = Trophy(
+            trophy_id=trophy_id,
+            user_id=None,
+            tournament_id=None,
+            name='trophy',
+            svg=TROPHY_SVG,
+            awarded_at=None,
+        )
+        self.assertEqual(await self.conn.get_trophy_by_name('trophy'), expected)
+        self.assertEqual(await self.conn.get_trophy_by_name('Trophy'), expected)
+        self.assertIsNone(await self.conn.get_trophy_by_name('missing'))
+
+        self.assertTrue(await self.conn.award_trophy(trophy_id, user_id))
+        self.assertEqual((await self.conn.get_trophy_by_name('trophy')).user_id, user_id)
+
+    async def test_get_trophy_names(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        tournament_id = await self.conn.create_tournament('test_tournament', '123', '456', 3)
+
+        await self.conn.create_trophy('Bravo', TROPHY_SVG, None)
+        await self.conn.create_trophy('alpha cup', TROPHY_SVG, None)
+        awarded_id = await self.conn.create_trophy('Awarded', TROPHY_SVG, None)
+        await self.conn.create_trophy('Tournament', TROPHY_SVG, tournament_id)
+        await self.conn.award_trophy(awarded_id, user_id)
+
+        # sorted case-insensitively
+        self.assertEqual(await self.conn.get_trophy_names(),
+                         ['alpha cup', 'Awarded', 'Bravo', 'Tournament'])
+        # awarded and tournament trophies are excluded
+        self.assertEqual(await self.conn.get_trophy_names(unawarded_only=True), ['alpha cup', 'Bravo'])
+        # search is case insensitive and treats wildcards literally
+        self.assertEqual(await self.conn.get_trophy_names('ALPHA'), ['alpha cup'])
+        self.assertEqual(await self.conn.get_trophy_names('%'), [])
+        self.assertEqual(await self.conn.get_trophy_names('missing'), [])
+        self.assertEqual(await self.conn.get_trophy_names(limit=1), ['alpha cup'])
+
     async def test_get_nonexistent_trophies(self):
         self.assertIsNone(await self.conn.get_tournament_trophy('missing'))
         self.assertEqual(await self.conn.get_user_trophies('missing'), [])
@@ -954,6 +994,18 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await self.conn.delete_scheduled_task('a'))
 
         self.assertEqual(await self.conn.get_scheduled_tasks(), [])
+
+    async def test_update_trophy_svg(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        trophy_id = await self.conn.create_trophy('trophy', TROPHY_SVG, None)
+        await self.conn.award_trophy(trophy_id, user_id)
+        new_svg = TROPHY_SVG + b' '
+
+        self.assertTrue(await self.conn.update_trophy_svg(trophy_id, new_svg))
+        trophy = await self.conn.get_trophy_by_name('trophy')
+        self.assertEqual(trophy.svg, new_svg)
+        self.assertEqual(trophy.user_id, user_id)
+        self.assertFalse(await self.conn.update_trophy_svg('missing', new_svg))
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):

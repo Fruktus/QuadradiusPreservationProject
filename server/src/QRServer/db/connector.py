@@ -12,9 +12,10 @@ import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, MonthlySummary, RankingEntry
 from QRServer.common.utils import utils
-from QRServer.db import migrations
-from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
-    TournamentMatch, TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats, ScheduledTask
+from QRServer.db import achievements_migrations, migrations
+from QRServer.db.models import Achievement, DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
+    TournamentMatch, TournamentParticipant, Tournament, Trophy, UserAchievement, UserRating, Nemesis, PlayerStats, \
+    ScheduledTask
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -49,6 +50,11 @@ class DbConnector:
             await migrations.setup_metadata(c)
 
         await migrations.execute_migrations(self._transaction, self.config)
+        await achievements_migrations.execute_migrations(self._transaction, self.config)
+        achievement_keys_without_svg = await self.get_achievement_keys_without_svg()
+        if achievement_keys_without_svg:
+            log.warning(f'{len(achievement_keys_without_svg)} achievements (by key) do not yet have image: '
+                        f'{achievement_keys_without_svg}')
 
     async def close(self):
         await self.conn.close()
@@ -1522,6 +1528,84 @@ class DbConnector:
         async with self._transaction("w") as c:
             await c.execute("delete from scheduled_tasks where id = ?", (task_id,))
             return bool(c.rowcount)
+
+    async def get_achievement(self, achievement_key: str) -> Achievement | None:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select key, name, description, created_at, svg"
+                " from achievements"
+                " where key = ?",
+                (achievement_key,)
+            )
+            row = await c.fetchone()
+            if not row:
+                return None
+
+            return Achievement(
+                key=row[0],
+                name=row[1],
+                description=row[2],
+                created_at=datetime.fromtimestamp(row[3], tz=timezone.utc),
+                svg=row[4],
+            )
+
+    async def update_achievement_svg(self, achievement_key: str, new_svg: bytes) -> bool:
+        async with self._transaction("w") as c:
+            await c.execute(
+                "update achievements set svg = ? where key = ?",
+                (
+                    new_svg,
+                    achievement_key,
+                )
+            )
+            return bool(c.rowcount)
+
+    async def get_user_achievements(self, user_id: str) -> list[UserAchievement]:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select achievement_key, awarded_at"
+                " from user_achievements"
+                " where user_id = ?"
+                " order by awarded_at desc",
+                (user_id,)
+            )
+            rows = list(await c.fetchall())
+            if not rows:
+                return []
+
+            result = []
+            for row in rows:
+                user_achievement = UserAchievement(
+                    achievement_key=row[0],
+                    awarded_at=datetime.fromtimestamp(row[1], tz=timezone.utc),
+                )
+                result.append(user_achievement)
+            return result
+
+    async def award_achievement(self, achievement_key: str, user_id: str) -> bool:
+        async with self._transaction("w") as c:
+            await c.execute(
+                "insert into user_achievements (user_id, achievement_key, awarded_at)"
+                " select ?, key, ? from achievements where key = ?"
+                " on conflict (user_id, achievement_key) do nothing",
+                (
+                    user_id,
+                    int(datetime.now(timezone.utc).timestamp()),
+                    achievement_key,
+                )
+            )
+            return bool(c.rowcount)
+
+    async def get_achievement_keys_without_svg(self) -> list[str]:
+        """Utility function to help operators figure out which achievements don't have image yet"""
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select key from achievements"
+                " where svg is null or length(svg) = 0"
+                " order by created_at, key"
+            )
+            rows = await c.fetchall()
+            return [row[0] for row in rows]
 
 
 async def create_connector(config) -> DbConnector:

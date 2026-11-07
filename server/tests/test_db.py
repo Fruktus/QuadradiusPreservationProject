@@ -5,9 +5,9 @@ from unittest.mock import patch
 import uuid
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
-from QRServer.db.migrations import db_migrations
+from QRServer.db.migrations import db_migrations, achievements_migrations
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, \
+from QRServer.db.models import Achievement, DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, \
      Trophy, UserAchievement
 from QRServer.common.classes import RankingEntry
 from QRServer.common.utils import utils
@@ -1714,6 +1714,46 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[3][:3], (3, 'completed_at', 'INTEGER'))
         self.assertEqual(table_info[4][:3], (4, 'updated_at', 'INTEGER'))
         self.assertEqual(table_info[5][:3], (5, 'expires_at', 'INTEGER'))
+
+
+class DbAchievementMigrationTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        import aiosqlite
+
+        self.dbconn = DbConnector(':memory:', Config())
+        # manually initialize the dbconn to avoid executing migrations
+        self.dbconn.conn = await aiosqlite.connect(':memory:', autocommit=True)
+
+        async with self.dbconn._transaction('w') as c:
+            await migrations.setup_metadata(c)
+
+        self.transaction = self.dbconn._transaction
+
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config)
+
+    async def asyncTearDown(self):
+        await self.dbconn.conn.close()
+
+    async def get_achievements_version(self) -> int | None:
+        async with self.transaction('r') as c:
+            return await migrations.select_version(c, achievements_migrations.VERSION_KEY)
+
+    async def get_achievement(self, achievement_key: str) -> Achievement | None:
+        return await self.dbconn.get_achievement(achievement_key)
+
+    async def test_advent_2026_v1(self):
+        self.assertIsNone(await self.get_achievement('advent_2026'))
+
+        await achievements_migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
+        self.assertEqual(await self.get_achievements_version(), 1)
+
+        ach: Achievement = await self.get_achievement('advent_2026')
+
+        self.assertIsNotNone(ach)
+        self.assertEqual(ach.key, 'advent_2026')
+        self.assertEqual(ach.name, 'Advent 2026')
+        self.assertEqual(ach.description, 'Completed every challenge during Advent 2026 event.')
+        self.assertEqual(ach.created_at, datetime(2026, 11, 7, tzinfo=timezone.utc))
 
 
 class DbTournamentsTest(unittest.IsolatedAsyncioTestCase):

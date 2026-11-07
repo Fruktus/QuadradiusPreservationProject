@@ -167,3 +167,18 @@ class ScheduledTask:
     @property
     def has_finished(self):
         return bool(self.finished_at)
+
+
+@dataclass
+class Achievement:
+    key: str
+    name: str
+    description: str
+    created_at: datetime
+    svg: bytes | None = field(default=None)
+
+
+@dataclass
+class UserAchievement:
+    achievement_key: str
+    awarded_at: datetime

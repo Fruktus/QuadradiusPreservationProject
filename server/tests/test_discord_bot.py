@@ -1333,6 +1333,9 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone((await self.conn.get_achievement('advent')).svg)
 
     async def test_set_image_of_unknown_achievement(self):
+        async with self.conn._transaction('w') as c:
+            await c.execute("delete from achievements")  # clean up existing achievements
+
         attachment = self._svg_attachment()
 
         with self.assertRaises(PreconditionFailedException):
@@ -1343,6 +1346,9 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         attachment.read.assert_not_called()
 
     async def test_set_image_of_unknown_achievement_hints_missing_images(self):
+        async with self.conn._transaction('w') as c:
+            await c.execute("delete from achievements")  # clean up existing achievements
+
         await self._create_achievement('advent', 'Advent 2026')
         await self._create_achievement('done', 'Done')
         await self.conn.update_achievement_svg('done', TROPHY_SVG)
@@ -1355,6 +1361,9 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
             "Achievements without an image: `advent`.", ephemeral=True)
 
     async def test_set_image_of_unknown_achievement_limits_the_hint(self):
+        async with self.conn._transaction('w') as c:
+            await c.execute("delete from achievements")  # clean up existing achievements
+
         for i in range(12):
             await self._create_achievement(f'key{i:02}', f'Name {i}')
 

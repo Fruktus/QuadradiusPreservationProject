@@ -5,6 +5,7 @@ from unittest.mock import patch
 import uuid
 from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
+from QRServer.db.migrations import db_migrations
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, Trophy
 from QRServer.common.classes import RankingEntry
@@ -1039,7 +1040,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
     async def get_db_version(self) -> int | None:
         async with self.transaction('r') as c:
-            return await migrations._select_version(c)
+            return await migrations.select_version(c, db_migrations.VERSION_KEY)
 
     async def get_index_names(self, table_name: str) -> list[str]:
         async with self.transaction('r') as c:
@@ -1050,7 +1051,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
     async def test_migration_v1(self):
         self.assertNotIn('users', await self.get_table_names())
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
 
         self.assertIn('users', await self.get_table_names())
         table_info = await self.get_table_info('users')
@@ -1063,12 +1064,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[2][:3], (2, 'password', 'varchar'))
 
     async def test_migration_v2(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 1)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 3)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 2)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 2)
 
         table_info = await self.get_table_info('users')
         ver = await self.get_db_version()
@@ -1078,11 +1079,11 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[3][:3], (3, 'comment', 'varchar'))
 
     async def test_migration_v3(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 2)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 2)
 
         self.assertNotIn('matches', await self.get_table_names())
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 3)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 3)
 
         self.assertIn('matches', await self.get_table_names())
         table_info = await self.get_table_info('matches')
@@ -1104,12 +1105,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[11][:3], (11, 'is_void', 'INTEGER'))
 
     async def test_migration_v4(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 3)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 3)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 4)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 4)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 4)
 
         table_info = await self.get_table_info('users')
         ver = await self.get_db_version()
@@ -1119,12 +1120,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[4][:3], (4, 'created_at', 'INTEGER'))
 
     async def test_migration_v5(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 4)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 4)
 
         table_info = await self.get_table_info('users')
         self.assertEqual(len(table_info), 5)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 5)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 5)
 
         table_info = await self.get_table_info('users')
         ver = await self.get_db_version()
@@ -1134,7 +1135,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[5][:3], (5, 'discord_user_id', 'varchar'))
 
     async def test_migration_v6(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 5)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 5)
 
         async def make_user(id_: str, username: str):
             async with self.transaction('w') as c:
@@ -1197,7 +1198,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertNotIn('rankings', await self.get_table_names())
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 6)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 6)
 
         self.assertIn('rankings', await self.get_table_names())
         table_info = await self.get_table_info('rankings')
@@ -1221,11 +1222,11 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ranking_data[1], (2020, 1, 2, '2', 0, 1))
 
     async def test_migration_v7(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 6)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 6)
 
         self.assertNotIn('user_ratings', await self.get_table_names())
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 7)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 7)
 
         self.assertIn('user_ratings', await self.get_table_names())
 
@@ -1241,7 +1242,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[4][:3], (4, 'rating', 'INTEGER'))
 
     async def test_migration_v8(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 7)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 7)
 
         table_names = await self.get_table_names()
         self.assertNotIn('tournaments', table_names)
@@ -1249,7 +1250,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('tournament_duels', table_names)
         self.assertNotIn('tournament_matches', table_names)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
 
         table_names = await self.get_table_names()
         ver = await self.get_db_version()
@@ -1291,7 +1292,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[2][:3], (2, 'match_id', 'varchar'))
 
     async def test_migration_v9(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 8)
 
         table_names = await self.get_table_names()
         self.assertNotIn('match_results', table_names)
@@ -1370,7 +1371,7 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
                 )
             )
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
 
         table_names = await self.get_table_names()
         ver = await self.get_db_version()
@@ -1431,13 +1432,13 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(row[9], 0)
 
     async def test_migration_v10(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 9)
 
         table_names = await self.get_table_names()
         self.assertNotIn('bans', table_names)
         self.assertNotIn('bans_audit_log', table_names)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
 
         table_names = await self.get_table_names()
         ver = await self.get_db_version()
@@ -1464,13 +1465,13 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[5][:3], (5, 'ban_reason', 'varchar'))
 
     async def test_migration_v11(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 10)
 
         table_info = await self.get_table_info('matches')
         self.assertEqual(table_info[1][:3], (1, 'user_1', 'varchar'))
         self.assertEqual(table_info[2][:3], (2, 'user_2', 'varchar'))
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 11)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 11)
 
         table_info = await self.get_table_info('matches')
         ver = await self.get_db_version()
@@ -1479,12 +1480,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[2][:3], (2, 'user_2_id', 'varchar'))
 
     async def test_migration_v12(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 11)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 11)
 
         table_names = await self.get_table_names()
         self.assertNotIn('match_invites', table_names)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 12)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 12)
 
         table_names = await self.get_table_names()
         self.assertIn('match_invites', table_names)
@@ -1505,12 +1506,12 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[11][:3], (11, 'match_id', 'varchar'))
 
     async def test_migration_v13(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 12)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 12)
 
         table_info = await self.get_table_info('tournaments')
         self.assertEqual(len(table_info), 8)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 13)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 13)
 
         table_info = await self.get_table_info('tournaments')
         self.assertEqual(len(table_info), 11)
@@ -1530,10 +1531,10 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[10][:3], (10, 'cancelled_by_dc_id', 'varchar'))
 
     async def test_migration_v14(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 13)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 13)
         self.assertNotIn('trophies', await self.get_table_names())
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 14)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 14)
 
         self.assertIn('trophies', await self.get_table_names())
         self.assertEqual(await self.get_db_version(), 14)
@@ -1548,11 +1549,11 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table_info[5][:3], (5, 'awarded_at', 'INTEGER'))
 
     async def test_migration_v15(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 14)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 14)
         self.assertNotIn('idx_match_results_winner_id', await self.get_index_names('match_results'))
         self.assertNotIn('idx_match_results_loser_id', await self.get_index_names('match_results'))
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 15)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 15)
 
         self.assertEqual(await self.get_db_version(), 15)
         indexes = await self.get_index_names('match_results')
@@ -1560,10 +1561,10 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('idx_match_results_loser_id', indexes)
 
     async def test_migration_v16(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 15)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 15)
         self.assertNotIn('scheduled_tasks', await self.get_table_names())
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 16)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 16)
 
         self.assertIn('scheduled_tasks', await self.get_table_names())
         self.assertEqual(await self.get_db_version(), 16)
@@ -1582,13 +1583,13 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('idx_scheduled_tasks_status', await self.get_index_names('scheduled_tasks'))
 
     async def test_migration_v17(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 16)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 16)
 
         table_names = await self.get_table_names()
         self.assertNotIn('match_recordings', table_names)
         self.assertNotIn('match_recording_messages', table_names)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 17)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 17)
 
         table_names = await self.get_table_names()
         self.assertIn('match_recordings', table_names)
@@ -1613,25 +1614,25 @@ class DbMigrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('idx_match_recordings_match_id', await self.get_index_names('match_recordings'))
 
     async def test_migration_v18(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 17)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 17)
 
         self.assertNotIn('idx_trophies_name_nocase', await self.get_index_names('trophies'))
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 18)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 18)
 
         self.assertEqual(await self.get_db_version(), 18)
 
         self.assertIn('idx_trophies_name_nocase', await self.get_index_names('trophies'))
 
     async def test_migration_v19(self):
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 18)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 18)
 
         table_names = await self.get_table_names()
         self.assertNotIn('achievements', table_names)
         self.assertNotIn('user_achievements', table_names)
         self.assertNotIn('challenge_progress', table_names)
 
-        await migrations.execute_migrations(self.transaction, self.dbconn.config, 19)
+        await db_migrations.execute_migrations(self.transaction, self.dbconn.config, 19)
 
         table_names = await self.get_table_names()
         self.assertIn('achievements', table_names)

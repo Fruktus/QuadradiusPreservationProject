@@ -14,9 +14,9 @@ from QRServer.common.classes import GameResultHistory, MonthlySummary, RankingEn
 from QRServer.common.utils import utils
 from QRServer.db import migrations
 from QRServer.db.migrations import db_migrations
-from QRServer.db.models import Achievement, DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
-    TournamentMatch, TournamentParticipant, Tournament, Trophy, UserAchievement, UserRating, Nemesis, PlayerStats, \
-    ScheduledTask
+from QRServer.db.models import Achievement, ChallengeProgress, DbUser, DbMatchReport, MatchInvite, \
+    ScheduledTaskStatus, TournamentDuel, TournamentMatch, TournamentParticipant, Tournament, Trophy, \
+    UserAchievement, UserRating, Nemesis, PlayerStats, ScheduledTask
 from QRServer.db.password import password_verify, password_hash
 
 log = logging.getLogger('qr.dbconnector')
@@ -1602,6 +1602,69 @@ class DbConnector:
             )
             rows = await c.fetchall()
             return [row[0] for row in rows]
+
+    async def get_challenge_progress(self, user_id: str, challenge_key: str) -> ChallengeProgress | None:
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select user_id, challenge_key, progress, completed_at,"
+                " updated_at, expires_at"
+                " from challenge_progress"
+                " where user_id = ?"
+                " and challenge_key = ?",
+                (
+                    user_id,
+                    challenge_key,
+                )
+            )
+            row = await c.fetchone()
+            if not row:
+                return None
+
+            return ChallengeProgress(
+                user_id=row[0],
+                challenge_key=row[1],
+                progress=row[2],
+                completed_at=timestamp_to_datetime(row[3]),
+                updated_at=datetime.fromtimestamp(row[4], tz=timezone.utc),
+                expires_at=timestamp_to_datetime(row[5]),
+            )
+
+    async def save_challenge_progress(self, user_id: str, challenge_key: str, progress: str,
+                                      completed_at: datetime | None = None,
+                                      expires_at: datetime | None = None) -> None:
+        async with self._transaction("w") as c:
+            await c.execute(
+                "insert into challenge_progress"
+                " (user_id, challenge_key, progress, completed_at, updated_at, expires_at)"
+                " values (?, ?, ?, ?, ?, ?)"
+                " on conflict (user_id, challenge_key) do update set"
+                " progress = excluded.progress,"
+                " completed_at = excluded.completed_at,"
+                " updated_at = excluded.updated_at,"
+                " expires_at = excluded.expires_at",
+                (
+                    user_id,
+                    challenge_key,
+                    progress,
+                    int(completed_at.timestamp()) if completed_at else None,
+                    int(datetime.now(timezone.utc).timestamp()),
+                    int(expires_at.timestamp()) if expires_at else None,
+                ),
+            )
+
+    async def get_unrewarded_challenge_users(self, challenge_key: str, achievement_key: str) -> list[str]:
+        """returns all user_ids who have completed the given challenge but did not receive an award.
+        Used for reconciliation"""
+        async with self._transaction("r") as c:
+            await c.execute(
+                "select cp.user_id from challenge_progress cp"
+                " left join user_achievements ua"
+                "  on ua.user_id = cp.user_id and ua.achievement_key = ?"
+                " where cp.challenge_key = ? and cp.completed_at is not null"
+                "  and ua.user_id is null",
+                (achievement_key, challenge_key),
+            )
+            return [row[0] for row in await c.fetchall()]
 
 
 async def create_connector(config) -> DbConnector:

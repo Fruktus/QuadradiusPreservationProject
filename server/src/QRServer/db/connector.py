@@ -12,7 +12,7 @@ import aiosqlite
 
 from QRServer.common.classes import GameResultHistory, MonthlySummary, RankingEntry
 from QRServer.common.utils import utils
-from QRServer.db.migrations import db_migrations, setup_metadata
+from QRServer.db.migrations import db_migrations, setup_metadata, achievements_migrations
 from QRServer.db.models import Achievement, ChallengeProgress, DbUser, DbMatchReport, MatchInvite, \
     ScheduledTaskStatus, UserAchievement, DbRecordedMessage, TournamentDuel, TournamentMatch, \
     TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats, ScheduledTask
@@ -50,6 +50,11 @@ class DbConnector:
             await setup_metadata(c)
 
         await db_migrations.execute_migrations(self._transaction, self.config)
+        await achievements_migrations.execute_migrations(self._transaction, self.config)
+        achievement_keys_without_svg = await self.get_achievement_keys_without_svg()
+        if achievement_keys_without_svg:
+            log.warning(f'{len(achievement_keys_without_svg)} achievements (by key) do not yet have image: '
+                        f'{achievement_keys_without_svg}')
 
     async def close(self):
         await self.conn.close()

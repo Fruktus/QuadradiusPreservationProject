@@ -2,25 +2,12 @@ from datetime import datetime as dt
 from QRServer.common.utils import utils
 from QRServer.common.classes import RankingEntry
 from QRServer.config import Config
+from QRServer.db.migrations.runner import run_migrations, set_version
 
-
-async def setup_metadata(c):
-    await c.execute(
-        "create table if not exists metadata ("
-        "  name varchar primary key, "
-        "  value varchar"
-        ")")
+VERSION_KEY = 'version'
 
 
 async def execute_migrations(transaction, config: Config, max_version=None):
-    async with transaction('r') as c:
-        version = await _select_version(c)
-
-    if version is None:
-        async with transaction('w') as c:
-            await c.execute("insert into metadata (name, value) values ('version', '0')")
-            version = 0
-
     migrations = [
         _migration_upgrade_to_v1,
         _migration_upgrade_to_v2,
@@ -43,20 +30,11 @@ async def execute_migrations(transaction, config: Config, max_version=None):
         _migration_upgrade_to_v19,
     ]
 
-    for i in range(max_version if max_version and max_version <= len(migrations) else len(migrations)):
-        if version <= i:
-            async with transaction('w') as c:
-                await migrations[i](c, config)
-
-
-async def _select_version(c):
-    await c.execute("select value from metadata where name='version'")
-    row = await c.fetchone()
-    return int(row[0]) if row is not None else None
+    await run_migrations(transaction, config, migrations, VERSION_KEY, max_version)
 
 
 async def _set_version(c, version):
-    await c.execute("update metadata set value = ? where name='version'", (version,))
+    await set_version(c, VERSION_KEY, version)
 
 
 # # # # # # # #

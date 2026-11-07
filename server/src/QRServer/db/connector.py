@@ -13,6 +13,7 @@ import aiosqlite
 from QRServer.common.classes import GameResultHistory, MonthlySummary, RankingEntry
 from QRServer.common.utils import utils
 from QRServer.db import migrations
+from QRServer.db.migrations import db_migrations
 from QRServer.db.models import DbUser, DbMatchReport, MatchInvite, ScheduledTaskStatus, TournamentDuel, \
     TournamentMatch, TournamentParticipant, Tournament, Trophy, UserRating, Nemesis, PlayerStats, ScheduledTask
 from QRServer.db.password import password_verify, password_hash
@@ -48,7 +49,7 @@ class DbConnector:
         async with self._transaction("w") as c:
             await migrations.setup_metadata(c)
 
-        await migrations.execute_migrations(self._transaction, self.config)
+        await db_migrations.execute_migrations(self._transaction, self.config)
 
     async def close(self):
         await self.conn.close()

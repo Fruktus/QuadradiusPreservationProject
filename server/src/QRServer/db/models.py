@@ -182,3 +182,17 @@ class Achievement:
 class UserAchievement:
     achievement_key: str
     awarded_at: datetime
+
+
+@dataclass
+class ChallengeProgress:
+    user_id: str
+    challenge_key: str
+    progress: str
+    completed_at: datetime | None
+    updated_at: datetime
+    expires_at: datetime | None
+
+    @property
+    def has_expired(self):
+        return self.expires_at is not None and datetime.now(tz=timezone.utc) > self.expires_at

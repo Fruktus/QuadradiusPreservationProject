@@ -7,8 +7,8 @@ from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.migrations import db_migrations
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, \
-     Trophy, UserAchievement
+from QRServer.db.models import ChallengeProgress, DbMatchReport, ScheduledTaskStatus, Tournament, \
+    TournamentParticipant, Trophy, UserAchievement
 from QRServer.common.classes import RankingEntry
 from QRServer.common.utils import utils
 from QRServer.config import Config
@@ -1057,6 +1057,79 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(res)
         self.assertEqual(ach.svg, b'4321')
+
+    async def test_challenge_progress(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+
+        # nothing saved yet
+        self.assertIsNone(await self.conn.get_challenge_progress(user_id, 'adv'))
+
+        # insert
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            await self.conn.save_challenge_progress(user_id, 'adv', '1')
+
+        prog = await self.conn.get_challenge_progress(user_id, 'adv')
+        self.assertEqual(prog, ChallengeProgress(
+            user_id=user_id,
+            challenge_key='adv',
+            progress='1',
+            completed_at=None,
+            updated_at=datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            expires_at=None,
+        ))
+
+        # update overwrites the same row, timestamps round-trip
+        completed = datetime(2020, 1, 2, 12, 0, 0, tzinfo=timezone.utc)
+        expires = datetime(2020, 2, 1, tzinfo=timezone.utc)
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 2, 12, 0, 0, tzinfo=timezone.utc)
+            await self.conn.save_challenge_progress(user_id, 'adv', '2', completed_at=completed, expires_at=expires)
+
+        prog = await self.conn.get_challenge_progress(user_id, 'adv')
+        self.assertEqual(prog.progress, '2')
+        self.assertEqual(prog.completed_at, completed)
+        self.assertEqual(prog.expires_at, expires)
+        self.assertEqual(prog.updated_at, datetime(2020, 1, 2, 12, 0, 0, tzinfo=timezone.utc))
+
+        # saving without timestamps clears them (full overwrite semantics)
+        await self.conn.save_challenge_progress(user_id, 'adv', '3')
+        prog = await self.conn.get_challenge_progress(user_id, 'adv')
+        self.assertEqual(prog.progress, '3')
+        self.assertIsNone(prog.completed_at)
+        self.assertIsNone(prog.expires_at)
+
+        # other keys and other users are unaffected
+        other_id = await self.conn.create_member('other_user', b'password', '22222222222')
+        self.assertIsNone(await self.conn.get_challenge_progress(user_id, 'other'))
+        self.assertIsNone(await self.conn.get_challenge_progress(other_id, 'adv'))
+
+    async def test_unrewarded_challenge_users(self):
+        done_id = await self.conn.create_member('done_user', b'password', '11111111111')
+        pending_id = await self.conn.create_member('pending_user', b'password', '22222222222')
+
+        async with self.conn._transaction('w') as c:
+            await c.execute(
+                "insert into achievements (key, name, description, created_at)"
+                " values (?, ?, ?, ?)", (
+                    'demo',
+                    'Demo Ach',
+                    'Awarded every test run.',
+                    int(datetime(2026, 11, 7, tzinfo=timezone.utc).timestamp()),
+                )
+            )
+
+        now = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        await self.conn.save_challenge_progress(done_id, 'adv', '24', completed_at=now)
+        await self.conn.save_challenge_progress(done_id, 'other', '24', completed_at=now)
+        await self.conn.save_challenge_progress(pending_id, 'adv', '5')  # not completed
+
+        # only the completed one for this exact challenge key
+        self.assertEqual(await self.conn.get_unrewarded_challenge_users('adv', 'demo'), [done_id])
+
+        # gone once awarded
+        self.assertTrue(await self.conn.award_achievement('demo', done_id))
+        self.assertEqual(await self.conn.get_unrewarded_challenge_users('adv', 'demo'), [])
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):

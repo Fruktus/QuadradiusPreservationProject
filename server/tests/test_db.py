@@ -7,7 +7,8 @@ from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.migrations import db_migrations
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, Trophy
+from QRServer.db.models import DbMatchReport, ScheduledTaskStatus, Tournament, TournamentParticipant, \
+     Trophy, UserAchievement
 from QRServer.common.classes import RankingEntry
 from QRServer.common.utils import utils
 from QRServer.config import Config
@@ -1007,6 +1008,55 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(trophy.svg, new_svg)
         self.assertEqual(trophy.user_id, user_id)
         self.assertFalse(await self.conn.update_trophy_svg('missing', new_svg))
+
+    async def test_achievement(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+
+        async with self.conn._transaction('w') as c:
+            await c.execute(
+                "insert into achievements (key, name, description, created_at)"
+                " values (?, ?, ?, ?)", (
+                    'demo',
+                    'Demo Ach',
+                    'Awarded every test run.',
+                    int(datetime(2026, 11, 7, tzinfo=timezone.utc).timestamp()),
+                )
+            )
+            self.assertTrue(bool(c.rowcount))
+
+        ach = await self.conn.get_achievement('demo')
+        self.assertEqual(ach.key, 'demo')
+        self.assertEqual(ach.name, 'Demo Ach')
+        self.assertEqual(ach.description, 'Awarded every test run.')
+        self.assertEqual(ach.created_at, datetime(2026, 11, 7, tzinfo=timezone.utc))
+        self.assertIsNone(ach.svg)
+
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+            self.assertTrue(await self.conn.award_achievement('demo', user_id))
+
+        user_ach = await self.conn.get_user_achievements(user_id)
+        self.assertEqual(user_ach, [UserAchievement('demo', datetime(2020, 1, 1, 12, 0, 0, tzinfo=timezone.utc))])
+
+        # cannot award nonexistent achievement
+        self.assertFalse(await self.conn.award_achievement('missing', user_id))
+
+        # svg handling
+        missing_svgs = await self.conn.get_achievement_keys_without_svg()
+        res = await self.conn.update_achievement_svg('demo', b'1234')
+        missing_svgs_updated = await self.conn.get_achievement_keys_without_svg()
+        ach = await self.conn.get_achievement('demo')
+
+        self.assertTrue(res)
+        self.assertEqual(len(missing_svgs) - len(missing_svgs_updated), 1)
+        self.assertEqual(ach.svg, b'1234')
+
+        # update svg again
+        res = await self.conn.update_achievement_svg('demo', b'4321')
+        ach = await self.conn.get_achievement('demo')
+
+        self.assertTrue(res)
+        self.assertEqual(ach.svg, b'4321')
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):

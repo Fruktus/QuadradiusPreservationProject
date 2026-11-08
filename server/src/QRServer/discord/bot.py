@@ -3,14 +3,18 @@ import re
 from hashlib import md5
 
 from QRServer.common.utils import utils
+from QRServer.common.utils.cache import ttl_cache
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbUser
+from QRServer.db.models import DbUser, Trophy
 import discord
 
 log = logging.getLogger('qr.bot')
 
 _MESSAGEABLE_CHANNELS = (discord.VoiceChannel, discord.StageChannel, discord.TextChannel, discord.Thread)
+
+MAX_TROPHY_NAME_LENGTH = 64
+MAX_SVG_BYTES = 100 * 1024
 
 
 class DiscordException(Exception):
@@ -84,6 +88,37 @@ class DiscordBot:
         async def unban_user(interaction, username: str):
             await self._unban_user(interaction, username)
         unban_user.default_permissions = discord.Permissions(permissions=0)
+
+        @self.tree.command(name="createtrophy", description="Create a trophy that can later be awarded to a player",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(name="Unique trophy name", svg="SVG image of the trophy",
+                                       tournament_id="ID of the tournament to attach the trophy to (optional)")
+        async def create_trophy(interaction, name: str, svg: discord.Attachment, tournament_id: str | None = None):
+            await self._create_trophy(interaction, name, svg, tournament_id)
+        create_trophy.default_permissions = discord.Permissions(permissions=0)
+
+        @self.tree.command(name="updatetrophy", description="Replace the graphic of an existing trophy",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(name="Name of the trophy to update", svg="New SVG image of the trophy")
+        async def update_trophy(interaction, name: str, svg: discord.Attachment):
+            await self._update_trophy(interaction, name, svg)
+        update_trophy.default_permissions = discord.Permissions(permissions=0)
+
+        @self.tree.command(name="awardtrophy", description="Award a trophy to the specified in-game user",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(username="The in-game username to award the trophy to",
+                                       trophy="Name of the trophy to award")
+        async def award_trophy(interaction, username: str, trophy: str):
+            await self._award_trophy(interaction, username, trophy)
+        award_trophy.default_permissions = discord.Permissions(permissions=0)
+
+        @award_trophy.autocomplete('trophy')
+        async def award_trophy_autocomplete(interaction, current: str):
+            return await self._trophy_choices(current, unawarded_only=True)
+
+        @update_trophy.autocomplete('name')
+        async def update_trophy_autocomplete(interaction, current: str):
+            return await self._trophy_choices(current, unawarded_only=False)
 
         @self.tree.command(name="challenge", description="Challenge the specified member to a match",
                            guild=discord.Object(id=self.guild_id))
@@ -159,6 +194,42 @@ class DiscordBot:
             log.warning(
                 'notifications channel not found or not accepting messages: ' +
                 str(discord_channel))
+
+    @ttl_cache(ttl=60)
+    async def _trophy_names(self, search: str, unawarded_only: bool) -> list[str]:
+        return await self.connector.get_trophy_names(search, unawarded_only)
+
+    def _invalidate_trophy_names(self) -> None:
+        self._trophy_names.cache_clear(self)
+
+    async def _trophy_choices(self, current: str, unawarded_only: bool):
+        names = await self._trophy_names(current.strip().lower(), unawarded_only)
+        return [discord.app_commands.Choice(name=n, value=n) for n in names]
+
+    async def _respond(self, interaction: discord.Interaction, message: str) -> None:
+        """Replies ephemerally, picking the right path depending on whether the interaction was deferred."""
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=True)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
+
+    async def _download_svg(self, interaction: discord.Interaction,
+                            attachment: discord.Attachment) -> tuple[bytes, str | None]:
+        """Returns (data, error). Defers the interaction before the (potentially slow) download."""
+        too_big = f"The file is too big, the limit is {MAX_SVG_BYTES // 1024} KiB."
+        if attachment.size > MAX_SVG_BYTES:
+            return b'', too_big
+
+        if not interaction.response.is_done():
+            await interaction.response.defer(ephemeral=True)
+        try:
+            data = await attachment.read()
+        except discord.HTTPException:
+            return b'', "Could not download the file, please try again."
+
+        if len(data) > MAX_SVG_BYTES:  # reported size can't be fully trusted
+            return b'', too_big
+        return data, utils.validate_svg(data)
 
     # # # # # # # # #
     # Preconditions #
@@ -260,6 +331,42 @@ class DiscordBot:
                 "You cannot interact with a different account tied to the same Discord account.",
                 ephemeral=True)
             raise PreconditionFailedException('same_discord_account_interaction')
+
+    async def _require_trophy_by_name(self, interaction_id: str, interaction: discord.Interaction,
+                                      name: str) -> Trophy:
+        trophy = await self.connector.get_trophy_by_name(name)
+        if not trophy:
+            log.debug(f"({interaction_id}) precondition failed: nonexistent_trophy")
+            await interaction.response.send_message(
+                f"Failed to find a trophy with name: `{name}`. Check for typos.", ephemeral=True)
+            raise PreconditionFailedException('nonexistent_trophy')
+        return trophy
+
+    async def _require_valid_trophy_name(self, interaction_id: str, interaction: discord.Interaction, name: str):
+        if not name or len(name) > MAX_TROPHY_NAME_LENGTH or '`' in name or not name.isprintable():
+            log.debug(f"({interaction_id}) precondition failed: invalid_trophy_name")
+            await interaction.response.send_message(
+                f"Trophy name should be 1-{MAX_TROPHY_NAME_LENGTH} printable characters "
+                "and not contain backticks.",
+                ephemeral=True)
+            raise PreconditionFailedException('invalid_trophy_name')
+
+    async def _require_valid_svg(self, interaction_id: str, interaction: discord.Interaction,
+                                 attachment: discord.Attachment) -> bytes:
+        data, error = await self._download_svg(interaction, attachment)
+        if error:
+            log.debug(f"({interaction_id}) precondition failed: invalid_trophy_svg")
+            await self._respond(interaction, f"Invalid trophy SVG: {error}")
+            raise PreconditionFailedException('invalid_trophy_svg')
+        return data
+
+    async def _require_tournament_exists(self, interaction_id: str, interaction: discord.Interaction,
+                                         tournament_id: str) -> None:
+        if not await self.connector.get_tournament(tournament_id):
+            log.debug(f"({interaction_id}) precondition failed: nonexistent_tournament")
+            await interaction.response.send_message(
+                f"Failed to find a tournament with ID: `{tournament_id}`.", ephemeral=True)
+            raise PreconditionFailedException('nonexistent_tournament')
 
     # # # # # # # # # # #
     # Command Handlers  #
@@ -537,6 +644,98 @@ class DiscordBot:
             f"### Unban\n"
             f"- Your account: `{username}` has been unbanned.\n"
         )
+
+    async def _create_trophy(self, interaction: discord.Interaction, name: str, svg: discord.Attachment,
+                             tournament_id: str | None = None) -> None:
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) createtrophy command received from '{interaction.user}'")
+        name = name.strip()
+        tournament_id = tournament_id.strip() if tournament_id else None
+
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        await self._require_valid_trophy_name(interaction_id, interaction, name)
+        if tournament_id:
+            await self._require_tournament_exists(interaction_id, interaction, tournament_id)
+        svg_data = await self._require_valid_svg(interaction_id, interaction, svg)
+
+        trophy_id = await self.connector.create_trophy(name, svg_data, tournament_id)
+        if not trophy_id:
+            log.debug(f"({interaction_id}) precondition failed: trophy_name_taken")
+            await self._respond(interaction,
+                                f"Failed to create trophy `{name}`. The name may be taken, "
+                                "or the tournament may already have a trophy.")
+            raise PreconditionFailedException('trophy_create_conflict')
+
+        log.info(f"({interaction_id}) trophy '{name}' ({trophy_id}) created by '{interaction.user}'")
+        self._invalidate_trophy_names()
+        await self._respond(interaction, f"Created trophy: `{name}`. Use `/awardtrophy` to award it to a player.")
+
+    async def _award_trophy(self, interaction: discord.Interaction, username: str, trophy_name: str) -> None:
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) awardtrophy command received from '{interaction.user}'")
+        username = username.strip()
+        trophy_name = trophy_name.strip()
+
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        user = await self._require_user_by_username(interaction_id, interaction, username)
+        await self._require_user_not_guest(interaction_id, interaction, user)
+        await self._require_user_not_banned(interaction_id, interaction, user)
+
+        trophy = await self._require_trophy_by_name(interaction_id, interaction, trophy_name)
+
+        if trophy.tournament_id:
+            log.debug(f"({interaction_id}) precondition failed: tournament_trophy")
+            await interaction.response.send_message(
+                f"Trophy `{trophy_name}` belongs to a tournament and cannot be awarded manually.", ephemeral=True)
+            raise PreconditionFailedException('tournament_trophy')
+
+        if trophy.user_id:
+            log.debug(f"({interaction_id}) precondition failed: trophy_already_awarded")
+            await interaction.response.send_message(
+                f"Trophy `{trophy_name}` has already been awarded.", ephemeral=True)
+            raise PreconditionFailedException('trophy_already_awarded')
+
+        result = await self.connector.award_trophy(trophy.trophy_id, user.user_id)
+        if not result:
+            log.warning(
+                f'({interaction_id}) Something went wrong while awarding trophy. '
+                f'Trophy: {trophy_name}, trophy_id: {trophy.trophy_id}, username: {username}, user_id: {user.user_id}')
+            await interaction.response.send_message(
+                f'Something went wrong while awarding trophy `{trophy_name}` to: `{username}`.', ephemeral=True)
+            return
+
+        log.info(f"({interaction_id}) trophy '{trophy_name}' ({trophy.trophy_id}) "
+                 f"awarded to '{username}' by '{interaction.user}'")
+        self._invalidate_trophy_names()
+
+        if user.discord_user_id:
+            await interaction.response.send_message(
+                f"Awarded trophy `{trophy_name}` to: `{username}`.", ephemeral=True)
+        else:
+            log.warning(f"({interaction_id}) awarded user '{username}' has no Discord ID")
+            await interaction.response.send_message(
+                f"Awarded trophy `{trophy_name}` to: `{username}`.\n"
+                "This user has no Discord ID",
+                ephemeral=True,
+            )
+
+    async def _update_trophy(self, interaction: discord.Interaction, name: str, svg: discord.Attachment) -> None:
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) updatetrophy command received from '{interaction.user}'")
+        name = name.strip()
+
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        trophy = await self._require_trophy_by_name(interaction_id, interaction, name)
+        svg_data = await self._require_valid_svg(interaction_id, interaction, svg)
+
+        if not await self.connector.update_trophy_svg(trophy.trophy_id, svg_data):
+            log.warning(f"({interaction_id}) Something went wrong while updating trophy graphic. "
+                        f"Trophy: {name}, trophy_id: {trophy.trophy_id}")
+            await self._respond(interaction, f"Something went wrong while updating trophy `{name}`.")
+            return
+
+        log.info(f"({interaction_id}) trophy '{name}' ({trophy.trophy_id}) graphic updated by '{interaction.user}'")
+        await self._respond(interaction, f"Updated graphic of trophy: `{name}`.")
 
     async def _challenge_member(self, interaction: discord.Interaction, username: str) -> None:
         """

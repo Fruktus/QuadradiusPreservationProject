@@ -1,4 +1,5 @@
 import asyncio
+import sqlite3
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
@@ -7,7 +8,7 @@ from QRServer.common.classes import GameResultHistory
 from QRServer.db import migrations
 from QRServer.db.migrations import db_migrations
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import ChallengeProgress, DbMatchReport, ScheduledTaskStatus, Tournament, \
+from QRServer.db.models import ChallengeProgress, DbMatchReport, DbRecordedMessage, ScheduledTaskStatus, Tournament, \
     TournamentParticipant, Trophy, UserAchievement
 from QRServer.common.classes import RankingEntry
 from QRServer.common.utils import utils
@@ -121,6 +122,75 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
     async def test_get_nonexistent_match(self):
         match = await self.conn.get_match('1234')
         self.assertIsNone(match)
+
+    async def test_add_and_get_match_recording(self):
+        user_1 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+        user_2 = await self.conn.authenticate_user('test_user_2', b'password', auto_create=True)
+        await self.conn.create_match(
+            match_id='1234',
+            started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            user_1_id=user_1.user_id,
+            user_2_id=user_2.user_id,
+            is_ranked=True,
+        )
+
+        messages = [
+            DbRecordedMessage(
+                timestamp=datetime(2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+                sender_id=user_1.user_id,
+                receiver_id=user_2.user_id,
+                message_type=35,
+                message=b'<S>~<GRAB_PIECE>~3',
+            ),
+            DbRecordedMessage(
+                timestamp=datetime(2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+                sender_id=user_2.user_id,
+                receiver_id=user_1.user_id,
+                message_type=37,
+                message=b'<S>~<SWITCH_PLAYER>~3',
+            ),
+            DbRecordedMessage(
+                timestamp=datetime(2020, 1, 1, 0, 0, 2, tzinfo=timezone.utc),
+                sender_id=None,
+                receiver_id=None,
+                message_type=35,
+                message=b'<S>~<GRAB_PIECE>~4',
+            ),
+        ]
+
+        recording_id = await self.conn.add_match_recording('1234', messages)
+        self.assertTrue(recording_id)
+
+        # order is preserved, even for messages sharing a timestamp
+        self.assertEqual(await self.conn.get_match_recording('1234'), messages)
+
+    async def test_add_match_recording_twice_for_match(self):
+        user_1 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+        user_2 = await self.conn.authenticate_user('test_user_2', b'password', auto_create=True)
+        await self.conn.create_match(
+            match_id='1234',
+            started_at=datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+            user_1_id=user_1.user_id,
+            user_2_id=user_2.user_id,
+            is_ranked=True,
+        )
+        message = DbRecordedMessage(
+            timestamp=datetime(2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+            sender_id=user_1.user_id,
+            receiver_id=user_2.user_id,
+            message_type=35,
+            message=b'<S>~<GRAB_PIECE>~3',
+        )
+
+        await self.conn.add_match_recording('1234', [message])
+        with self.assertRaises(sqlite3.IntegrityError):
+            await self.conn.add_match_recording('1234', [message, message])
+
+        # the failed attempt must not leave anything behind
+        self.assertEqual(await self.conn.get_match_recording('1234'), [message])
+
+    async def test_get_nonexistent_match_recording(self):
+        self.assertEqual(await self.conn.get_match_recording('1234'), [])
 
     async def test_get_recent_matches(self):
         with patch('uuid.uuid4') as mock_uuid:

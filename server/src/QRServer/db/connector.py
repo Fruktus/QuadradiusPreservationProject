@@ -1696,6 +1696,51 @@ class DbConnector:
                 expires_at=timestamp_to_datetime(row[5]),
             )
 
+    async def get_open_challenge_progress(self, user_id: str,
+                                          challenge_keys: list[str]) -> dict[str, ChallengeProgress | None]:
+        """Using the provided list of challenges (defined statically in manager) build a list of
+        all the challenges that the user can progress in (or already did).
+        Uses left join to account for not started challenges, filters out completed or expired challenges."""
+        if not challenge_keys:
+            return {}
+
+        values = ", ".join("(?)" for _ in challenge_keys)
+        async with self._transaction("r") as c:
+            await c.execute(
+                f"with keys (challenge_key) as (values {values})"
+                " select cp.user_id, keys.challenge_key, cp.progress, cp.completed_at,"
+                " cp.updated_at, cp.expires_at"
+                " from keys"
+                " left join challenge_progress cp"
+                "  on cp.user_id = ? and cp.challenge_key = keys.challenge_key"
+                " where cp.user_id is null"
+                "  or (cp.completed_at is null and (cp.expires_at is null or cp.expires_at >= ?))",
+                (
+                    *challenge_keys,
+                    user_id,
+                    int(datetime.now(timezone.utc).timestamp()),
+                )
+            )
+
+            rows = await c.fetchall()
+            res: dict[str, ChallengeProgress | None] = {}
+
+            for row in rows:
+                challenge_key = row[1]
+                if row[0] is None:
+                    res[challenge_key] = None
+                else:
+                    res[challenge_key] = ChallengeProgress(
+                        user_id=row[0],
+                        challenge_key=row[1],
+                        progress=row[2],
+                        completed_at=timestamp_to_datetime(row[3]),
+                        updated_at=datetime.fromtimestamp(row[4], tz=timezone.utc),
+                        expires_at=timestamp_to_datetime(row[5]),
+                    )
+
+            return res
+
     async def save_challenge_progress(self, user_id: str, challenge_key: str, progress: str,
                                       completed_at: datetime | None = None,
                                       expires_at: datetime | None = None) -> None:
@@ -1719,7 +1764,7 @@ class DbConnector:
                 ),
             )
 
-    async def get_unrewarded_challenge_users(self, challenge_key: str, achievement_key: str) -> list[str]:
+    async def get_unrewarded_challenge_user_ids(self, challenge_key: str, achievement_key: str) -> list[str]:
         """returns all user_ids who have completed the given challenge but did not receive an award.
         Used for reconciliation"""
         async with self._transaction("r") as c:

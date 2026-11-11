@@ -1174,6 +1174,37 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(await self.conn.get_challenge_progress(user_id, 'other'))
         self.assertIsNone(await self.conn.get_challenge_progress(other_id, 'adv'))
 
+    async def test_open_challenge_progress(self):
+        user_id = await self.conn.create_member('test_user', b'password', '11111111111')
+        other_id = await self.conn.create_member('other_user', b'password', '22222222222')
+
+        # no keys at all
+        self.assertEqual(await self.conn.get_open_challenge_progress(user_id, []), {})
+
+        # nothing saved yet, every challenge is available with no progress
+        self.assertEqual(await self.conn.get_open_challenge_progress(user_id, ['a', 'b']), {'a': None, 'b': None})
+
+        now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+        await self.conn.save_challenge_progress(user_id, 'started', '1')
+        await self.conn.save_challenge_progress(user_id, 'timed', '2', expires_at=now + timedelta(days=1))
+        await self.conn.save_challenge_progress(user_id, 'done', '3', completed_at=now)
+        await self.conn.save_challenge_progress(user_id, 'expired', '4', expires_at=now - timedelta(days=1))
+        await self.conn.save_challenge_progress(user_id, 'unrequested', '5')
+        await self.conn.save_challenge_progress(other_id, 'new', '6')
+
+        keys = ['started', 'timed', 'done', 'expired', 'new']
+        with patch('QRServer.db.connector.datetime') as mock_datetime:
+            mock_datetime.now.return_value = now
+            mock_datetime.fromtimestamp = datetime.fromtimestamp
+            res = await self.conn.get_open_challenge_progress(user_id, keys)
+
+        # done and expired are left out, a challenge without a progress entry is open, other users' progresses
+        # are not included
+        self.assertEqual(set(res), {'started', 'timed', 'new'})
+        self.assertEqual(res['started'], await self.conn.get_challenge_progress(user_id, 'started'))
+        self.assertEqual(res['timed'], await self.conn.get_challenge_progress(user_id, 'timed'))
+        self.assertIsNone(res['new'])
+
     async def test_unrewarded_challenge_users(self):
         done_id = await self.conn.create_member('done_user', b'password', '11111111111')
         pending_id = await self.conn.create_member('pending_user', b'password', '22222222222')
@@ -1195,11 +1226,11 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         await self.conn.save_challenge_progress(pending_id, 'adv', '5')  # not completed
 
         # only the completed one for this exact challenge key
-        self.assertEqual(await self.conn.get_unrewarded_challenge_users('adv', 'demo'), [done_id])
+        self.assertEqual(await self.conn.get_unrewarded_challenge_user_ids('adv', 'demo'), [done_id])
 
         # gone once awarded
         self.assertTrue(await self.conn.award_achievement('demo', done_id))
-        self.assertEqual(await self.conn.get_unrewarded_challenge_users('adv', 'demo'), [])
+        self.assertEqual(await self.conn.get_unrewarded_challenge_user_ids('adv', 'demo'), [])
 
 
 class DbMigrationTest(unittest.IsolatedAsyncioTestCase):

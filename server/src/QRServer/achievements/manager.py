@@ -17,7 +17,6 @@ class AchievementsManager:
     def __init__(self, config: Config, connector: DbConnector, challenges: list[Challenge] | None = None):
         self.config = config
         self.connector = connector
-        # tests inject instances here
         self.challenges = challenges if challenges is not None else [c() for c in CHALLENGES]
 
         keys = [c.key for c in self.challenges]

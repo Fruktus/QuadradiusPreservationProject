@@ -10,6 +10,7 @@ export default function RuffleConfig() {
     window.RufflePlayer = window.RufflePlayer || {};
     window.RufflePlayer.config = {
         autoplay: "on",
+        unmuteOverlay: "hidden",
         contextMenu: "off",
         logLevel: "info",
         socketProxy: [

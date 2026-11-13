@@ -159,6 +159,7 @@ class QRServer:
         self.start_task("Scheduler", self._scheduler.run())
 
         self._game_server = GameServer(self.config, self.connector)
+        await self._game_server.start()
         self._lobby_server = LobbyServer()
 
         if self.config.api_enabled.get():

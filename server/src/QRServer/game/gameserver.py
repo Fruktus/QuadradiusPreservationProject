@@ -2,6 +2,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+from QRServer.achievements.manager import AchievementsManager
 from QRServer.common.classes import PairingId, Match, MatchStats
 from QRServer.common.messages import GameChatMessage, Message
 from QRServer.db.connector import DbConnector
@@ -19,8 +20,16 @@ class GameServer:
         self.config = config
         self.connector: DbConnector = connector
         self.webhook = Webhook(config)
+        self.achievements = AchievementsManager(config, connector)
         self.matches = {}
         self._finishing_tasks: set[asyncio.Task] = set()
+
+    async def start(self):
+        """Meant to be ran once during server startup"""
+
+        # If there was an error during award process (which resulted in completion but no award)
+        # running this should fix it
+        await self.achievements.run_reconciliation()
 
     def register_client(self, client_handler: GameClientHandler):
         pairing_id = client_handler.pairing_id()
@@ -137,11 +146,17 @@ class GameServer:
             await asyncio.shield(postmatch_task)
 
     async def _finish_match(self, match: Match, report: DbMatchReport):
+        # Run all stages in isolation, roughly in the order of importance,
+        # so that a failure in one won't disrupt the entire flow
         try:
             await self.connector.add_match_result(report)
             log.debug(f'Added match report {report}')
             await self._save_recording(match)
+        except Exception:
+            log.exception(f'Failed to finish match from results {match.match_stats}')
+            return
 
+        try:
             result = await self.connector.get_match_result(report.match_id)
             if result:
                 log.info(f'A match has ended; '
@@ -149,7 +164,13 @@ class GameServer:
                          f'{result.won_score}-{result.lost_score}')
                 await self.webhook.invoke_webhook_game_ended(result)
         except Exception:
-            log.exception(f'Failed to finish match from results {match.match_stats}')
+            log.exception(f'Failed to announce match {report.match_id}')
+
+        try:
+            # recording is empty if recordings are disabled
+            await self.achievements.dispatch(report, match.recording)
+        except Exception:
+            log.exception(f'Failed to process achievements for match {report.match_id}')
 
     async def remove_client(self, client: GameClientHandler):
         pairing_id = client.pairing_id()

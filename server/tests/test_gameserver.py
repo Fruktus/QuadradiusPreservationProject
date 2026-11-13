@@ -1,8 +1,10 @@
 import asyncio
 from datetime import datetime, timezone
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+from QRServer.achievements.challenge import Challenge, Outcome
+from QRServer.achievements.manager import AchievementsManager
 from QRServer.common.classes import MatchStats, PairingId
 from QRServer.common.messages import GameChatMessage, GrabPieceMessage, SettingsReadyOnMessage, SwitchPlayerMessage, \
     VoidScoreResponse
@@ -383,3 +385,174 @@ class GameServerRecordingTest(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(await self.conn.get_match_result(match.id_))
         self.assertEqual(len(await self.conn.get_match_recording(match.id_)), 1)
         self.assertNotIn(match.pairing_id, self.game_server.matches)
+
+
+class FinishRankedChallenge(Challenge):
+    """Throwaway challenge used to prove the whole path: completes on the first ranked match."""
+    key = 'finish_ranked'
+    reward_key = 'finish_ranked_ach'
+
+    def run(self, user_id, progress, report, recording):
+        return Outcome(progress=1, completed=True)
+
+
+class GameServerAchievementsTest(unittest.IsolatedAsyncioTestCase):
+    STATS_WINNER = MatchStats(own_piece_count=6, opponent_piece_count=2,
+                              cycle_counter=40, grid_size='medium', squadron_size='medium')
+    STATS_LOSER = MatchStats(own_piece_count=2, opponent_piece_count=6,
+                             cycle_counter=35, grid_size='medium', squadron_size='medium')
+
+    async def asyncSetUp(self):
+        self.config = Config()
+        self.conn = DbConnector(':memory:', self.config)
+        await self.conn.connect()
+
+        async with self.conn._transaction('w') as c:
+            await c.execute(
+                "insert into achievements (key, name, description, created_at) values (?, ?, ?, ?)",
+                (FinishRankedChallenge.reward_key, 'Finisher', 'Finish a ranked match.', 0))
+
+        self.manager = AchievementsManager(self.config, self.conn, [FinishRankedChallenge()])
+        self.game_server = GameServer(self.config, self.conn)
+        self.game_server.achievements = self.manager
+
+        user_1 = await self.conn.authenticate_user('test_user_1', b'password', auto_create=True)
+        user_2 = await self.conn.authenticate_user('test_user_2', b'password', auto_create=True)
+        self.user_1_id = user_1.user_id
+        self.user_2_id = user_2.user_id
+
+    async def asyncTearDown(self):
+        await self.conn.close()
+
+    async def _start_match(self):
+        party_1 = MockedParty(user_id=self.user_1_id, username='test_user_1', opponent_id=self.user_2_id)
+        party_2 = MockedParty(user_id=self.user_2_id, username='test_user_2', opponent_id=self.user_1_id)
+        self.game_server.register_client(party_1)
+        self.game_server.register_client(party_2)
+        await self.game_server.set_ready(party_1, True)
+        await self.game_server.set_ready(party_2, True)
+        match = next(iter(self.game_server.matches.values()))
+        return party_1, party_2, match
+
+    async def _finish_match(self, party_1, party_2):
+        await self.game_server.add_match_stats(party_1, self.STATS_WINNER)
+        await self.game_server.add_match_stats(party_2, self.STATS_LOSER)
+
+    async def _awarded(self, user_id) -> list[str]:
+        return [a.achievement_key for a in await self.conn.get_user_achievements(user_id)]
+
+    async def _match_result_count(self) -> int:
+        async with self.conn._transaction('r') as c:
+            await c.execute('select count(*) from match_results')
+            return (await c.fetchone())[0]
+
+    async def test_default_manager_is_created(self):
+        game_server = GameServer(self.config, self.conn)
+
+        self.assertIsInstance(game_server.achievements, AchievementsManager)
+
+    async def test_finished_match_awards_both_players(self):
+        # the whole path: stats -> persisted match -> dispatch -> challenge -> award
+        # The throwaway challenge always returns true, so both players will get it
+        party_1, party_2, _ = await self._start_match()
+        self.assertEqual(await self._awarded(self.user_1_id), [])
+        self.assertEqual(await self._awarded(self.user_2_id), [])
+
+        await self._finish_match(party_1, party_2)
+
+        self.assertEqual(await self._awarded(self.user_1_id), [FinishRankedChallenge.reward_key])
+        self.assertEqual(await self._awarded(self.user_2_id), [FinishRankedChallenge.reward_key])
+
+    async def test_dispatch_runs_once_per_match_with_report_and_recording(self):
+        party_1, party_2, match = await self._start_match()
+        self.game_server.record_message(party_1, GrabPieceMessage.new(3))
+
+        with patch.object(self.manager, 'dispatch', wraps=self.manager.dispatch) as dispatch:
+            await self._finish_match(party_1, party_2)
+            # a late duplicate must not trigger a second run
+            await self.game_server.add_match_stats(party_2, self.STATS_LOSER)
+
+        dispatch.assert_awaited_once()
+        report, recording = dispatch.await_args.args
+        self.assertEqual(report.match_id, match.id_)
+        self.assertEqual(report.winner_id, self.user_1_id)
+        self.assertIs(recording, match.recording)
+        self.assertEqual(len(recording), 1)
+
+    async def test_dispatch_runs_after_the_match_is_persisted(self):
+        party_1, party_2, _ = await self._start_match()
+        results_at_dispatch = []
+
+        async def dispatch(report, recording):
+            results_at_dispatch.append(await self.conn.get_match_result(report.match_id))
+
+        with patch.object(self.manager, 'dispatch', dispatch):
+            await self._finish_match(party_1, party_2)
+
+        self.assertEqual(len(results_at_dispatch), 1)
+        self.assertIsNotNone(results_at_dispatch[0])
+
+    async def test_dispatch_gets_empty_recording_when_recordings_are_disabled(self):
+        self.game_server.config.set('recordings.enabled', False)
+        party_1, party_2, _ = await self._start_match()
+        self.game_server.record_message(party_1, GrabPieceMessage.new(3))
+
+        with patch.object(self.manager, 'dispatch', wraps=self.manager.dispatch) as dispatch:
+            await self._finish_match(party_1, party_2)
+
+        dispatch.assert_awaited_once()
+        self.assertEqual(dispatch.await_args.args[1], [])
+        # challenges which do not need the recording still work
+        self.assertEqual(await self._awarded(self.user_1_id), [FinishRankedChallenge.reward_key])
+
+    async def test_dispatch_failure_does_not_affect_stored_match(self):
+        party_1, party_2, match = await self._start_match()
+        self.game_server.record_message(party_1, GrabPieceMessage.new(3))
+
+        with patch.object(self.manager, 'dispatch', AsyncMock(side_effect=Exception('boom'))), \
+                self.assertLogs('qr.game_server', 'ERROR'):
+            await self._finish_match(party_1, party_2)
+
+        self.assertIsNotNone(await self.conn.get_match_result(match.id_))
+        self.assertEqual(len(await self.conn.get_match_recording(match.id_)), 1)
+        self.assertNotIn(match.pairing_id, self.game_server.matches)
+
+    async def test_webhook_failure_does_not_skip_achievements(self):
+        party_1, party_2, match = await self._start_match()
+
+        with patch.object(self.game_server.webhook, 'invoke_webhook_game_ended',
+                          AsyncMock(side_effect=Exception('discord is down'))), \
+                self.assertLogs('qr.game_server', 'ERROR'):
+            await self._finish_match(party_1, party_2)
+
+        self.assertIsNotNone(await self.conn.get_match_result(match.id_))
+        self.assertEqual(await self._awarded(self.user_1_id), [FinishRankedChallenge.reward_key])
+        self.assertEqual(await self._awarded(self.user_2_id), [FinishRankedChallenge.reward_key])
+
+    async def test_persist_failure_skips_achievements(self):
+        party_1, party_2, _ = await self._start_match()
+
+        with patch.object(self.conn, 'add_match_result', AsyncMock(side_effect=Exception('db is down'))), \
+                patch.object(self.manager, 'dispatch', wraps=self.manager.dispatch) as dispatch, \
+                self.assertLogs('qr.game_server', 'ERROR'):
+            await self._finish_match(party_1, party_2)
+
+        dispatch.assert_not_awaited()
+        self.assertEqual(await self._match_result_count(), 0)
+        self.assertEqual(await self._awarded(self.user_1_id), [])
+
+    async def test_start_awards_completed_challenges_missing_their_award(self):
+        # completed, but the award never went through (e.g. crashed in between)
+        await self.conn.save_challenge_progress(
+            self.user_1_id, FinishRankedChallenge.key, '1', completed_at=datetime.now(timezone.utc))
+        self.assertEqual(await self._awarded(self.user_1_id), [])
+
+        await self.game_server.start()
+
+        self.assertEqual(await self._awarded(self.user_1_id), [FinishRankedChallenge.reward_key])
+        self.assertEqual(await self._awarded(self.user_2_id), [])
+
+    async def test_start_does_nothing_when_there_is_nothing_to_repair(self):
+        await self.game_server.start()
+
+        self.assertEqual(await self._awarded(self.user_1_id), [])

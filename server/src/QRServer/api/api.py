@@ -19,6 +19,9 @@ log = logging.getLogger('qr.api')
 # How long a player profile is served from memory
 PROFILE_CACHE_TTL_SEC = 10 * 60  # 10 minutes
 
+# How long a single achievement definition is cached by browser
+ACHIEVEMENT_MAX_AGE_SEC = 7 * 24 * 3600  # 7 days
+
 _routes = web.RouteTableDef()
 
 
@@ -85,6 +88,9 @@ class ApiServer:
 
             # Players
             web.get('/api/v1/players/{username}', self._v1_player_profile),
+
+            # Achievements (there is deliberately no endpoint listing all of them)
+            web.get('/api/v1/achievements/{key}', self._v1_achievement),
 
             # Invites
             web.get('/api/v1/invites/{id}/make-params', self._v1_invites_make_params),
@@ -211,6 +217,7 @@ class ApiServer:
 
         stats = await self.connector.get_player_stats(player.user_id)
         trophies = await self.connector.get_user_trophies(player.user_id)
+        achievements = await self.connector.get_user_achievements(player.user_id)
 
         created_at = timestamp_to_datetime(player.created_at)  # type: ignore[arg-type]
         return 200, {
@@ -240,7 +247,47 @@ class ApiServer:
                 }
                 for trophy in sorted(trophies, key=lambda t: t.awarded_at or datetime.min.replace(tzinfo=timezone.utc))
             ],
+            # Newest first
+            'achievements': [
+                {
+                    'key': achievement.achievement_key,
+                    'awarded_at': achievement.awarded_at.isoformat(),
+                }
+                for achievement in achievements
+            ],
         }
+
+    @authenticated
+    async def _v1_achievement(self, request: web.Request, _user: DbUser) -> web.Response:
+        achievement_key = request.match_info['key']
+        achievement = await self.connector.get_achievement(achievement_key)
+
+        if achievement is None:
+            return web.json_response({
+                'error': 'this achievement does not exist', 'error_code': 'achievement_not_found'},
+                status=404,
+                headers={
+                    'Cache-Control': f'private, max-age={3600 * 24}',  # Cache for a day
+            })
+
+        achievement_view = {
+            'key': achievement.key,
+            'name': achievement.name,
+            'description': achievement.description,
+            # data: URI of an SVG, or None if not yet uploaded
+            'image': 'data:image/svg+xml;base64,' + base64.b64encode(achievement.svg).decode('ascii')
+            if achievement.svg else None,
+        }
+
+        max_age = ACHIEVEMENT_MAX_AGE_SEC if achievement.svg else 3600 * 24
+
+        return web.json_response(
+            {'achievement': achievement_view},
+            status=200,
+            headers={
+                'Cache-Control': f'private, max-age={max_age}',
+            },
+        )
 
     @authenticated
     async def _v1_invites_make_params(self, request, user: DbUser) -> web.Response:

@@ -72,6 +72,7 @@ class ApiPlayersIT(QuadradiusIntegrationTestCase):
             'longest_match_seconds': None, 'most_moves': None, 'biggest_win_margin': None, 'nemesis': None,
         })
         self.assertEqual(body['trophies'], [])
+        self.assertEqual(body['achievements'], [])
 
     async def test_profile_can_be_looked_up_by_another_player(self):
         api_client = await self.new_api_client('v1')
@@ -108,6 +109,37 @@ class ApiPlayersIT(QuadradiusIntegrationTestCase):
         self.assertTrue(trophy['image'].startswith(prefix))
         self.assertEqual(base64.b64decode(trophy['image'][len(prefix):]), SVG)
 
+    async def test_achievements_are_returned_as_keys_newest_first(self):
+        api_client = await self.new_api_client('v1')
+        headers = await self._login(api_client, 'PlayerA')
+        player = await self.connector.get_user_by_username('PlayerA')
+
+        # The connector has no function for creating definitions, create them manually and hope for the best
+        async with self.connector._transaction('w') as c:
+            for key, name in (('first', 'First'), ('second', 'Second'), ('unearned', 'Unearned')):
+                await c.execute(
+                    'insert into achievements (key, name, description, created_at) values (?, ?, ?, ?)',
+                    (key, name, 'desc', 0))
+
+        # Awarded out of order on purpose, to make sure the order comes from the date and not from insertion
+        awarded = {
+            'second': datetime(2026, 11, 20, 12, 0, 0, tzinfo=timezone.utc),
+            'first': datetime(2026, 11, 10, 12, 0, 0, tzinfo=timezone.utc),
+        }
+        for key, awarded_at in awarded.items():
+            with patch('QRServer.db.connector.datetime') as mock_datetime:
+                mock_datetime.now.return_value = awarded_at
+                self.assertTrue(await self.connector.award_achievement(key, player.user_id))
+
+        async with api_client.get('/api/v1/players/PlayerA', headers=headers) as r:
+            body = await r.json()
+
+        # Keys and dates only, and nothing about achievements the player does not have
+        self.assertEqual(body['achievements'], [
+            {'key': 'second', 'awarded_at': awarded['second'].isoformat()},
+            {'key': 'first', 'awarded_at': awarded['first'].isoformat()},
+        ])
+
     async def test_profile_is_cached(self):
         api_client = await self.new_api_client('v1')
         headers = await self._login(api_client, 'PlayerA')
@@ -134,7 +166,7 @@ class ApiPlayersIT(QuadradiusIntegrationTestCase):
     async def test_cached_profile_does_not_touch_the_database(self):
         api_client = await self.new_api_client('v1')
         headers = await self._login(api_client, 'PlayerA')
-        queries = ('get_user_by_username', 'get_player_stats', 'get_user_trophies')
+        queries = ('get_user_by_username', 'get_player_stats', 'get_user_trophies', 'get_user_achievements')
 
         with patch('QRServer.common.utils.cache._clock', lambda: 1000.0):
             mocks = {name: patch.object(self.connector, name, wraps=getattr(self.connector, name))

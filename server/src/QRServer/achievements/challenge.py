@@ -22,6 +22,7 @@ class Challenge:
     If expiration is set, it will not be processed after that time, otherwise it will
     always run if not already completed."""
     key: str
+    display_name: str
     reward_key: str
     expires_at: datetime | None = None
 

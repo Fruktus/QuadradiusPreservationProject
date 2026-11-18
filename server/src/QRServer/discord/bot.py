@@ -1,12 +1,14 @@
+from datetime import datetime, timezone
 import logging
 import re
 from hashlib import md5
 
+from QRServer.achievements import Challenge, CHALLENGES
 from QRServer.common.utils import utils
 from QRServer.common.utils.cache import ttl_cache
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbUser, Trophy
+from QRServer.db.models import ChallengeProgress, DbUser, Trophy
 import discord
 
 log = logging.getLogger('qr.bot')
@@ -30,6 +32,8 @@ class DiscordBot:
     def __init__(self, config: Config, connector: DbConnector):
         self.config = config
         self.connector = connector
+        # Challenges are hardcoded and not stored in db - we need them here for lookup
+        self.challenges: dict[str, Challenge] = {c.key: c for c in [c() for c in CHALLENGES]}
 
         self.token = self.config.discord_bot_token.get()
         self.guild_id = self.config.guild_id.get()
@@ -126,6 +130,12 @@ class DiscordBot:
         async def challenge_member(interaction, username: str):
             await self._challenge_member(interaction, username)
         challenge_member.default_permissions = discord.Permissions(permissions=0)
+
+        @self.tree.command(name="progress", description="Check your progress on a challenge",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(challengekey="Challenge key, provided by admin")
+        async def progress(interaction, challengekey: str):
+            await self._progress(interaction, challengekey)
 
         @self.client.event
         async def on_ready():
@@ -820,3 +830,64 @@ class DiscordBot:
         await interaction.response.send_message(
             "### Invite has been sent",
             ephemeral=True)
+
+    def _format_progress(self, challenge: Challenge, progress: ChallengeProgress) -> str:
+        if progress.completed_at:
+            return f"Completed <t:{int(progress.completed_at.timestamp())}:f>."
+
+        try:
+            text = challenge.pretty_print_progress(challenge.decode_progress(progress.progress)).strip()
+        except Exception:
+            log.exception(f"Failed to format progress of challenge '{challenge.key}' for user {progress.user_id}")
+            text = ''
+
+        if progress.has_expired:
+            return "Expired before it was completed." + (f"\n{text}" if text else "")
+        return text or "In progress."
+
+    async def _progress(self, interaction: discord.Interaction, challenge_key: str) -> None:
+        """
+        Shows the user's progress for the given challenge, across all of their accounts.
+        """
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) progress command received from '{interaction.user}'")
+        challenge_key = challenge_key.strip().lower()
+
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        aliases = await self._require_has_registered_aliases(interaction_id, interaction, interaction.user.id)
+
+        # Bans are per account, so banned aliases are skipped. If none are left reply with banned message
+        active_aliases = [alias for alias in aliases if not alias.is_banned]
+        if not active_aliases:
+            await self._require_user_not_banned(interaction_id, interaction, aliases[0])
+
+        challenge = self.challenges.get(challenge_key)
+        if not challenge:
+            log.debug(f"({interaction_id}) precondition failed: nonexistent_challenge")
+            await interaction.response.send_message(
+                f"Could not find challenge with key: `{challenge_key.replace('`', chr(39))[:64]}`. "
+                "Make sure you typed the challenge key correctly.",
+                ephemeral=True)
+            return
+
+        # Get progress for all aliases
+        found: list[tuple[DbUser, ChallengeProgress]] = []
+        for alias in active_aliases:
+            progress = await self.connector.get_challenge_progress(alias.user_id, challenge.key)
+            if progress:
+                found.append((alias, progress))
+
+        if not found:
+            ended = challenge.expires_at is not None and datetime.now(tz=timezone.utc) > challenge.expires_at
+            await interaction.response.send_message(
+                f"**{challenge.display_name}** has ended and you have not made progress on it." if ended
+                else f"You have not made progress in **{challenge.display_name}** yet.",
+                ephemeral=True)
+            return
+
+        if len(found) == 1:
+            body = self._format_progress(challenge, found[0][1])
+        else:
+            body = '\n\n'.join(f"`{alias.username}`\n{self._format_progress(challenge, progress)}"
+                               for alias, progress in found)
+        await interaction.response.send_message(f"**{challenge.display_name}**\n{body}", ephemeral=True)

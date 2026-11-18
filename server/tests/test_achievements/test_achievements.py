@@ -6,7 +6,11 @@ import uuid
 
 from QRServer.achievements.challenge import Challenge, Outcome
 from QRServer.achievements.challenges import CHALLENGES
+from QRServer.achievements.conditions.constants import GridSize
+from QRServer.achievements.conditions.recordings.recording_conditions import PowerUseCountCondition
+from QRServer.achievements.conditions.reports import ReportCondition
 from QRServer.achievements.manager import AchievementsManager
+from QRServer.common.messages import Message, NewGridCoordMessage, UsePowerMessage
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.models import DbMatchReport, DbRecordedMessage, UserAchievement
@@ -56,6 +60,20 @@ class CounterChallenge(DemoChallenge):
         return Outcome(new_progress, is_completed)
 
 
+class ConditionChallenge(DemoChallenge):
+    """Winner on a small grid who used at least one power"""
+
+    def __init__(self):
+        super().__init__('cond', 'demo_ach')
+
+    def run(self, user_id, progress, report, recording):
+        self.run_calls.append((progress, user_id))
+        conditions = [ReportCondition(won=True, grid=GridSize.SMALL), PowerUseCountCondition(min_count=1)]
+        if self.match_conditions_met(user_id, report, recording, conditions):  # usable via the instance
+            return Outcome(completed=True)
+        return None
+
+
 class AchievementsManagerTest(unittest.IsolatedAsyncioTestCase):
     FINISHED = datetime(2026, 12, 1, 12, 0, 0, tzinfo=timezone.utc)
     FAR_FUTURE = datetime(2100, 1, 1, tzinfo=timezone.utc)
@@ -99,6 +117,15 @@ class AchievementsManagerTest(unittest.IsolatedAsyncioTestCase):
         )
         fields.update(overrides)
         return DbMatchReport(**fields)
+
+    def recorded(self, sender: str | None, receiver: str, message: Message) -> DbRecordedMessage:
+        return DbRecordedMessage(
+            timestamp=datetime(2026, 12, 1, 12, 0, 0, tzinfo=timezone.utc),
+            sender_id=sender,
+            receiver_id=receiver,
+            message_type=message.message_type_id,
+            message=message.to_data()[:-1],
+        )
 
     def manager(self, *challenges: Challenge) -> AchievementsManager:
         return AchievementsManager(self.config, self.conn, list(challenges))
@@ -270,6 +297,29 @@ class AchievementsManagerTest(unittest.IsolatedAsyncioTestCase):
         # no stored progress yet, so run() gets the decoded initial one ('null' -> None)
         run.assert_any_call(self.winner, None, report, recording)
         run.assert_any_call(self.loser, None, report, recording)
+
+    async def test_condition_challenge_awards_only_if_all_conditions_are_met(self):
+        mgr = self.manager(ConditionChallenge())
+        # both used a power, only the winner meets the report condition
+        recording = [self.recorded(self.winner, self.loser, UsePowerMessage.new('INVERT', 3)),
+                     self.recorded(self.loser, self.winner, UsePowerMessage.new('INVERT', 3))]
+
+        await self.dispatch(mgr, recording=recording)
+
+        self.assertEqual(await self.awarded(self.winner), ['demo_ach'])
+        self.assertEqual(await self.awarded(self.loser), [])
+
+    async def test_condition_challenge_needs_recording_and_report_to_match(self):
+        mgr = self.manager(ConditionChallenge())
+        power = self.recorded(self.winner, self.loser, UsePowerMessage.new('INVERT', 3))
+
+        await self.dispatch(mgr, recording=[])
+        await self.dispatch(mgr, recording=[
+            self.recorded(self.winner, self.loser, NewGridCoordMessage.new(1, 2, 3, 4))
+        ])
+        await self.dispatch(mgr, recording=[power], grid_size='large')
+
+        self.assertEqual(await self.awarded(self.winner), [])
 
     # failures
     async def test_failing_run_does_not_affect_other_challenges(self):

@@ -1,8 +1,11 @@
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from QRServer.achievements.conditions import ReportCondition, BaseRecordingCondition
+from QRServer.common.messages import Message
 from QRServer.db.models import DbMatchReport, DbRecordedMessage
 
 
@@ -45,6 +48,51 @@ class Challenge:
     def pretty_print_progress(self, progress: Any) -> str:
         """Format progress for human-friendly display, can be customized to include units etc."""
         return f'Progress: {progress}'
+
+    @staticmethod
+    def match_conditions_met(
+        user_id: str,
+        report: DbMatchReport,
+        recording: list[DbRecordedMessage],
+        conditions: Sequence[ReportCondition | BaseRecordingCondition],
+    ) -> bool:
+        """Helper, meant to be used in `run` to easily check a list of conditions.
+        Returns True if every condition in the list was met and False if one or more did not.
+        """
+        report_conds = [c for c in conditions if isinstance(c, ReportCondition)]
+        analyzers = [c for c in conditions if isinstance(c, BaseRecordingCondition)]
+
+        # Check report conditions
+        if not all(c.met(report, user_id) for c in report_conds):
+            return False
+
+        # If no analyzers or no recording provided exit early
+        if not analyzers:
+            return True
+        if not recording:
+            # If analyzers were configured then in theory some could work
+            # but it's unambiguous if it's always False
+            return False
+
+        for rec in recording:
+            if rec.sender_id != user_id:  # only analyze actions taken by the user_id
+                continue
+
+            message = Message.from_data(rec.message)
+            if message is None:
+                continue
+
+            for analyzer in analyzers:
+                analyzer.feed(message)
+
+            if any(a.done and not a.met for a in analyzers):  # at least one condition unmet, exit early
+                return False
+
+            # All finished (adding more messages won't change anything), can break out early
+            if all(a.done for a in analyzers):
+                break
+
+        return all(a.met for a in analyzers)
 
     def run(self, user_id: str, progress: Any, report: DbMatchReport,
             recording: list[DbRecordedMessage]) -> Outcome | None:

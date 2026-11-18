@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from QRServer.achievements.challenge import Challenge
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
 from QRServer.db.password import password_verify
@@ -10,6 +11,14 @@ import discord
 
 
 TROPHY_SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path d="M2 1h6v3a3 3 0 0 1-6 0z"/></svg>'
+
+
+class FakeChallenge(Challenge):
+    key = 'advent-2026'
+    display_name = 'Advent 2026'
+
+    def pretty_print_progress(self, progress):
+        return f'Day {progress}'
 
 
 class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
@@ -1080,6 +1089,214 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self._assert_precondition_logged(
             'nonexistent_tournament',
             self.bot._create_trophy(self.interaction, 'trophy', self._svg_attachment(), 'missing'))
+
+    # Achievements progress
+
+    async def _create_achievement(self, key: str = 'advent', name: str = 'Advent 2026') -> None:
+        async with self.conn._transaction('w') as c:
+            await c.execute(
+                "insert into achievements (key, name, description, created_at) values (?, ?, ?, ?)",
+                (key, name, 'Test achievement.', int(datetime(2026, 11, 7, tzinfo=timezone.utc).timestamp())))
+
+    async def _setup_progress(self, challenge: Challenge | None = None) -> str:
+        """Registers the caller (discord id 123) and swaps in a test challenge"""
+        self.bot = DiscordBot(self.config, self.conn)
+        self.bot.challenges = {c.key.lower(): c for c in [challenge or FakeChallenge()]}
+        return await self.conn.create_member('alice', 'asd'.encode(), discord_user_id='123')
+
+    async def test_progress_in_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You must be in this bot's discord server to use it.", ephemeral=True)
+
+    async def test_progress_unregistered_user(self):
+        await self._setup_progress()
+        self.interaction.user.id = '999'
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You need to register first.", ephemeral=True)
+
+    async def test_progress_all_aliases_banned(self):
+        user_id = await self._setup_progress()
+        await self.conn.ban_user(user_id, 'admin', 'test')
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Account `alice` is banned.", ephemeral=True)
+
+    async def test_progress_unknown_key(self):
+        await self._setup_progress()
+
+        await self.bot._progress(self.interaction, 'nope')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Could not find challenge with key: `nope`. Make sure you typed the challenge key correctly.",
+            ephemeral=True)
+
+    async def test_progress_unknown_key_is_sanitized(self):
+        await self._setup_progress()
+
+        await self.bot._progress(self.interaction, 'a`b' + 'c' * 100)
+
+        message = self.interaction.response.send_message.call_args.args[0]
+        self.assertIn("`a'b" + 'c' * 61 + "`", message)
+
+    async def test_progress_no_progress_yet(self):
+        await self._setup_progress()
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You have not made progress in **Advent 2026** yet.", ephemeral=True)
+
+    async def test_progress_no_progress_and_challenge_ended(self):
+        challenge = FakeChallenge()
+        challenge.expires_at = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        await self._setup_progress(challenge)
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026** has ended and you have not made progress on it.", ephemeral=True)
+
+    async def test_progress_in_progress(self):
+        user_id = await self._setup_progress()
+        await self.conn.save_challenge_progress(user_id, 'advent-2026', '3')
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nDay 3", ephemeral=True)
+
+    async def test_progress_key_is_trimmed(self):
+        user_id = await self._setup_progress()
+        await self.conn.save_challenge_progress(user_id, 'advent-2026', '3')
+
+        await self.bot._progress(self.interaction, '  advent-2026 ')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nDay 3", ephemeral=True)
+
+    async def test_progress_in_progress_with_empty_description(self):
+        class Quiet(FakeChallenge):
+            def pretty_print_progress(self, progress):
+                return ''
+
+        user_id = await self._setup_progress(Quiet())
+        await self.conn.save_challenge_progress(user_id, 'advent-2026', '3')
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nIn progress.", ephemeral=True)
+
+    async def test_progress_formatting_failure_does_not_break_the_reply(self):
+        class Broken(FakeChallenge):
+            def pretty_print_progress(self, progress):
+                raise ValueError('boom')
+
+        user_id = await self._setup_progress(Broken())
+        await self.conn.save_challenge_progress(user_id, 'advent-2026', '3')
+
+        with self.assertLogs('qr.bot', level='ERROR'):
+            await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nIn progress.", ephemeral=True)
+
+    async def test_progress_completed(self):
+        user_id = await self._setup_progress()
+        completed_at = datetime(2026, 12, 5, 12, 0, tzinfo=timezone.utc)
+        await self.conn.save_challenge_progress(user_id, 'advent-2026', '24', completed_at=completed_at)
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            f"**Advent 2026**\nCompleted <t:{int(completed_at.timestamp())}:f>.", ephemeral=True)
+
+    async def test_progress_completed_wins_over_expired(self):
+        # completed rows get an expires_at too, it must not hide the completion
+        user_id = await self._setup_progress()
+        completed_at = datetime(2020, 12, 5, 12, 0, tzinfo=timezone.utc)
+        await self.conn.save_challenge_progress(
+            user_id, 'advent-2026', '24', completed_at=completed_at,
+            expires_at=datetime(2020, 12, 30, tzinfo=timezone.utc))
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            f"**Advent 2026**\nCompleted <t:{int(completed_at.timestamp())}:f>.", ephemeral=True)
+
+    async def test_progress_expired_and_incomplete(self):
+        user_id = await self._setup_progress()
+        await self.conn.save_challenge_progress(
+            user_id, 'advent-2026', '3', expires_at=datetime(2020, 12, 30, tzinfo=timezone.utc))
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nExpired before it was completed.\nDay 3", ephemeral=True)
+
+    async def test_progress_with_multiple_aliases_lists_each(self):
+        alice = await self._setup_progress()
+        bob = await self.conn.create_member('bob', 'asd'.encode(), discord_user_id='123')
+        await self.conn.save_challenge_progress(alice, 'advent-2026', '1')
+        await self.conn.save_challenge_progress(bob, 'advent-2026', '2')
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        message = self.interaction.response.send_message.call_args.args[0]
+        self.assertTrue(message.startswith("**Advent 2026**\n"))
+        self.assertIn("`alice`\nDay 1", message)
+        self.assertIn("`bob`\nDay 2", message)
+        self.assertEqual(self.interaction.response.send_message.call_args.kwargs, {'ephemeral': True})
+
+    async def test_progress_with_multiple_aliases_but_one_row_has_no_label(self):
+        await self._setup_progress()
+        bob = await self.conn.create_member('bob', 'asd'.encode(), discord_user_id='123')
+        await self.conn.save_challenge_progress(bob, 'advent-2026', '2')
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nDay 2", ephemeral=True)
+
+    async def test_progress_skips_banned_aliases(self):
+        alice = await self._setup_progress()
+        bob = await self.conn.create_member('bob', 'asd'.encode(), discord_user_id='123')
+        await self.conn.save_challenge_progress(alice, 'advent-2026', '1')
+        await self.conn.save_challenge_progress(bob, 'advent-2026', '2')
+        await self.conn.ban_user(alice, 'admin', 'test')
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "**Advent 2026**\nDay 2", ephemeral=True)
+
+    async def test_progress_ignores_other_players_and_other_challenges(self):
+        user_id = await self._setup_progress()
+        other = await self.conn.create_member('other', 'asd'.encode(), discord_user_id='456')
+        await self.conn.save_challenge_progress(other, 'advent-2026', '9')
+        await self.conn.save_challenge_progress(user_id, 'something-else', '9')
+
+        await self.bot._progress(self.interaction, 'advent-2026')
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "You have not made progress in **Advent 2026** yet.", ephemeral=True)
+
+    async def test_logged_nonexistent_challenge(self):
+        await self._setup_progress()
+        await self._assert_precondition_logged(
+            'nonexistent_challenge', self.bot._progress(self.interaction, 'nope'))
 
 
 class DiscordBotSendEmbedTest(unittest.IsolatedAsyncioTestCase):

@@ -8,7 +8,7 @@ from QRServer.common.utils import utils
 from QRServer.common.utils.cache import ttl_cache
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import ChallengeProgress, DbUser, Trophy
+from QRServer.db.models import Achievement, ChallengeProgress, DbUser, Trophy
 import discord
 
 log = logging.getLogger('qr.bot')
@@ -17,6 +17,7 @@ _MESSAGEABLE_CHANNELS = (discord.VoiceChannel, discord.StageChannel, discord.Tex
 
 MAX_TROPHY_NAME_LENGTH = 64
 MAX_SVG_BYTES = 100 * 1024
+MAX_LISTED_ACHIEVEMENT_KEYS = 10
 
 
 class DiscordException(Exception):
@@ -136,6 +137,13 @@ class DiscordBot:
         @discord.app_commands.describe(challengekey="Challenge key, provided by admin")
         async def progress(interaction, challengekey: str):
             await self._progress(interaction, challengekey)
+
+        @self.tree.command(name="setachievementimage", description="Set or replace the image of an achievement",
+                           guild=discord.Object(id=self.guild_id))
+        @discord.app_commands.describe(key="Key of the achievement", svg="SVG image of the achievement")
+        async def set_achievement_image(interaction, key: str, svg: discord.Attachment):
+            await self._set_achievement_image(interaction, key, svg)
+        set_achievement_image.default_permissions = discord.Permissions(permissions=0)
 
         @self.client.event
         async def on_ready():
@@ -362,13 +370,30 @@ class DiscordBot:
             raise PreconditionFailedException('invalid_trophy_name')
 
     async def _require_valid_svg(self, interaction_id: str, interaction: discord.Interaction,
-                                 attachment: discord.Attachment) -> bytes:
+                                 attachment: discord.Attachment, kind: str = 'trophy') -> bytes:
         data, error = await self._download_svg(interaction, attachment)
         if error:
-            log.debug(f"({interaction_id}) precondition failed: invalid_trophy_svg")
-            await self._respond(interaction, f"Invalid trophy SVG: {error}")
-            raise PreconditionFailedException('invalid_trophy_svg')
+            log.debug(f"({interaction_id}) precondition failed: invalid_{kind}_svg")
+            await self._respond(interaction, f"Invalid {kind} SVG: {error}")
+            raise PreconditionFailedException(f'invalid_{kind}_svg')
         return data
+
+    async def _require_achievement_by_key(self, interaction_id: str, interaction: discord.Interaction,
+                                          key: str) -> Achievement:
+        achievement = await self.connector.get_achievement(key)
+        if not achievement:
+            log.debug(f"({interaction_id}) precondition failed: nonexistent_achievement")
+            message = f"Failed to find an achievement with key: `{key.replace('`', chr(39))[:64]}`. Check for typos."
+
+            # Good moment to suggest some achievements that do not yet have svg
+            missing = await self.connector.get_achievement_keys_without_svg()
+            if missing:
+                listed = ', '.join(f'`{k}`' for k in missing[:MAX_LISTED_ACHIEVEMENT_KEYS])
+                extra = len(missing) - MAX_LISTED_ACHIEVEMENT_KEYS
+                message += f"\nAchievements without an image: {listed}" + (f" and {extra} more." if extra > 0 else ".")
+            await self._respond(interaction, message)
+            raise PreconditionFailedException('nonexistent_achievement')
+        return achievement
 
     async def _require_tournament_exists(self, interaction_id: str, interaction: discord.Interaction,
                                          tournament_id: str) -> None:
@@ -851,7 +876,7 @@ class DiscordBot:
         """
         interaction_id = utils.base62_id()
         log.debug(f"({interaction_id}) progress command received from '{interaction.user}'")
-        challenge_key = challenge_key.strip().lower()
+        challenge_key = challenge_key.strip()
 
         await self._require_belongs_to_bot_guild(interaction_id, interaction)
         aliases = await self._require_has_registered_aliases(interaction_id, interaction, interaction.user.id)
@@ -891,3 +916,26 @@ class DiscordBot:
             body = '\n\n'.join(f"`{alias.username}`\n{self._format_progress(challenge, progress)}"
                                for alias, progress in found)
         await interaction.response.send_message(f"**{challenge.display_name}**\n{body}", ephemeral=True)
+
+    async def _set_achievement_image(self, interaction: discord.Interaction, key: str,
+                                     svg: discord.Attachment) -> None:
+        interaction_id = utils.base62_id()
+        log.debug(f"({interaction_id}) setachievementimage command received from '{interaction.user}'")
+        key = key.strip()
+
+        await self._require_belongs_to_bot_guild(interaction_id, interaction)
+        achievement = await self._require_achievement_by_key(interaction_id, interaction, key)
+        svg_data = await self._require_valid_svg(interaction_id, interaction, svg, kind='achievement')
+
+        if not await self.connector.update_achievement_svg(achievement.key, svg_data):
+            log.warning(f"({interaction_id}) Something went wrong while setting achievement image. "
+                        f"Achievement: {achievement.key}")
+            await self._respond(interaction, f"Something went wrong while updating achievement `{achievement.key}`.")
+            return
+
+        replaced = bool(achievement.svg)
+        log.info(f"({interaction_id}) achievement '{achievement.key}' image {'replaced' if replaced else 'set'} "
+                 f"by '{interaction.user}'")
+        await self._respond(
+            interaction,
+            f"{'Replaced' if replaced else 'Set'} the image of achievement: `{achievement.key}` ({achievement.name}).")

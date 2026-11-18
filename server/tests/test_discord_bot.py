@@ -1298,6 +1298,118 @@ class DiscordBotTest(unittest.IsolatedAsyncioTestCase):
         await self._assert_precondition_logged(
             'nonexistent_challenge', self.bot._progress(self.interaction, 'nope'))
 
+    # Achievements setachievementimage
+
+    async def test_set_achievement_image(self):
+        await self._create_achievement()
+
+        await self.bot._set_achievement_image(self.interaction, ' ADVENT ', self._svg_attachment())
+
+        achievement = await self.conn.get_achievement('advent')
+        self.assertEqual(achievement.svg, TROPHY_SVG)
+        self.interaction.response.defer.assert_called_once_with(ephemeral=True)
+        self.interaction.followup.send.assert_called_once_with(
+            "Set the image of achievement: `advent` (Advent 2026).", ephemeral=True)
+
+    async def test_replace_achievement_image(self):
+        await self._create_achievement()
+        await self.conn.update_achievement_svg('advent', b'<svg xmlns="http://www.w3.org/2000/svg"'
+                                                         b' viewBox="0 0 1 1"/>')
+        new_svg = TROPHY_SVG + b' '
+
+        await self.bot._set_achievement_image(self.interaction, 'advent', self._svg_attachment(new_svg))
+
+        self.assertEqual((await self.conn.get_achievement('advent')).svg, new_svg)
+        self.interaction.followup.send.assert_called_once_with(
+            "Replaced the image of achievement: `advent` (Advent 2026).", ephemeral=True)
+
+    async def test_set_achievement_image_in_wrong_guild(self):
+        self.interaction.guild.id = '1111111'
+        await self._create_achievement()
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'advent', self._svg_attachment())
+
+        self.assertIsNone((await self.conn.get_achievement('advent')).svg)
+
+    async def test_set_image_of_unknown_achievement(self):
+        attachment = self._svg_attachment()
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'nope', attachment)
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find an achievement with key: `nope`. Check for typos.", ephemeral=True)
+        attachment.read.assert_not_called()
+
+    async def test_set_image_of_unknown_achievement_hints_missing_images(self):
+        await self._create_achievement('advent', 'Advent 2026')
+        await self._create_achievement('done', 'Done')
+        await self.conn.update_achievement_svg('done', TROPHY_SVG)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'nope', self._svg_attachment())
+
+        self.interaction.response.send_message.assert_called_once_with(
+            "Failed to find an achievement with key: `nope`. Check for typos.\n"
+            "Achievements without an image: `advent`.", ephemeral=True)
+
+    async def test_set_image_of_unknown_achievement_limits_the_hint(self):
+        for i in range(12):
+            await self._create_achievement(f'key{i:02}', f'Name {i}')
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'nope', self._svg_attachment())
+
+        message = self.interaction.response.send_message.call_args.args[0]
+        self.assertEqual(message.count('`key'), 10)
+        self.assertTrue(message.endswith(" and 2 more."))
+
+    async def test_set_image_of_unknown_achievement_is_sanitized(self):
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'a`b' + 'c' * 100, self._svg_attachment())
+
+        message = self.interaction.response.send_message.call_args.args[0]
+        self.assertIn("`a'b" + 'c' * 61 + "`", message)
+
+    async def test_set_achievement_image_with_invalid_svg(self):
+        await self._create_achievement()
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'advent', self._svg_attachment(b'not xml'))
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Invalid achievement SVG: The file is not valid XML.", ephemeral=True)
+        self.assertIsNone((await self.conn.get_achievement('advent')).svg)
+
+    async def test_set_achievement_image_with_too_big_svg(self):
+        await self._create_achievement()
+        attachment = self._svg_attachment(size=MAX_SVG_BYTES + 1)
+
+        with self.assertRaises(PreconditionFailedException):
+            await self.bot._set_achievement_image(self.interaction, 'advent', attachment)
+
+        attachment.read.assert_not_called()
+        self.assertIsNone((await self.conn.get_achievement('advent')).svg)
+
+    async def test_set_achievement_image_failure(self):
+        await self._create_achievement()
+
+        with patch.object(self.conn, 'update_achievement_svg', AsyncMock(return_value=False)):
+            await self.bot._set_achievement_image(self.interaction, 'advent', self._svg_attachment())
+
+        self.interaction.followup.send.assert_called_once_with(
+            "Something went wrong while updating achievement `advent`.", ephemeral=True)
+
+    async def test_logged_achievement_preconditions(self):
+        await self._create_achievement()
+        await self._assert_precondition_logged(
+            'nonexistent_achievement',
+            self.bot._set_achievement_image(self.interaction, 'nope', self._svg_attachment()))
+        await self._assert_precondition_logged(
+            'invalid_achievement_svg',
+            self.bot._set_achievement_image(self.interaction, 'advent', self._svg_attachment(b'not xml')))
+
 
 class DiscordBotSendEmbedTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:

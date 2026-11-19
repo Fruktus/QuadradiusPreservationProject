@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import FullscreenToggle from '@/components/ui/fullscreen-toggle';
 import DiscordButton from '@/components/ui/topbar/discord-button';
+import FestiveToggle from '@/components/ui/topbar/festive-toggle';
 import UserStatus from '@/components/ui/topbar/user-status';
 import { topbarBtn } from '@/components/ui/topbar/topbar-button';
 import { cn } from '@/lib/utils';
@@ -28,7 +29,7 @@ export default function Topbar() {
   return (
     <header
       className={cn(
-        "relative z-20 flex w-full flex-none items-center justify-between gap-2 px-1.5",
+        "festive-topbar relative z-20 flex w-full flex-none items-center justify-between gap-2 px-1.5",
         "h-6 [@media(pointer:coarse)]:h-7",
         "bg-panel-bg",
         "bg-[url('/assets/scuff-texture.svg'),repeating-linear-gradient(100deg,rgba(255,255,255,0.04)_0px,rgba(255,255,255,0.04)_1px,transparent_1px,transparent_3px)]",
@@ -49,6 +50,7 @@ export default function Topbar() {
           Manual
         </a>
         <DiscordButton />
+        <FestiveToggle />
       </div>
       <div className="relative flex min-w-0 items-center">
         <UserStatus />

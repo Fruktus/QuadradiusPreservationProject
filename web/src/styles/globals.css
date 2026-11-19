@@ -194,3 +194,76 @@ a:hover {
 .splash-pulse {
   animation: splash-pulse 0.9s ease-in-out infinite alternate;
 }
+
+/* ---- Festive decorations (Dec 1 - Jan 6) ----
+   Decorations are active when <html data-festive="on"> is set (see lib/festive.ts and FestiveSync),
+   so they are hidden outside of the season and when the player switched them off. */
+
+/* Tiny bulbs on metal panels (top and bottom border) and on the topbar (hanging from its bottom edge).
+   The four colours are registered properties so they can be animated one by one.
+   If @property is unsupported the lights just blink in unison. */
+@property --qr-l1 { syntax: "<color>"; inherits: false; initial-value: #ff4d4d; }
+@property --qr-l2 { syntax: "<color>"; inherits: false; initial-value: #ffd84d; }
+@property --qr-l3 { syntax: "<color>"; inherits: false; initial-value: #4dff88; }
+@property --qr-l4 { syntax: "<color>"; inherits: false; initial-value: #4da6ff; }
+
+html[data-festive="on"] .festive-lights::after,
+html[data-festive="on"] .festive-topbar::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  --bulb-1: radial-gradient(circle at 4px 4px, var(--qr-l1) 0 1.6px, color-mix(in srgb, var(--qr-l1) 40%, transparent) 2.2px, transparent 4px);
+  --bulb-2: radial-gradient(circle at 4px 4px, var(--qr-l2) 0 1.6px, color-mix(in srgb, var(--qr-l2) 40%, transparent) 2.2px, transparent 4px);
+  --bulb-3: radial-gradient(circle at 4px 4px, var(--qr-l3) 0 1.6px, color-mix(in srgb, var(--qr-l3) 40%, transparent) 2.2px, transparent 4px);
+  --bulb-4: radial-gradient(circle at 4px 4px, var(--qr-l4) 0 1.6px, color-mix(in srgb, var(--qr-l4) 40%, transparent) 2.2px, transparent 4px);
+}
+
+/* Panels: a row along the top border and one along the bottom border */
+html[data-festive="on"] .festive-lights::after {
+  top: -3px;
+  bottom: -3px;
+  left: 16px; /* stay clear of the rounded corners and the screws */
+  right: 16px;
+  background-image:
+    var(--bulb-1), var(--bulb-2), var(--bulb-3), var(--bulb-4),
+    var(--bulb-1), var(--bulb-2), var(--bulb-3), var(--bulb-4);
+  background-size: 72px 8px;
+  background-repeat: repeat-x;
+  background-position:
+    0 0, 18px 0, 36px 0, 54px 0,
+    9px 100%, 27px 100%, 45px 100%, 63px 100%;
+}
+
+/* Topbar: snow along its top edge and a row of bulbs hanging from its bottom edge. */
+html[data-festive="on"] .festive-topbar::after {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(100% + 6px); /* the header plus the part the bulbs hang below it */
+  background-image:
+    linear-gradient(#f4f9ff, #f4f9ff),
+    radial-gradient(circle at 50% 0, #ffffff 0 3px, transparent 3.5px),
+    radial-gradient(circle at 50% 0, #cfe2f7 0 2px, transparent 2.5px),
+    var(--bulb-1), var(--bulb-2), var(--bulb-3), var(--bulb-4);
+  background-size: 100% 2px, 15px 6px, 10px 5px, 72px 8px, 72px 8px, 72px 8px, 72px 8px;
+  background-repeat: no-repeat, repeat-x, repeat-x, repeat-x, repeat-x, repeat-x, repeat-x;
+  background-position: 0 0, 0 0, 6px 0, 0 100%, 18px 100%, 36px 100%, 54px 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html[data-festive="on"] .festive-lights::after,
+  html[data-festive="on"] .festive-topbar::after {
+    animation:
+      qr-twinkle-1 2.6s ease-in-out infinite,
+      qr-twinkle-2 3.1s ease-in-out -0.9s infinite,
+      qr-twinkle-3 2.3s ease-in-out -1.4s infinite,
+      qr-twinkle-4 2.9s ease-in-out -2s infinite;
+  }
+}
+
+@keyframes qr-twinkle-1 { 50% { --qr-l1: #5c1a1a; } }
+@keyframes qr-twinkle-2 { 50% { --qr-l2: #5c4d1a; } }
+@keyframes qr-twinkle-3 { 50% { --qr-l3: #1a5c35; } }
+@keyframes qr-twinkle-4 { 50% { --qr-l4: #1a3a5c; } }
+
+/* ---- End of festive decorations ---- */

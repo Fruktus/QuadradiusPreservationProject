@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation';
 
 import MessagePanel from '@/components/ui/message-panel';
 import MetalPanelScrewed from '@/components/ui/metal-panel-screwed';
+import AchievementShelf from '@/components/player/achievement-shelf';
+import { sectionTitle, well } from "@/components/player/styles";
 
 import { getLoggedInUsername, loginUrlWithRedirect } from '@/lib/auth';
 import { formatDate, formatDuration, formatPercent } from '@/lib/format';
@@ -73,11 +75,8 @@ function PlayerPage() {
   }
 }
 
-const sectionTitle = 'mb-2 font-rajdhani text-[14px] font-bold uppercase leading-none tracking-[2px] text-[#2b2a27]';
-const well = 'rounded border border-input-border bg-input-bg shadow-input';
-
 function Profile({ profile }: { profile: PlayerProfile }) {
-  const { player, stats, trophies } = profile;
+  const { player, stats, trophies, achievements } = profile;
   const memberSince = player.member_since ? formatDate(player.member_since) : '';
 
   return (
@@ -136,26 +135,29 @@ function Profile({ profile }: { profile: PlayerProfile }) {
             </p>
           </section>
 
-          <section aria-labelledby="trophies-title">
-            <h2 id="trophies-title" className={sectionTitle}>
-              Trophies
-            </h2>
-            {trophies.length === 0 ? (
-              <div className={`${well} px-3 py-6 text-center font-dotmatrix text-lg text-[#b97070]`}>
-                no trophies yet
-              </div>
-            ) : (
-              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {trophies.map((trophy) => (
-                  <TrophyTile key={trophy.id} trophy={trophy} />
-                ))}
-              </ul>
-            )}
-          </section>
+          <div className="flex flex-col gap-5">
+            <section aria-labelledby="trophies-title">
+              <h2 id="trophies-title" className={sectionTitle}>
+                Trophies
+              </h2>
+              {trophies.length === 0 ? (
+                <div className={`${well} px-3 py-6 text-center font-dotmatrix text-lg text-[#b97070]`}>
+                  no trophies yet
+                </div>
+              ) : (
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {trophies.map((trophy) => (
+                    <TrophyTile key={trophy.id} trophy={trophy} />
+                  ))}
+                </ul>
+              )}
+            </section>
+            <AchievementShelf entries={achievements} />
+          </div>
         </div>
       </MetalPanelScrewed>
       <p className="mx-auto mt-3 max-w-4xl text-center font-rajdhani text-[11px] font-bold tracking-wide text-[#777]">
-        Profiles are updated periodically, so recent matches and trophies may take a few minutes to show up.
+        Profiles are updated periodically, so recent matches, trophies and achievements may take a few minutes to show up.
       </p>
     </div>
   );

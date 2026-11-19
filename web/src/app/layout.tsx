@@ -1,8 +1,9 @@
-import { Metadata } from "next"
-import { VT323, Rajdhani, Press_Start_2P, Geist, Geist_Mono, DotGothic16 } from "next/font/google"
-import "@/styles/globals.css"
-import Topbar from "@/components/ui/topbar/topbar"
-import Footer from "@/components/ui/footer/footer"
+import { Metadata } from "next";
+import { VT323, Rajdhani, Press_Start_2P, Geist, Geist_Mono, DotGothic16 } from "next/font/google";
+import "@/styles/globals.css";
+import Topbar from "@/components/ui/topbar/topbar";
+import Footer from "@/components/ui/footer/footer";
+import FestiveSync from "@/components/ui/festive-sync"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" data-ruffle-optout>
       <body className={`${fontVars} antialiased`}>
+        <FestiveSync />
         <div className="game-page-layout">
           <Topbar />
           <div className="game-page-layout-content">{children}</div>

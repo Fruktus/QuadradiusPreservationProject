@@ -8,7 +8,7 @@ interface MetalPanelProps {
 export default function MetalPanel({ children, className }: MetalPanelProps) {
   return (
     <div className={cn(
-      "relative rounded-[14px] border-2 border-panel-edge bg-panel-bg",
+      "festive-lights relative rounded-[14px] border-2 border-panel-edge bg-panel-bg",
       "bg-[url('/assets/scuff-texture.svg'),repeating-linear-gradient(100deg,rgba(255,255,255,0.04)_0px,rgba(255,255,255,0.04)_1px,transparent_1px,transparent_3px)]",
       "shadow-panel",
       "before:content-[''] before:absolute before:inset-[2px] before:rounded-[12px]",

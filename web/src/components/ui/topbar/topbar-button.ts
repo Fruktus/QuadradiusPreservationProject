@@ -48,3 +48,22 @@ export const topbarBtn = topbarBtnClass()
 // Square variant for icon-only buttons
 export const topbarIconBtn = cn(topbarBtn, "w-[18px] [@media(pointer:coarse)]:w-[22px] px-0 pt-0")
 // (icon button reuses topbarBtn's topbarItemSize for height; only width/padding differ)
+
+// Square toggle that looks like a lit button: dark when off, glowing blue when on.
+// Use together with aria-pressed so the state isn't conveyed by colour alone.
+export const topbarToggleBtn = (on: boolean) =>
+  cn(
+    topbarBtnBase,
+    "w-[18px] [@media(pointer:coarse)]:w-[22px] px-0 pt-0",
+    on
+      ? cn(
+          "border-[#1f5fc0] bg-[#2f7bea] text-[#06224d]",
+          "shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-2px_0_#1f5fc0,0_0_6px_1px_rgba(70,150,255,0.75)]",
+        )
+      : cn(
+          "border-[#050d1f] bg-[#0b1733] text-[#47689c]",
+          "shadow-[inset_0_1px_0_rgba(130,170,255,0.2),inset_0_-2px_0_#050d1f]",
+          "hover:bg-[#12224a] hover:text-[#7fa3e0]",
+        ),
+    "focus-visible:ring-[#2f7bea]",
+  )

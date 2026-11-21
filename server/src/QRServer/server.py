@@ -18,7 +18,7 @@ from QRServer.game.gameserver import GameServer
 from QRServer.lobby.lobbyclient import LobbyClientHandler
 from QRServer.lobby.lobbyserver import LobbyServer
 from QRServer.scheduler.scheduler import Scheduler
-from QRServer.scheduler.tasks.monthly_leaderboard import MonthlyLeaderboardTask
+from QRServer.scheduler.tasks import MonthlyLeaderboardTask, EventEmbedTask
 
 log = logging.getLogger('qr.server')
 
@@ -156,6 +156,7 @@ class QRServer:
         self._scheduler = Scheduler(self.connector, self.config)
         if self._discord_bot is not None:
             self._scheduler.register(MonthlyLeaderboardTask(self.connector, self._discord_bot))
+            self._scheduler.register(EventEmbedTask(self._discord_bot))
         self.start_task("Scheduler", self._scheduler.run())
 
         self._game_server = GameServer(self.config, self.connector)

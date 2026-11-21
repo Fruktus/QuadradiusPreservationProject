@@ -41,6 +41,7 @@ class DiscordBot:
         self.user_notifications_channel_id = self.config.discord_bot_channel_user_notifications_id.get()
         self.ban_notifications_channel_id = self.config.discord_bot_channel_ban_notifications_id.get()
         self.leaderboard_channel_id = self.config.discord_bot_channel_leaderboard_id.get()
+        self.event_channel_id = self.config.discord_bot_channel_event_id.get()
         self.max_aliases = self.config.discord_bot_max_aliases.get()
 
         self.username_regex = re.compile(r'[a-zA-Z0-9.\-_][a-zA-Z0-9.\-_ ]{,14}')

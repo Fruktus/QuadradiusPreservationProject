@@ -6,7 +6,7 @@ from typing import Any
 
 from QRServer.achievements.conditions import ReportCondition, BaseRecordingCondition
 from QRServer.common.messages import Message
-from QRServer.db.models import DbMatchReport, DbRecordedMessage
+from QRServer.db.models import DbMatchReport, DbRecordedMessage, ScheduledTaskData
 
 
 @dataclass
@@ -31,6 +31,16 @@ class Challenge:
         Runs before the progress read.
         Use for easy to check stuff, like whether the today's date matches conditions."""
         return True
+
+    def scheduled_tasks(self, now: datetime) -> list[ScheduledTaskData]:
+        """Tasks the challenge needs the scheduler to run, for example Discord posts.
+        The manager calls it on every startup, unless the challenge has expired. The tasks are created, or
+        overwritten if they are still pending (but never once they have started), so it has to be idempotent.
+
+        Finished tasks are purged after a while, which would make a task which already ran missing,
+        so it would be created (and run) again. Because of that only return the tasks which are still
+        relevant at `now`."""
+        return []
 
     def initial_progress(self) -> str:
         """Encoded progress used when the user has no progress in db yet (it goes through

@@ -161,6 +161,15 @@ class ScheduledTaskStatus(Enum):
     FAILED = 'failed'
 
 
+@dataclass(frozen=True)
+class ScheduledTaskData:
+    """A task which to put in the scheduler."""
+    id: str
+    handler: str
+    run_at: datetime
+    payload: dict = field(default_factory=dict)
+
+
 @dataclass
 class ScheduledTask:
     id: str

@@ -1037,6 +1037,39 @@ class DbTest(unittest.IsolatedAsyncioTestCase):
         tasks = await self.conn.get_scheduled_tasks()
         self.assertEqual([(t.handler, t.run_at) for t in tasks], [('handler', run_at)])
 
+    async def test_upsert_scheduled_task_creates_the_task(self):
+        run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+
+        self.assertTrue(await self.conn.upsert_scheduled_task('a', 'handler', run_at, {'x': 1}))
+
+        task = (await self.conn.get_scheduled_tasks())[0]
+        self.assertEqual((task.id, task.handler, task.payload, task.run_at, task.status),
+                         ('a', 'handler', {'x': 1}, run_at, ScheduledTaskStatus.PENDING))
+
+    async def test_upsert_scheduled_task_overwrites_a_pending_task(self):
+        run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        later = run_at + timedelta(days=1)
+        await self.conn.create_scheduled_task('a', 'handler', run_at, {'x': 1})
+
+        self.assertTrue(await self.conn.upsert_scheduled_task('a', 'other', later, {'y': 2}))
+
+        tasks = await self.conn.get_scheduled_tasks()
+        self.assertEqual([(t.handler, t.payload, t.run_at) for t in tasks], [('other', {'y': 2}, later)])
+
+    async def test_upsert_scheduled_task_does_not_touch_a_started_task(self):
+        run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        for status in (ScheduledTaskStatus.RUNNING, ScheduledTaskStatus.DONE, ScheduledTaskStatus.FAILED):
+            with self.subTest(status=status):
+                await self.conn.create_scheduled_task(status.value, 'handler', run_at, {'x': 1})
+                await self.conn.update_scheduled_task_status(status.value, status)
+
+                self.assertFalse(await self.conn.upsert_scheduled_task(
+                    status.value, 'other', run_at + timedelta(days=1), {'y': 2}))
+
+                task = next(t for t in await self.conn.get_scheduled_tasks() if t.id == status.value)
+                self.assertEqual((task.handler, task.payload, task.run_at, task.status),
+                                 ('handler', {'x': 1}, run_at, status))
+
     async def test_get_scheduled_tasks_ordered_by_run_at(self):
         run_at = datetime(2026, 11, 1, tzinfo=timezone.utc)
         await self.conn.create_scheduled_task('late', 'handler', run_at + timedelta(days=1))

@@ -261,6 +261,13 @@ class Config:
             description='Discord Channel ID where the monthly leaderboard summary is posted. '
                         'The summary is disabled when not set',
             default_value='')
+        self.discord_bot_channel_event_id = ConfigKey(
+            config=self,
+            name='discord.bot.channel_event.id',
+            cli_args=[],
+            description='Discord Channel ID where the event posts are published. '
+                        'The posts are skipped when not set',
+            default_value='')
         self.scheduler_poll_interval = ConfigKey(
             config=self,
             name='scheduler.poll_interval',

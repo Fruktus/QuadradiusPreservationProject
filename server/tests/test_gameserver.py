@@ -552,6 +552,12 @@ class GameServerAchievementsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(await self._awarded(self.user_1_id), [FinishRankedChallenge.reward_key])
         self.assertEqual(await self._awarded(self.user_2_id), [])
 
+    async def test_start_schedules_the_tasks_of_challenges(self):
+        with patch.object(self.game_server.achievements, 'schedule_tasks', new_callable=AsyncMock) as schedule:
+            await self.game_server.start()
+
+        schedule.assert_awaited_once()
+
     async def test_start_does_nothing_when_there_is_nothing_to_repair(self):
         await self.game_server.start()
 

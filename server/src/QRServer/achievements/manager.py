@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from QRServer.achievements.challenge import Challenge
 from QRServer.achievements.challenges import CHALLENGES
@@ -112,6 +113,22 @@ class AchievementsManager:
             # we already know that user completed the challenge and will attempt
             # to reconcile during next restart
             log.exception("award %s failed for user %s", challenge.reward_key, user_id)
+
+    async def schedule_tasks(self) -> None:
+        """Setup scheduled tasks which challenges need.
+        Expired challenges are skipped.
+        Meant to be ran on startup, should be idempotent."""
+        now = datetime.now(timezone.utc)
+        for challenge in self.challenges:
+            if challenge.expires_at is not None and now >= challenge.expires_at:
+                continue
+
+            try:
+                for task in challenge.scheduled_tasks(now):
+                    await self.connector.upsert_scheduled_task(
+                        task.id, task.handler, task.run_at, task.payload)
+            except Exception:
+                log.exception("challenge %s: scheduling tasks failed", challenge.key)
 
     async def run_reconciliation(self) -> None:
         for challenge in self.challenges:

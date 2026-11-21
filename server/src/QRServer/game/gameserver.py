@@ -30,6 +30,8 @@ class GameServer:
         # If there was an error during award process (which resulted in completion but no award)
         # running this should fix it
         await self.achievements.run_reconciliation()
+        # Challenges may need scheduled tasks (like Discord posts)
+        await self.achievements.schedule_tasks()
 
     def register_client(self, client_handler: GameClientHandler):
         pairing_id = client_handler.pairing_id()

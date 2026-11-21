@@ -1,6 +1,6 @@
 from collections import Counter
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 import uuid
 
@@ -13,7 +13,8 @@ from QRServer.achievements.manager import AchievementsManager
 from QRServer.common.messages import Message, NewGridCoordMessage, UsePowerMessage
 from QRServer.config import Config
 from QRServer.db.connector import DbConnector
-from QRServer.db.models import DbMatchReport, DbRecordedMessage, UserAchievement
+from QRServer.db.models import DbMatchReport, DbRecordedMessage, ScheduledTaskData, ScheduledTaskStatus, \
+    UserAchievement
 
 LOGGER = 'QRServer.achievements.manager'
 
@@ -72,6 +73,19 @@ class ConditionChallenge(DemoChallenge):
         if self.match_conditions_met(user_id, report, recording, conditions):  # usable via the instance
             return Outcome(completed=True)
         return None
+
+
+class TasksChallenge(DemoChallenge):
+    """Challenge with scheduled tasks, `tasks` is what scheduled_tasks() returns for the given time"""
+
+    def __init__(self, key='tasks', tasks=None, expires_at=None):
+        super().__init__(key, 'demo_ach', expires_at=expires_at)
+        self._tasks = tasks or (lambda now: [])
+        self.scheduled_for: list[datetime] = []
+
+    def scheduled_tasks(self, now):
+        self.scheduled_for.append(now)
+        return self._tasks(now)
 
 
 class AchievementsManagerTest(unittest.IsolatedAsyncioTestCase):
@@ -384,6 +398,94 @@ class AchievementsManagerTest(unittest.IsolatedAsyncioTestCase):
         prog = await self.conn.get_challenge_progress(self.winner, 'demo')
         self.assertEqual(prog.completed_at, self.FINISHED)
         self.assertEqual(await self.awarded(self.winner), [])
+
+    # scheduled tasks
+    NOW = datetime(2026, 12, 3, 10, 0, 0, tzinfo=timezone.utc)
+
+    def _task(self, task_id='a', **payload) -> ScheduledTaskData:
+        return ScheduledTaskData(task_id, 'handler', self.NOW + timedelta(hours=1), payload)
+
+    def _tasks_manager(self, *challenges: Challenge) -> AchievementsManager:
+        class FrozenDatetime(datetime):
+            """datetime whose now() always returns AchievementsManagerTest.NOW"""
+            @classmethod
+            def now(cls, tz=None):
+                return AchievementsManagerTest.NOW
+
+        patcher = patch('QRServer.achievements.manager.datetime', FrozenDatetime)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return AchievementsManager(self.config, self.conn, list(challenges))
+
+    async def test_challenge_has_no_scheduled_tasks_by_default(self):
+        self.assertEqual(DemoChallenge().scheduled_tasks(self.NOW), [])
+
+    async def test_schedule_tasks_creates_the_tasks(self):
+        mgr = self._tasks_manager(TasksChallenge(tasks=lambda now: [self._task('a', x=1)]))
+
+        await mgr.schedule_tasks()
+
+        tasks = await self.conn.get_scheduled_tasks()
+        self.assertEqual([(t.id, t.handler, t.payload, t.run_at) for t in tasks],
+                         [('a', 'handler', {'x': 1}, self.NOW + timedelta(hours=1))])
+
+    async def test_schedule_tasks_gives_the_challenge_the_current_time(self):
+        challenge = TasksChallenge()
+
+        await self._tasks_manager(challenge).schedule_tasks()
+
+        self.assertEqual(challenge.scheduled_for, [self.NOW])
+
+    async def test_schedule_tasks_is_idempotent(self):
+        mgr = self._tasks_manager(TasksChallenge(tasks=lambda now: [self._task('a'), self._task('b')]))
+
+        await mgr.schedule_tasks()
+        await mgr.schedule_tasks()
+
+        self.assertEqual([t.id for t in await self.conn.get_scheduled_tasks()], ['a', 'b'])
+
+    async def test_schedule_tasks_updates_a_pending_task(self):
+        await self._tasks_manager(TasksChallenge(tasks=lambda now: [self._task(text='old')])).schedule_tasks()
+
+        await self._tasks_manager(TasksChallenge(tasks=lambda now: [self._task(text='new')])).schedule_tasks()
+
+        self.assertEqual([t.payload for t in await self.conn.get_scheduled_tasks()], [{'text': 'new'}])
+
+    async def test_schedule_tasks_does_not_touch_a_task_which_already_ran(self):
+        await self._tasks_manager(TasksChallenge(tasks=lambda now: [self._task(text='old')])).schedule_tasks()
+        await self.conn.update_scheduled_task_status('a', ScheduledTaskStatus.DONE)
+
+        await self._tasks_manager(TasksChallenge(tasks=lambda now: [self._task(text='new')])).schedule_tasks()
+
+        task = (await self.conn.get_scheduled_tasks())[0]
+        self.assertEqual((task.payload, task.status), ({'text': 'old'}, ScheduledTaskStatus.DONE))
+
+    async def test_schedule_tasks_skips_expired_challenge(self):
+        challenge = TasksChallenge(tasks=lambda now: [self._task()], expires_at=self.NOW)
+
+        await self._tasks_manager(challenge).schedule_tasks()
+
+        self.assertEqual(challenge.scheduled_for, [])  # not even asked
+        self.assertEqual(await self.conn.get_scheduled_tasks(), [])
+
+    async def test_schedule_tasks_asks_challenge_which_is_not_expired_yet(self):
+        challenge = TasksChallenge(expires_at=self.NOW + timedelta(seconds=1))
+
+        await self._tasks_manager(challenge).schedule_tasks()
+
+        self.assertEqual(challenge.scheduled_for, [self.NOW])
+
+    async def test_schedule_tasks_failing_challenge_does_not_stop_the_others(self):
+        def fail(now):
+            raise RuntimeError('boom')
+
+        good = TasksChallenge('good', tasks=lambda now: [self._task()])
+        mgr = self._tasks_manager(TasksChallenge('bad', tasks=fail), good)
+
+        with self.assertLogs(LOGGER, level='ERROR'):
+            await mgr.schedule_tasks()
+
+        self.assertEqual([t.id for t in await self.conn.get_scheduled_tasks()], ['a'])
 
     # reconciliation
     async def test_reconciliation_awards_completed_challenges(self):

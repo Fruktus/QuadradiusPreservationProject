@@ -1568,6 +1568,33 @@ class DbConnector:
             )
             return bool(c.rowcount)
 
+    async def upsert_scheduled_task(self, task_id: str, handler: str, run_at: datetime,
+                                    payload: dict | None = None) -> bool:
+        """
+        Creates the task, or overwrites handler, payload and time of the existing one while it is still pending.
+        A task which already started (running, done or failed) will not be modified to avoid accidental rescheduling.
+
+        Returns:
+            bool: True if the task was created or updated, False if it exists and is no longer pending
+        """
+        async with self._transaction("w") as c:
+            await c.execute(
+                "insert into scheduled_tasks (id, handler, payload, run_at, status, created_at)"
+                " values (?, ?, ?, ?, ?, ?)"
+                " on conflict (id) do update set"
+                " handler = excluded.handler, payload = excluded.payload, run_at = excluded.run_at"
+                " where scheduled_tasks.status = ?", (
+                    task_id,
+                    handler,
+                    json.dumps(payload) if payload is not None else None,
+                    int(run_at.timestamp()),
+                    ScheduledTaskStatus.PENDING.value,
+                    int(datetime.now(timezone.utc).timestamp()),
+                    ScheduledTaskStatus.PENDING.value,
+                )
+            )
+            return bool(c.rowcount)
+
     async def update_scheduled_task_status(self, task_id: str, status: ScheduledTaskStatus,
                                            error: str | None = None) -> None:
         """

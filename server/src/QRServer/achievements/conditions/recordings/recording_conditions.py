@@ -1,9 +1,9 @@
-from collections.abc import Hashable
+from collections.abc import Hashable, Iterable
 from abc import abstractmethod
 from typing import Generic
 
 from QRServer.achievements.conditions.recordings.base import MessageType, BaseRecordingCondition
-from QRServer.common.messages import Message, UsePowerMessage
+from QRServer.common.messages import GetPowerSquareMessage, Message, RemovePlayerMessage, UsePowerMessage
 
 
 class CounterCondition(BaseRecordingCondition, Generic[MessageType]):
@@ -56,16 +56,22 @@ class UniqueCounterCondition(CounterCondition[MessageType]):
 
 
 class PowerUseCountCondition(CounterCondition[UsePowerMessage]):
-    """Counts how many times a specified powerup was used."""
+    """Counts how many times the specified power(s) were used. Every use counts, not only unique ones.
+    `power` is one power name, a collection of them (any of them counts) or None (any power counts)."""
     message_type = UsePowerMessage
 
-    def __init__(self, power: str | None = None,
+    def __init__(self, power: str | Iterable[str] | None = None,
                  min_count: int | None = None, max_count: int | None = None) -> None:
         super().__init__(min_count, max_count)
-        self.power = power
+        if power is None:
+            self.powers: frozenset[str] | None = None
+        elif isinstance(power, str):
+            self.powers = frozenset((power,))
+        else:
+            self.powers = frozenset(power)
 
     def counts(self, message: UsePowerMessage) -> bool:
-        return self.power is None or message.get_power_name() == self.power
+        return self.powers is None or message.get_power_name() in self.powers
 
 
 class UniquePowersUsedCondition(UniqueCounterCondition[UsePowerMessage]):
@@ -74,3 +80,34 @@ class UniquePowersUsedCondition(UniqueCounterCondition[UsePowerMessage]):
 
     def key(self, message: UsePowerMessage) -> Hashable:
         return message.get_power_name()
+
+
+class OrbPickupCountCondition(CounterCondition[GetPowerSquareMessage]):
+    """Counts the orbs (power squares) picked up by the user."""
+    message_type = GetPowerSquareMessage
+
+
+class PiecesDestroyedCountCondition(CounterCondition[RemovePlayerMessage]):
+    """Counts the pieces removed by the user's actions, including their own (the game does not tell them apart).
+    Removals with piece -1 are skipped: Kamikaze sends them next to the real ones."""
+    message_type = RemovePlayerMessage
+
+    def counts(self, message: RemovePlayerMessage) -> bool:
+        return message.get_piece() >= 0
+
+
+class RemovalBurstCondition(CounterCondition[RemovePlayerMessage]):
+    """Counts the most pieces removed in a row, with no other action of the user in between (what an area power does).
+    Removals with piece -1 (Kamikaze) neither count nor interrupt the row."""
+    message_type = RemovePlayerMessage
+
+    def __init__(self, min_count: int | None = None, max_count: int | None = None) -> None:
+        super().__init__(min_count, max_count)
+        self._streak = 0
+
+    def feed(self, message: Message) -> None:
+        if not isinstance(message, RemovePlayerMessage):
+            self._streak = 0
+        elif message.get_piece() >= 0:
+            self._streak += 1
+            self.count = max(self.count, self._streak)

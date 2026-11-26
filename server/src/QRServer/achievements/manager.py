@@ -42,6 +42,7 @@ class AchievementsManager:
 
     async def dispatch(self, report: DbMatchReport, recording: list[DbRecordedMessage]) -> None:
         try:
+            # FIXME remove for future challenges to allow them to use these as well
             if report.is_void or not report.is_ranked:
                 return
 

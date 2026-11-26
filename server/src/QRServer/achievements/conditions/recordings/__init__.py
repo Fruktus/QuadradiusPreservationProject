@@ -1,6 +1,9 @@
 from QRServer.achievements.conditions.recordings.base import BaseRecordingCondition
 from QRServer.achievements.conditions.recordings.recording_conditions import (
     CounterCondition,
+    OrbPickupCountCondition,
+    RemovalBurstCondition,
+    PiecesDestroyedCountCondition,
     UniquePowersUsedCondition,
     UniqueCounterCondition,
     PowerUseCountCondition,
@@ -9,5 +12,6 @@ from QRServer.achievements.conditions.recordings.recording_conditions import (
 
 __all__ = [
     'BaseRecordingCondition', 'CounterCondition', 'UniqueCounterCondition', 'PowerUseCountCondition',
-    'UniquePowersUsedCondition',
+    'UniquePowersUsedCondition', 'OrbPickupCountCondition',
+    'RemovalBurstCondition', 'PiecesDestroyedCountCondition',
 ]
